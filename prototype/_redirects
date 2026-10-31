@@ -1,0 +1,2 @@
+/hpc /students/ 301
+/hpc/* /students/:splat 301

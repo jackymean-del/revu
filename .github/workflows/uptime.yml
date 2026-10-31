@@ -1,0 +1,48 @@
+name: Uptime check
+
+# Every 30 minutes by day (hourly overnight): is the site up, does the app
+# load, and do the server and its database answer? A failed run emails the
+# repository owner, so you hear about an outage before a school does. Each
+# check retries before failing, so one slow answer does not wake anyone.
+#
+# The app and server checks switch on when the repository variables
+# REVU_APP_URL and REVU_API_URL are set (after the first deploy).
+
+on:
+  schedule:
+    - cron: "*/30 0-17 * * *"
+    - cron: "0 18-23 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check every part of revU
+        env:
+          APP_URL: ${{ vars.REVU_APP_URL }}
+          API_URL: ${{ vars.REVU_API_URL }}
+        run: |
+          fail=0
+          check() { # name, url, text that must be in the answer
+            for attempt in 1 2 3; do
+              body="$(curl -s --max-time 20 -w '\n%{http_code}' "$2")" || body=""
+              code="${body##*$'\n'}"
+              if [ "$code" = "200" ] && printf '%s' "$body" | grep -q "$3"; then
+                echo "OK    $1"
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::error::DOWN  $1 ($2 answered ${code:-nothing})"
+            fail=1
+          }
+          check "Site" https://revu.bhusku.com/ "What would you like to"
+          if [ -n "$APP_URL" ]; then check "App" "$APP_URL" 'id="root"'; else echo "SKIP  App (REVU_APP_URL not set)"; fi
+          if [ -n "$API_URL" ]; then check "Server and database" "$API_URL/api/health" '"database":true'; else echo "SKIP  Server (REVU_API_URL not set)"; fi
+          exit $fail

@@ -1,0 +1,40 @@
+openapi: 3.1.0
+info:
+  title: revU API
+  version: 0.1.0
+  description: >
+    The revU server API. This file is the source of truth: change it first,
+    then regenerate the TypeScript types (npm run gen:api in frontend/) and
+    the Go types. Never hand-edit generated code.
+servers:
+  - url: https://api.revu.bhusku.com
+  - url: http://localhost:8080
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Is the server up, and does its database answer?
+      tags: [system]
+      responses:
+        "200":
+          description: The server is up. The body says whether the database answers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+components:
+  schemas:
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, database, version]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        database:
+          type: boolean
+          description: True when PostgreSQL answered a ping within 2 seconds.
+        version:
+          type: string
+          description: The deployed build, or "dev" locally.

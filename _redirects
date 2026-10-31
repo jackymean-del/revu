@@ -1,2 +1,7 @@
 /hpc /students/ 301
 /hpc/* /students/:splat 301
+/staff /staff/ 301
+/students /students/ 301
+/ /prototype/ 200
+/staff/* /prototype/staff/:splat 200
+/students/* /prototype/students/:splat 200

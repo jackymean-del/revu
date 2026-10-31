@@ -1,0 +1,115 @@
+name: Nightly checks
+
+# Every night after the backup, if anything was pushed in the last day: every
+# check this codebase has, the way they are run by hand before a push, plus
+# the browser journey (e2e/), on a clean machine. A failure emails the
+# repository owner, and the run's summary page says which check failed.
+#
+#   frontend   type check, lint (0 warnings), every *-verify harness, build,
+#              bundle budget
+#   backend    go vet, go test against a real PostgreSQL 18 built from
+#              database/migrations
+#   marketing  type check, lint, build (once marketing/ exists, task v6.10)
+#   journey    a real browser opens the app (e2e/tests/journey.spec.ts)
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # 02:30 India time, after the 02:00 backup
+  workflow_dispatch: {}
+
+concurrency:
+  group: nightly-checks
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Anything new since yesterday?
+        id: fresh
+        run: |
+          last=$(git log -1 --format=%ct)
+          age=$(( $(date +%s) - last ))
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$age" -gt 90000 ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No commits in the last day; nothing new to check." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v5
+        if: steps.fresh.outputs.run == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+
+      - uses: actions/setup-go@v6
+        if: steps.fresh.outputs.run == 'true'
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Frontend
+        if: steps.fresh.outputs.run == 'true'
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc -b
+          npx eslint src --max-warnings 0
+          failed=""
+          for f in *-verify.mts; do
+            [ "$f" = "bundle-verify.mts" ] && continue
+            if npx tsx "$f" > "log-$f.txt" 2>&1; then echo "ok    $f"; else echo "FAIL  $f"; tail -n 25 "log-$f.txt"; failed="$failed $f"; fi
+          done
+          if [ -n "$failed" ]; then echo "::error::Harnesses failed:$failed"; exit 1; fi
+          npx vite build
+          npx tsx bundle-verify.mts
+
+      - name: Backend
+        if: steps.fresh.outputs.run == 'true'
+        run: |
+          docker run -d --name pg -e POSTGRES_DB=revu -e POSTGRES_USER=revu -e POSTGRES_PASSWORD=secret \
+            -p 5432:5432 -v "$PWD/database/migrations:/docker-entrypoint-initdb.d:ro" postgres:18 >/dev/null
+          for i in $(seq 1 90); do
+            [ "$(docker logs pg 2>&1 | grep -c 'ready to accept connections')" -ge 2 ] && break
+            sleep 2
+          done
+          cd backend
+          go vet ./...
+          TEST_DATABASE_URL="postgresql://revu:secret@localhost:5432/revu?sslmode=disable" go test ./... -count=1 -p 1
+
+      - name: Marketing site
+        if: steps.fresh.outputs.run == 'true' && hashFiles('marketing/package.json') != ''
+        working-directory: marketing
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit -p .
+          npx eslint .
+          npm run build
+
+      - name: Browser journey
+        if: steps.fresh.outputs.run == 'true'
+        working-directory: e2e
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npm test
+
+      - name: Keep the journey's report when it fails
+        if: failure() && steps.fresh.outputs.run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: journey-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
+          if-no-files-found: ignore

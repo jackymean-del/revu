@@ -417,7 +417,7 @@ const DEFAULT_SEED_DATA = {
     templates: [
         {
             id: "tmpl-teaching-appraisal",
-            name: "Form 1 — Teaching Staff Performance Appraisal",
+            name: "Form 1 - Teaching Staff Performance Appraisal",
             description: "For all classroom teachers, subject teachers and tutors.",
             category: "teaching",
             version: 1,
@@ -425,14 +425,14 @@ const DEFAULT_SEED_DATA = {
             sections: [
                 {
                     id: "sec-ta-1",
-                    title: "SECTION A — CORE VALUES",
+                    title: "SECTION A - CORE VALUES",
                     weight: 1.00,
                     sort_order: 1,
                     items: makeCoreValuesItems("ta")
                 },
                 {
                     id: "sec-ta-2",
-                    title: "SECTION B — TEACHING COMPETENCIES",
+                    title: "SECTION B - TEACHING COMPETENCIES",
                     weight: 1.00,
                     sort_order: 2,
                     items: makeTeachingCompetencies("ta")
@@ -441,7 +441,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-activities-appraisal",
-            name: "Form 2 — Activity / CCA Teacher Performance Appraisal",
+            name: "Form 2 - Activity / CCA Teacher Performance Appraisal",
             description: "For Sports, Arts, Music, Dance, Drama, Library, Labs and Co-Curricular Activity Teachers.",
             category: "support",
             version: 1,
@@ -449,14 +449,14 @@ const DEFAULT_SEED_DATA = {
             sections: [
                 {
                     id: "sec-act-1",
-                    title: "SECTION A — CORE VALUES",
+                    title: "SECTION A - CORE VALUES",
                     weight: 1.00,
                     sort_order: 1,
                     items: makeCoreValuesItems("act")
                 },
                 {
                     id: "sec-act-2",
-                    title: "SECTION B — ACTIVITY TEACHING COMPETENCIES",
+                    title: "SECTION B - ACTIVITY TEACHING COMPETENCIES",
                     weight: 1.00,
                     sort_order: 2,
                     items: makeActivityCompetencies("act")
@@ -465,7 +465,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-office-appraisal",
-            name: "Form 3 — Administrative / Office Staff Performance Appraisal",
+            name: "Form 3 - Administrative / Office Staff Performance Appraisal",
             description: "For Administrative Officers, Receptionists, Office Assistants and Support Staff.",
             category: "administrative",
             version: 1,
@@ -473,14 +473,14 @@ const DEFAULT_SEED_DATA = {
             sections: [
                 {
                     id: "sec-off-1",
-                    title: "SECTION A — CORE VALUES",
+                    title: "SECTION A - CORE VALUES",
                     weight: 1.00,
                     sort_order: 1,
                     items: makeCoreValuesItems("off")
                 },
                 {
                     id: "sec-off-2",
-                    title: "SECTION B — ADMINISTRATIVE COMPETENCIES",
+                    title: "SECTION B - ADMINISTRATIVE COMPETENCIES",
                     weight: 1.00,
                     sort_order: 2,
                     items: makeAdministrativeCompetencies("off")
@@ -489,7 +489,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-accounts-appraisal",
-            name: "Form 4 — Finance / Accounts Staff Performance Appraisal",
+            name: "Form 4 - Finance / Accounts Staff Performance Appraisal",
             description: "For Accountants, Finance Officers and Accounts Assistants.",
             category: "administrative",
             version: 1,
@@ -497,14 +497,14 @@ const DEFAULT_SEED_DATA = {
             sections: [
                 {
                     id: "sec-acc-1",
-                    title: "SECTION A — CORE VALUES",
+                    title: "SECTION A - CORE VALUES",
                     weight: 1.00,
                     sort_order: 1,
                     items: makeCoreValuesItems("acc")
                 },
                 {
                     id: "sec-acc-2",
-                    title: "SECTION B — FINANCE & ACCOUNTS COMPETENCIES",
+                    title: "SECTION B - FINANCE & ACCOUNTS COMPETENCIES",
                     weight: 1.00,
                     sort_order: 2,
                     items: makeFinanceCompetencies("acc")
@@ -513,7 +513,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-pro-appraisal",
-            name: "Form 5 — Communications / Public Relations Staff Performance Appraisal",
+            name: "Form 5 - Communications / Public Relations Staff Performance Appraisal",
             description: "For PRO Officers, Marketing Staff, Communications Coordinators and Media Managers.",
             category: "administrative",
             version: 1,
@@ -521,14 +521,14 @@ const DEFAULT_SEED_DATA = {
             sections: [
                 {
                     id: "sec-pro-1",
-                    title: "SECTION A — CORE VALUES",
+                    title: "SECTION A - CORE VALUES",
                     weight: 1.00,
                     sort_order: 1,
                     items: makeCoreValuesItems("pro")
                 },
                 {
                     id: "sec-pro-2",
-                    title: "SECTION B — COMMUNICATIONS & PR COMPETENCIES",
+                    title: "SECTION B - COMMUNICATIONS & PR COMPETENCIES",
                     weight: 1.00,
                     sort_order: 2,
                     items: makeCommunicationsCompetencies("pro")
@@ -537,7 +537,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-nursery-grade-v",
-            name: "Form 6 — Classroom Observation Report (Junior)",
+            name: "Form 6 - Classroom Observation Report (Junior)",
             description: "Nursery / Pre-Primary to Grade 5 (or equivalent).",
             category: "academic",
             version: 1,
@@ -627,7 +627,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-grade-vi-ix",
-            name: "Form 7 — Classroom Observation Report (Middle)",
+            name: "Form 7 - Classroom Observation Report (Middle)",
             description: "Grade 6 to Grade 10 (or equivalent).",
             category: "academic",
             version: 1,
@@ -699,7 +699,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-grade-xi-xii",
-            name: "Form 8 — Classroom Observation Report (Senior)",
+            name: "Form 8 - Classroom Observation Report (Senior)",
             description: "Grade 11 & 12 / A-Level / Year 12–13 / Pre-University (or equivalent). Features stream-specific criteria.",
             category: "academic",
             version: 1,
@@ -833,7 +833,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-daily-admin",
-            name: "Form 9 — Daily Administrative Operations Observation Checklist",
+            name: "Form 9 - Daily Administrative Operations Observation Checklist",
             description: "Daily administrative audit, workspace compliance, and service excellence checklist.",
             category: "academic_daily",
             version: 1,
@@ -864,7 +864,7 @@ const DEFAULT_SEED_DATA = {
         },
         {
             id: "tmpl-daily-support",
-            name: "Form 10 — Daily Facility & Operations Checklist (Support Staff)",
+            name: "Form 10 - Daily Facility & Operations Checklist (Support Staff)",
             description: "Daily operations checks, cleanliness audits, and facility safety checks.",
             category: "academic_daily",
             version: 1,
@@ -8487,7 +8487,7 @@ function drawScoreDistributionChart(ledgerList) {
             const x = 40 + (i * spacing) + (spacing - barWidth) / 2;
             const y = 145 - barHeight;
             
-            const cleanTitle = item.title.replace("SECTION A — ", "").replace("SECTION B — ", "").replace("SECTION C — ", "").replace("SECTION D — ", "");
+            const cleanTitle = item.title.replace("SECTION A - ", "").replace("SECTION B - ", "").replace("SECTION C - ", "").replace("SECTION D - ", "");
             const displayTitle = cleanTitle.length > 20 ? cleanTitle.substring(0, 17) + "..." : cleanTitle;
             
             svgContent += `
@@ -9350,7 +9350,7 @@ function renderDirectivesPane() {
             const str = analysis[0];
             const wk = analysis.length > 1 ? analysis[analysis.length - 1] : null;
             
-            let strengthTitle = str.title.replace("SECTION A — ", "").replace("SECTION B — ", "");
+            let strengthTitle = str.title.replace("SECTION A - ", "").replace("SECTION B - ", "");
             let strengthPct = str.avg.toFixed(0);
             
             let html = `
@@ -9363,7 +9363,7 @@ function renderDirectivesPane() {
             `;
             
             if (wk && wk.title !== str.title) {
-                let weaknessTitle = wk.title.replace("SECTION A — ", "").replace("SECTION B — ", "");
+                let weaknessTitle = wk.title.replace("SECTION A - ", "").replace("SECTION B - ", "");
                 let weaknessPct = wk.avg.toFixed(0);
                 html += `
                     <div style="flex:1; min-width:140px; padding:10px; border-radius:8px; border-left:4px solid var(--color-danger); background:rgba(239, 68, 68, 0.04); display:flex; flex-direction:column; gap:4px;">

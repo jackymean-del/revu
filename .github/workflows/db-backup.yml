@@ -1,0 +1,72 @@
+name: Database backup
+
+# Every night at 02:00 India time: dump the production database, encrypt the
+# dump, prove it restores into a clean PostgreSQL 18, and keep 30 days of
+# copies as workflow artifacts. See docs/RESTORE.md for the restore drill.
+#
+# Needs repository secrets REVU_DATABASE_URL and BACKUP_PASSPHRASE. Until both
+# exist (before the first production deploy) the run says so and stops green.
+
+on:
+  schedule:
+    - cron: "30 20 * * *" # 02:00 India time
+  workflow_dispatch: {}
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Secrets present?
+        id: ready
+        env:
+          DB: ${{ secrets.REVU_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$PASS" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Backup skipped: REVU_DATABASE_URL and BACKUP_PASSPHRASE are not set yet." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dump
+        if: steps.ready.outputs.run == 'true'
+        env:
+          DB: ${{ secrets.REVU_DATABASE_URL }}
+        run: |
+          docker run --rm -e DB="$DB" -v "$PWD:/out" postgres:18 \
+            sh -c 'pg_dump --format=custom --no-owner --dbname="$DB" --file=/out/revu.dump'
+          ls -l revu.dump
+
+      - name: Prove it restores into a clean PostgreSQL 18
+        if: steps.ready.outputs.run == 'true'
+        run: |
+          docker run -d --name restore -e POSTGRES_PASSWORD=check -p 55432:5432 postgres:18 >/dev/null
+          for i in $(seq 1 60); do docker exec restore pg_isready -U postgres >/dev/null 2>&1 && break; sleep 2; done
+          docker exec restore createdb -U postgres revu
+          docker run --rm --network host -v "$PWD:/in" -e PGPASSWORD=check postgres:18 \
+            pg_restore --no-owner --exit-on-error -h localhost -p 55432 -U postgres -d revu /in/revu.dump
+          tables=$(docker exec restore psql -U postgres -d revu -tAc "select count(*) from information_schema.tables where table_schema='public'")
+          echo "Restored $tables tables." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Encrypt
+        if: steps.ready.outputs.run == 'true'
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in revu.dump -out revu.dump.enc -pass env:BACKUP_PASSPHRASE
+          rm revu.dump
+
+      - name: Keep for 30 days
+        if: steps.ready.outputs.run == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: revu-db-backup-${{ github.run_id }}
+          path: revu.dump.enc
+          retention-days: 30
+          if-no-files-found: error

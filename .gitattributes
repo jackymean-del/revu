@@ -1,0 +1,7 @@
+# Keep LF in the repository so the Makefile, shell steps and Go files behave
+# the same on Windows clones and the Linux CI.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.docx binary

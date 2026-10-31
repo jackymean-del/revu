@@ -2,8 +2,31 @@
 Formats/
 scratch/
 
+# The blueprint stays out of the public repo until it is made private
+docs/blueprint/
+
 # Local tooling
 .claude/
-node_modules/
 .DS_Store
 Thumbs.db
+
+# Builds and dependencies
+node_modules/
+dist/
+dist-ssr/
+.next/
+out/
+coverage/
+test-results/
+playwright-report/
+*.tsbuildinfo
+log-*.txt
+
+# Go
+backend/bin/
+backend/*.exe
+
+# Secrets
+.env
+.env.*
+!.env.example

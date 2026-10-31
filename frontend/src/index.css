@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* bhusku family tokens (same values as schedU). Lavender is for things you
+   touch, gold only for the knob, ink for text. See design/README.md. */
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --color-ink: #13111e;
+  --color-brand: #685dbc;
+  --color-brand-600: #6358c4;
+  --color-brand-700: #4b41c4;
+  --color-mist: #ede9ff;
+  --color-canvas: #f5f3ff;
+  --color-line: #eceafb;
+  --color-gold: #d4920e;
+  --color-paper: #faf9f5;
+  --color-muted: #4b5275;
+  --color-subtle: #6b7079;
+}
+
+body {
+  @apply bg-canvas text-ink font-sans antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(124 111 224 / 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
