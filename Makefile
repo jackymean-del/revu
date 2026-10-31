@@ -16,7 +16,7 @@ logs:      ## Tail logs for all services
 ps:        ## Show running services
 	docker compose ps
 
-reset:     ## Stop AND wipe the database volume (re-runs all migrations on next up)
+reset:     ## Stop AND wipe the database volume (migrations re-run on next up)
 	docker compose down -v
 
 migrate:   ## Apply all SQL migrations to a running db (for existing volumes)

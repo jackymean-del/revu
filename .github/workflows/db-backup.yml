@@ -49,10 +49,14 @@ jobs:
           docker run -d --name restore -e POSTGRES_PASSWORD=check -p 55432:5432 postgres:18 >/dev/null
           for i in $(seq 1 60); do docker exec restore pg_isready -U postgres >/dev/null 2>&1 && break; sleep 2; done
           docker exec restore createdb -U postgres revu
+          # the dump grants to the application role; it must exist first
+          docker exec restore psql -U postgres -qc "CREATE ROLE revu_app NOLOGIN NOBYPASSRLS"
           docker run --rm --network host -v "$PWD:/in" -e PGPASSWORD=check postgres:18 \
             pg_restore --no-owner --exit-on-error -h localhost -p 55432 -U postgres -d revu /in/revu.dump
           tables=$(docker exec restore psql -U postgres -d revu -tAc "select count(*) from information_schema.tables where table_schema='public'")
-          echo "Restored $tables tables." >> "$GITHUB_STEP_SUMMARY"
+          fenced=$(docker exec restore psql -U postgres -d revu -tAc "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relrowsecurity")
+          echo "Restored $tables tables, $fenced with row-level security." >> "$GITHUB_STEP_SUMMARY"
+          [ "$fenced" -gt 0 ] || { echo "::error::row-level security did not survive the restore"; exit 1; }
 
       - name: Encrypt
         if: steps.ready.outputs.run == 'true'

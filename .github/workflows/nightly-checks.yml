@@ -7,8 +7,8 @@ name: Nightly checks
 #
 #   frontend   type check, lint (0 warnings), every *-verify harness, build,
 #              bundle budget
-#   backend    go vet, go test against a real PostgreSQL 18 built from
-#              database/migrations
+#   backend    go vet, go test against a real PostgreSQL 18; the tests build
+#              it from database/migrations as the owner, then test as revu_app
 #   marketing  type check, lint, build (once marketing/ exists, task v6.10)
 #   journey    a real browser opens the app (e2e/tests/journey.spec.ts)
 
@@ -78,7 +78,7 @@ jobs:
         if: steps.fresh.outputs.run == 'true'
         run: |
           docker run -d --name pg -e POSTGRES_DB=revu -e POSTGRES_USER=revu -e POSTGRES_PASSWORD=secret \
-            -p 5432:5432 -v "$PWD/database/migrations:/docker-entrypoint-initdb.d:ro" postgres:18 >/dev/null
+            -p 5432:5432 postgres:18 >/dev/null
           for i in $(seq 1 90); do
             [ "$(docker logs pg 2>&1 | grep -c 'ready to accept connections')" -ge 2 ] && break
             sleep 2

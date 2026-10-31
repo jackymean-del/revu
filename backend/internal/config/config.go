@@ -11,7 +11,10 @@ import (
 
 type Config struct {
 	Port           int
-	DatabaseURL    string // empty only in local runs without a database
+	DatabaseURL    string // as revu_app; empty only in local runs without a database
+	MigrateURL     string // as the owner role; when set, migrations run at start
+	AppDBPassword  string // set as revu_app's password at start, with MigrateURL
+	MigrationsDir  string
 	AllowedOrigins []string
 	Version        string
 	Production     bool
@@ -20,9 +23,15 @@ type Config struct {
 // Load reads the environment through getenv (os.Getenv in production, a map in tests).
 func Load(getenv func(string) string) (Config, error) {
 	c := Config{
-		DatabaseURL: strings.TrimSpace(getenv("DATABASE_URL")),
-		Version:     strings.TrimSpace(getenv("APP_VERSION")),
-		Production:  getenv("APP_ENV") == "production",
+		DatabaseURL:   strings.TrimSpace(getenv("DATABASE_URL")),
+		MigrateURL:    strings.TrimSpace(getenv("MIGRATE_DATABASE_URL")),
+		AppDBPassword: getenv("APP_DB_PASSWORD"),
+		MigrationsDir: strings.TrimSpace(getenv("MIGRATIONS_DIR")),
+		Version:       strings.TrimSpace(getenv("APP_VERSION")),
+		Production:    getenv("APP_ENV") == "production",
+	}
+	if c.MigrationsDir == "" {
+		c.MigrationsDir = "../database/migrations" // go run from backend/
 	}
 	if c.Version == "" {
 		c.Version = "dev"
@@ -49,6 +58,12 @@ func Load(getenv func(string) string) (Config, error) {
 
 	if c.Production && c.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required when APP_ENV=production")
+	}
+	if c.MigrateURL != "" && c.MigrateURL == c.DatabaseURL {
+		return Config{}, fmt.Errorf("DATABASE_URL must connect as revu_app, not as the owner in MIGRATE_DATABASE_URL")
+	}
+	if c.MigrateURL != "" && len(c.AppDBPassword) < 12 {
+		return Config{}, fmt.Errorf("APP_DB_PASSWORD must be at least 12 characters when MIGRATE_DATABASE_URL is set")
 	}
 	return c, nil
 }

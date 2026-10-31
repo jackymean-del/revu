@@ -102,6 +102,9 @@ A rule nothing checks comes back.
 
 ## Local development
 
-- `make up` (or `docker compose up --build -d`) starts PostgreSQL 18, MinIO, Gotenberg and the server on :8080.
+- `make up` (or `docker compose up --build -d`) starts PostgreSQL 18, MinIO, Gotenberg and the server on :8080. The server applies database/migrations at start.
+- Two database roles: MIGRATE_DATABASE_URL connects as the owner and runs migrations; DATABASE_URL connects as revu_app (no owner, no BYPASSRLS), whose password the server sets from APP_DB_PASSWORD. In production the server refuses to start if DATABASE_URL could bypass row-level security.
+- New tenant tables: give them org_id, reference parents by (org_id, parent_id), and register them with `SELECT revu_tenant_table('name');` in the migration. internal/db/rls_test.go fails on a table that is not fenced, and asks for seed rows in internal/db/dbtest so the table is proven.
+- Backend tests that need the database: TEST_DATABASE_URL (owner) builds it from database/migrations and tests as revu_app.
 - `cd frontend && npm install && npm run dev` starts the app on :5173, proxying /api to :8080.
 - Windows without make: run the docker compose commands in the Makefile directly.

@@ -27,6 +27,19 @@ func TestLoad(t *testing.T) {
 				t.Fatal("expected production")
 			}
 		}},
+		{name: "migrations dir defaults to the repo folder", env: map[string]string{}, check: func(t *testing.T, c Config) {
+			if c.MigrationsDir != "../database/migrations" {
+				t.Fatalf("dir %q", c.MigrationsDir)
+			}
+		}},
+		{name: "app and owner must differ", env: map[string]string{"DATABASE_URL": "postgres://o", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "long-enough-pw"}, wantErr: true},
+		{name: "migrating needs an app password", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o"}, wantErr: true},
+		{name: "a short app password is refused", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "short"}, wantErr: true},
+		{name: "owner and app roles", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "long-enough-pw"}, check: func(t *testing.T, c Config) {
+			if c.MigrateURL != "postgres://o" || c.AppDBPassword != "long-enough-pw" {
+				t.Fatalf("%+v", c)
+			}
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

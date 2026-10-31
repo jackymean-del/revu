@@ -1,13 +1,17 @@
 # revU - local stack: PostgreSQL 18, MinIO (stand-in for Cloudflare R2), Gotenberg (PDF), the API.
+# The API applies database/migrations at start.
 # The app itself runs with `npm run dev` in frontend/ and proxies /api to the API.
 
 services:
   api:
-    build: ./backend
+    build: { context: ., dockerfile: backend/Dockerfile }
     ports: ['8080:8080']
     environment:
       PORT: "8080"
-      DATABASE_URL: "postgresql://revu:secret@db:5432/revu?sslmode=disable"
+      # The server migrates as the owner, then serves as revu_app, which row-level security applies to.
+      MIGRATE_DATABASE_URL: "postgresql://revu:secret@db:5432/revu?sslmode=disable"
+      APP_DB_PASSWORD: "revu-app-local"
+      DATABASE_URL: "postgresql://revu_app:revu-app-local@db:5432/revu?sslmode=disable"
       ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:4173"
       APP_VERSION: "dev"
     depends_on:
@@ -23,8 +27,6 @@ services:
     volumes:
       # Postgres 18 keeps its data one level down from earlier versions.
       - postgres_data:/var/lib/postgresql
-      # Applied in name order on the first start of an empty volume.
-      - ./database/migrations:/docker-entrypoint-initdb.d:ro
     ports: ['5432:5432']
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U revu -d revu"]
