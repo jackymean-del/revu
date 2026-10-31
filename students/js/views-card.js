@@ -48,7 +48,8 @@
         const peerNotes = Object.values(h.peerBy || {}).map((r) => (r[sid] || {}).note).filter(Boolean);
         const pn = (db.parentNotes[term] || {})[sid];
         const voices = [];
-        const me = [prof.aboutMe, prof.ambition ? `When I grow up: ${prof.ambition}.` : "", (prof.goals || []).length ? `My goals: ${prof.goals.join("; ")}.` : ""].filter(Boolean);
+        const sentence = (t) => (t ? String(t).trim().replace(/([^.!?])$/, "$1.") : "");
+        const me = [sentence(prof.aboutMe), prof.ambition ? `When I grow up: ${prof.ambition}.` : "", (prof.goals || []).length ? `My goals: ${prof.goals.join("; ")}.` : ""].filter(Boolean);
         if (me.length) voices.push(["In my words", me.join(" ")]);
         if (peerNotes.length) voices.push(["My classmates say", peerNotes.join(" · ")]);
         if (pn && (pn.proud || pn.support)) voices.push(["At home", [pn.proud ? `Proud of: ${pn.proud}.` : "", pn.support ? `Support: ${pn.support}.` : ""].filter(Boolean).join(" ")]);
