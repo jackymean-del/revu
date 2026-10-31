@@ -485,6 +485,29 @@ body.theme-dark .alert-ok { color: var(--color-primary); }
 .face.on { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary-strong); box-shadow: 0 0 0 2px var(--color-primary-glow); }
 body.theme-dark .face.on { color: var(--color-primary); }
 
+/* How it works (guide) */
+.gd-flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; }
+.gd-step { flex: 1; min-width: 104px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 10px 12px; text-decoration: none; color: var(--text-primary); display: flex; flex-direction: column; gap: 1px; }
+.gd-step:hover { border-color: var(--color-primary); }
+.gd-step b { width: 22px; height: 22px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; margin-bottom: 4px; }
+.gd-step span { font-weight: 800; font-size: 13.5px; }
+.gd-step small { color: var(--text-subtle); font-size: 11.5px; }
+.gd-arrow { align-self: center; color: var(--text-subtle); font-weight: 700; }
+.gd-num { width: 28px; height: 28px; border-radius: 50%; background: #13111E; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; }
+body.theme-dark .gd-num { background: var(--text-primary); color: var(--bg-main); }
+.gd-way { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-sunken); border: 1px solid var(--border-color); }
+.gd-way span { color: var(--text-muted); font-size: 13px; }
+.gd-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.gd-skill { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.gd-why { padding: 8px 10px; border-left: 3px solid var(--color-primary); background: var(--bg-sunken); border-radius: 0 8px 8px 0; margin-bottom: 6px; }
+.gd-why.next { border-left-color: var(--color-gold); }
+.gd-downloads { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.gd-dl { display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid var(--border-color); border-radius: var(--radius-lg); background: var(--bg-card); text-decoration: none; color: var(--text-primary); text-align: left; cursor: pointer; font: inherit; }
+.gd-dl:hover { border-color: var(--color-primary); box-shadow: var(--shadow-md); }
+.gd-dl svg { width: 20px; height: 20px; color: var(--color-primary); }
+.gd-dl span { color: var(--text-subtle); font-size: 12.5px; }
+@media (max-width: 900px) { .gd-arrow { display: none; } }
+
 /* =========================================================================
    4. PROGRESS REPORT - one A4 sheet (front + back), print-first
    Always light: it is a paper document. Sizes are tuned so a typical

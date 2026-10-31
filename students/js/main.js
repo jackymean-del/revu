@@ -74,7 +74,7 @@
         const sections = [
             ["", [["home", "Home", "dashboard"]]],
             ["Assess", [["outcomes", "Outcomes", "library"], ["papers", "Papers", "builder"], ["marks", "Marks", "grader"], ["growth", "Growth", "holistic"], ["voices", "Voices", "voices"]]],
-            ["Share", [["students", "Students", "students"], ["reports", "Reports", "card"]]]
+            ["Share", [["students", "Students", "students"], ["reports", "Reports", "card"], ["guide", "How it works", "sparkle"]]]
         ];
         if (p.key === "admin") sections.push(["Admin", [["settings", "Settings", "settings"]]]);
         return sections;

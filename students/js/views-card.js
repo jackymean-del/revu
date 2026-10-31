@@ -35,40 +35,13 @@
         const detail = !!(opts && opts.detail);
         const db = Store.db; const s = Store.student(sid); const cls = Store.cls(s.classId); const st = Store.stageOf(cls); const L = Store.levelsOf(cls);
         const inst = db.institution; const prof = db.profiles[sid] || {}; const att = (db.attendance[term] || {})[sid];
-        const termExams = Store.examsOfTerm(term).map((e) => e.id);
-        const pubPapers = db.papers.filter((p) => p.classId === cls.id && termExams.includes(p.exam) && p.status === "published");
-        const order = FW.subjectsForGrade(cls.grade).map((x) => x.name);
-        const subjects = [...new Set(pubPapers.map((p) => p.hpcSubject))].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+        // One shared engine computes everything the report says (see Store.insights)
+        const ins = Store.insights(sid, term);
+        const { rows, graded, overall, ds, items, counts, strengths, nexts, stretch } = ins;
         const lom = Store.loMastery(sid, term);
-        const toPct = (v) => ((v + 1) / L.length) * 100;
-
-        // Subjects: term total + every skill area as a level chip
-        const rows = subjects.map((sub) => {
-            const tr = Store.termResult(cls.id, term, sub, sid);
-            const skills = Store.libFor(cls.grade, sub).map((c) => {
-                const vals = c.los.map((lo) => lom[lo.id]).filter(Boolean);
-                return vals.length ? { c, lvl: Math.round(Store.mean(vals.map((v) => v.lvl))), pct: Math.round(Store.mean(vals.map((v) => v.pct))) } : null;
-            }).filter(Boolean);
-            const sources = [...new Set(pubPapers.filter((p) => p.hpcSubject === sub).map((p) => p.subject))].filter((x) => x !== sub);
-            return { sub, tr, skills, sources };
-        });
         const cols = (rows[0] ? rows[0].tr.parts : []).map((p, i) => ({ i, label: p.label, short: p.short, outOf: p.outOf })).filter((c) => rows.some((r) => r.tr.parts[c.i].status !== "none"));
         const fullMax = cols.reduce((s2, c) => s2 + c.outOf, 0);
         const cell = (p) => (p.status === "ok" ? fmt(p.score) : p.status === "ab" ? "AB" : p.status === "pending" ? `<span class="pend">pending</span>` : "-");
-
-        // At a glance
-        const graded = rows.filter((r) => r.tr.pct != null);
-        const overall = graded.length ? Store.mean(graded.map((r) => r.tr.pct)) : null;
-        const ds = Store.domainScores(sid, term);
-        const items = [];
-        rows.forEach((r) => r.skills.forEach((k) => items.push({ name: k.c.title.replace(/\s*\(.*\)$/, ""), where: r.sub, score: k.pct, lvl: k.lvl, core: k.c.kind === "regular" })));
-        ds.forEach((d) => { if (d.teacher != null) items.push({ name: d.domain.name, where: "Growth", score: toPct(d.teacher), lvl: Math.round(d.teacher), core: true }); });
-        const counts = L.map(() => 0); items.forEach((it) => { counts[it.lvl]++; });
-        // Highest first; on a tie, core skills and growth areas lead extra sections
-        const sorted = items.slice().sort((a, b) => b.score - a.score || (b.core - a.core));
-        const strengths = sorted.slice(0, 3);
-        let nexts = sorted.slice().reverse().filter((it) => it.score < 75 && !strengths.includes(it)).slice(0, 3);
-        const stretch = !nexts.length && sorted.length > 3 ? sorted[sorted.length - 1] : null;
 
         // Voices - shown only when there is real input
         const h = Store.H(term);
@@ -126,11 +99,11 @@
                     <tbody>${rows.map((r) => `<tr>
                         <td class="sub">${esc(r.sub)}${r.sources.length ? `<small>${esc(r.sources.join(" + "))}</small>` : ""}</td>
                         ${cols.map((c) => `<td class="c">${cell(r.tr.parts[c.i])}</td>`).join("")}
-                        <td class="c tot">${r.tr.pct == null ? "-" : fmt(r.tr.total)}${r.tr.pct != null && r.tr.max !== fullMax ? `<small style="color:var(--rp-subtle)">/${r.tr.max}</small>` : ""}${r.tr.pct != null && !r.tr.complete ? "*" : ""}</td>
+                        <td class="c tot">${r.tr.pct == null ? "-" : fmt(r.tr.total)}${r.tr.pct != null && r.tr.markedMax !== fullMax ? `<small style="color:var(--rp-subtle)">/${r.tr.markedMax}</small>` : ""}${r.tr.pct != null && (!r.tr.complete || r.tr.absentExcluded) ? "*" : ""}</td>
                         <td class="c gr">${r.tr.grade || "-"}</td>
                         <td>${r.skills.length ? `<div class="rp-skills">${r.skills.map((k) => `<span class="rp-skill ${k.c.kind !== "regular" ? "x" : ""}" title="${esc(L[k.lvl].label)} - ${k.pct}%">${dot(L, k.lvl)}${esc(k.c.title.replace(/\s*\(.*\)$/, ""))}</span>`).join("")}</div>` : `<span class="pend">Marks only</span>`}</td>
                     </tr>`).join("")}</tbody></table></div>
-                    ${rows.some((r) => r.tr.pct != null && !r.tr.complete) ? `<div style="font-size:9.5px;color:var(--rp-subtle);margin-top:3px">* Some parts are still being marked; the total so far is graded on the parts marked.</div>` : ""}` : `<p style="color:var(--rp-subtle)">No examinations published for this term yet.</p>`}
+                    ${rows.some((r) => r.tr.pct != null && (!r.tr.complete || r.tr.absentExcluded)) ? `<div style="font-size:9.5px;color:var(--rp-subtle);margin-top:3px">* Graded on the parts ${rows.some((r) => r.tr.absentExcluded) ? "attended (AB = absent)" : "marked so far"}${rows.some((r) => r.tr.absentExcluded) && rows.some((r) => !r.tr.complete) ? "; some parts are still being marked" : ""}.</div>` : ""}` : `<p style="color:var(--rp-subtle)">No examinations published for this term yet.</p>`}
             </section>
 
             <section class="rp-sec rp-two">
@@ -224,7 +197,8 @@
         <div class="view-header"><div><h2>Reports</h2><span class="subtitle">Draft every remark from the data in one click, review, then publish the whole class. Cards fill themselves from papers, ratings and voices.</span></div>
         <div class="actions"><button class="btn btn-soft" id="bulk-draft" ${noRemark ? "" : "disabled"}>${icon("sparkle")}Auto-draft ${noRemark} remark${noRemark === 1 ? "" : "s"}</button>
             <button class="btn btn-primary" id="bulk-pub" ${ready ? "" : "disabled"}>${icon("send")}Publish ${ready} ready</button>
-            <button class="btn" id="bulk-print" ${published.length ? "" : "disabled"}>${icon("print")}Print ${published.length} published</button></div></div>
+            <button class="btn" id="bulk-print" ${published.length ? "" : "disabled"}>${icon("print")}Print ${published.length} published</button>
+            <button class="btn" id="bulk-xlsx">${icon("download")}Class results (Excel)</button></div></div>
         <div class="toolbar">${App.classSelect()}${App.termSelect()}<div class="spacer"></div><label class="check"><input type="checkbox" id="bulk-detail" ${App.ctx.reportDetail ? "checked" : ""}> Include outcome detail when printing</label><span class="small muted">Compact report: one A4 sheet, front and back</span></div>
         <div class="table-wrap"><table class="table">
             <thead><tr><th>Roll</th><th>Student</th><th>Marks</th><th>Growth</th><th>Self</th><th>Parent</th><th>Remark</th><th>Status</th><th></th></tr></thead>
@@ -240,6 +214,7 @@
         <div id="print-area" class="hidden"></div>`;
         App.bindCtx(root);
         $("#bulk-detail", root).addEventListener("change", (e) => App.setCtx({ reportDetail: e.target.checked }));
+        $("#bulk-xlsx", root).addEventListener("click", () => V.exportClassResults(cls.id, term).catch((err) => toast(err.message, "err")));
         $("#bulk-draft", root).addEventListener("click", () => {
             let n = 0; rs.forEach(({ s, r }) => { if (!r.remark || !r.remark.text) { remarks[s.id] = { text: Store.draftRemark(s.id, term), status: "draft" }; n++; } });
             Store.save(); toast(`${n} remark${n === 1 ? "" : "s"} drafted - review before publishing`); V.reports(root);

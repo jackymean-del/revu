@@ -410,17 +410,21 @@
         const scheme = (state.termTotal || FW.TERM_TOTAL)[term] || [];
         const grade = cls(classId).grade;
         const examIds = examsOfTerm(term).map((e) => e.id);
+        // Absence policy: by default an absent part is shown as AB and left out of the grade;
+        // schools can choose to count it as zero (Settings -> Term total).
+        const zeroAB = !!state.absentAsZero;
         const parts = scheme.map((part) => {
             const out = { part, label: part.fields ? FW.fieldsLabel(grade) : part.label, short: part.fields ? FW.fieldsLabel(grade, true) : (part.short || part.label), outOf: part.outOf, score: null, status: "none" };
             if (part.fields) {
-                let got = 0, max = 0, marked = false;
+                let got = 0, max = 0, marked = false, missed = false;
                 examIds.forEach((ex) => {
                     const r = subjectResult(classId, ex, subject, sid);
-                    if (!r) return;
+                    if (!r || !Object.keys(r.comps).length) return;
+                    if (r.ab && !zeroAB) { missed = true; return; }
                     Object.values(r.comps).forEach((c) => { max += c.max; got += r.ab ? 0 : c.got; });
                     if (r.any) marked = true;
                 });
-                if (!max) return out;
+                if (!max) { if (missed) out.status = "ab"; return out; }
                 out.status = marked ? "ok" : "pending";
                 if (marked) out.score = round1((got / max) * part.outOf);
                 return out;
@@ -428,18 +432,19 @@
             const r = subjectResult(classId, part.exam, subject, sid);
             if (!r || !r.mainMax) return out;
             if (!r.any) { out.status = "pending"; return out; }
-            if (r.ab) { out.status = "ab"; out.score = 0; return out; }
+            if (r.ab) { out.status = "ab"; out.score = zeroAB ? 0 : null; return out; }
             out.status = "ok";
             out.score = round1((r.main / r.mainMax) * part.outOf);
             return out;
         });
-        const counted = parts.filter((p) => p.status === "ok" || p.status === "ab");
+        const counted = parts.filter((p) => p.status === "ok" || (p.status === "ab" && zeroAB));
         const total = round1(counted.reduce((s, p) => s + p.score, 0));
         const max = parts.filter((p) => p.status !== "none").reduce((s, p) => s + p.outOf, 0);
         const markedMax = counted.reduce((s, p) => s + p.outOf, 0);
-        const complete = counted.length && counted.length === parts.filter((p) => p.status !== "none").length;
+        const complete = counted.length > 0 && !parts.some((p) => p.status === "pending");
+        const absentExcluded = !zeroAB && parts.some((p) => p.status === "ab");
         const pctV = markedMax ? (total / markedMax) * 100 : null;
-        return { parts, total, max, complete, pct: pctV, grade: pctV == null ? null : gradeFor(pctV) };
+        return { parts, total, max, markedMax, complete, absentExcluded, pct: pctV, grade: pctV == null ? null : gradeFor(pctV) };
     }
 
     // LO-level attainment for a term (all papers of the term's exams)
@@ -461,7 +466,7 @@
         const out = {};
         Object.entries(acc).forEach(([lo, a]) => {
             const pct = a.max ? (a.got / a.max) * 100 : 0;
-            const cuts = nL === 4 ? [35, 60, 80] : [40, 75];
+            const cuts = LEVEL_CUTS[nL] || LEVEL_CUTS[3];
             let lvl = 0; cuts.forEach((cut) => { if (pct >= cut) lvl++; });
             out[lo] = { pct: Math.round(pct), lvl };
         });
@@ -501,34 +506,88 @@
     // ---------------------------------------------------------------------
     // Auto-drafted narrative remark (teacher edits before publishing)
     // ---------------------------------------------------------------------
-    function draftRemark(sid, term) {
+    // ---------------------------------------------------------------------
+    // Insight engine - transparent rules, no black box. Every number and sentence on a
+    // report comes from here, with the rule and data that produced it.
+    // ---------------------------------------------------------------------
+    const LEVEL_CUTS = { 3: [40, 75], 4: [35, 60, 80] };   // outcome % -> level
+    const STRENGTH_COUNT = 3, NEXT_COUNT = 3, NEXT_BELOW = 75;
+
+    function insights(sid, term) {
+        const s = student(sid); const c = cls(s.classId); const L = levelsOf(c);
+        const termExams = examsOfTerm(term).map((e) => e.id);
+        const pub = state.papers.filter((p) => p.classId === c.id && termExams.includes(p.exam) && p.status === "published");
+        const order = FW.subjectsForGrade(c.grade).map((x) => x.name);
+        const subjects = [...new Set(pub.map((p) => p.hpcSubject))].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+        const lom = loMastery(sid, term);
+        const toPct = (v) => ((v + 1) / L.length) * 100;
+
+        // Subjects: term total + skill areas (mean of their outcomes)
+        const rows = subjects.map((sub) => {
+            const tr = termResult(c.id, term, sub, sid);
+            const skills = libFor(c.grade, sub).map((comp) => {
+                const outs = comp.los.filter((lo) => lom[lo.id]).map((lo) => ({ lo, ...lom[lo.id] }));
+                return outs.length ? { c: comp, outs, lvl: Math.round(mean(outs.map((o) => o.lvl))), pct: Math.round(mean(outs.map((o) => o.pct))) } : null;
+            }).filter(Boolean);
+            const sources = [...new Set(pub.filter((p) => p.hpcSubject === sub).map((p) => p.subject))].filter((x) => x !== sub);
+            return { sub, tr, skills, sources };
+        });
+        const graded = rows.filter((r) => r.tr.pct != null);
+        const overall = graded.length ? mean(graded.map((r) => r.tr.pct)) : null;
+
+        // Every rated item on one 0-100 scale
+        const ds = domainScores(sid, term);
+        const items = [];
+        rows.forEach((r) => r.skills.forEach((k) => items.push({ name: k.c.title.replace(/\s*\(.*\)$/, ""), where: r.sub, score: k.pct, lvl: k.lvl, core: k.c.kind === "regular", kind: "skill" })));
+        ds.forEach((d) => { if (d.teacher != null) items.push({ name: d.domain.name, where: "Growth", score: Math.round(toPct(d.teacher)), lvl: Math.round(d.teacher), core: true, kind: "growth" }); });
+        const counts = L.map(() => 0); items.forEach((it) => { counts[it.lvl]++; });
+        // Highest first; on a tie, core skills and growth areas lead extra sections
+        const sorted = items.slice().sort((a, b) => b.score - a.score || (b.core - a.core));
+        const strengths = sorted.slice(0, STRENGTH_COUNT);
+        const nexts = sorted.slice().reverse().filter((it) => it.score < NEXT_BELOW && !strengths.includes(it)).slice(0, NEXT_COUNT);
+        const stretch = !nexts.length && sorted.length > STRENGTH_COUNT ? sorted[sorted.length - 1] : null;
+
+        return { student: s, cls: c, L, rows, graded, overall, ds, items, counts, strengths, nexts, stretch, remark: remarkParts(sid, term, rows, ds) };
+    }
+
+    // The auto-drafted teacher's note, one sentence per rule
+    function remarkParts(sid, term, rows, ds) {
         const s = student(sid); const c = cls(s.classId); const L = levelsOf(c);
         const first = s.name.split(" ")[0];
-        const ds = domainScores(sid, term).filter((d) => d.teacher != null).sort((a, b) => b.teacher - a.teacher);
-        const parts = [];
-        if (ds.length) {
-            const top = ds.slice(0, 2).map((d) => d.domain.name.toLowerCase());
-            const low = ds[ds.length - 1];
-            parts.push(`${first} shows real strength in ${top.join(" and ")}.`);
-            if (low && low.teacher < L.length - 1.2) parts.push(`With steady practice, ${first} can grow further in ${low.domain.name.toLowerCase()}.`);
-            const gaps = ds.filter((d) => d.self != null && d.self - d.teacher >= 1.2);
-            if (gaps.length) parts.push(`${first} rates ${gaps[0].domain.name.toLowerCase()} higher than observed in class - a good conversation to have together.`);
+        const out = [];
+        const rated = (ds || domainScores(sid, term)).filter((d) => d.teacher != null).sort((a, b) => b.teacher - a.teacher);
+        if (rated.length) {
+            const top = rated.slice(0, 2);
+            out.push({ text: `${first} shows real strength in ${top.map((d) => d.domain.name.toLowerCase()).join(" and ")}.`,
+                rule: "The two growth areas with the highest teacher rating", data: top.map((d) => `${d.domain.name}: ${L[Math.round(d.teacher)].label}`).join(", ") });
+            const low = rated[rated.length - 1];
+            if (low && low.teacher < L.length - 1.2) out.push({ text: `With steady practice, ${first} can grow further in ${low.domain.name.toLowerCase()}.`,
+                rule: "Lowest-rated growth area, if it is below the top level", data: `${low.domain.name}: ${L[Math.round(low.teacher)].label}` });
+            const gap = rated.find((d) => d.self != null && d.self - d.teacher >= 1.2);
+            if (gap) out.push({ text: `${first} rates ${gap.domain.name.toLowerCase()} higher than observed in class - a good conversation to have together.`,
+                rule: "Self-rating at least one level above the teacher's", data: `${gap.domain.name}: self ${L[Math.round(gap.self)].label}, teacher ${L[Math.round(gap.teacher)].label}` });
         }
-        // scholastic
-        const exams = examsOfTerm(term).map((e) => e.id);
-        const subjects = [...new Set(state.papers.filter((p) => p.classId === c.id && exams.includes(p.exam) && p.status === "published").map((p) => p.hpcSubject))];
-        const pcts = [];
-        subjects.forEach((sub) => exams.forEach((ex) => { const r = subjectResult(c.id, ex, sub, sid); if (r && r.any && !r.ab && r.mainMax) pcts.push({ sub, pct: (r.main / r.mainMax) * 100 }); }));
-        if (pcts.length) {
-            pcts.sort((a, b) => b.pct - a.pct);
-            parts.push(`Academically, ${first} performs best in ${pcts[0].sub}${pcts.length > 1 && pcts[pcts.length - 1].pct < 60 ? ` and needs more support in ${pcts[pcts.length - 1].sub}` : ""}.`);
+        // Judge subjects only on enough evidence: at least half the term total sat
+        const graded = (rows || []).filter((r) => r.tr.pct != null && r.tr.markedMax >= r.tr.max / 2).slice().sort((a, b) => b.tr.pct - a.tr.pct);
+        if (graded.length) {
+            const best = graded[0], weak = graded[graded.length - 1];
+            const support = graded.length > 1 && weak.tr.pct < 60;
+            out.push({ text: `Academically, ${first} performs best in ${best.sub}${support ? ` and needs more support in ${weak.sub}` : ""}.`,
+                rule: (support ? "Highest term total, and any subject below 60%" : "Highest term total") + " - among subjects with at least half the term total sat",
+                data: `${best.sub} ${Math.round(best.tr.pct)}%${support ? `, ${weak.sub} ${Math.round(weak.tr.pct)}%` : ""}` });
         }
         const att = (state.attendance[term] || {})[sid];
-        if (att && att.total) { const ap = (att.present / att.total) * 100; if (ap < 85) parts.push(`Regular attendance (${Math.round(ap)}% this term) will help ${first} keep pace.`); }
+        if (att && att.total && (att.present / att.total) * 100 < 85) {
+            const ap = Math.round((att.present / att.total) * 100);
+            out.push({ text: `Regular attendance (${ap}% this term) will help ${first} keep pace.`, rule: "Attendance below 85%", data: `${att.present} of ${att.total} days` });
+        }
         const prof = state.profiles[sid];
-        if (prof && prof.ambition) parts.push(`We encourage ${first}'s dream of becoming ${/^[aeiou]/i.test(prof.ambition) ? "an" : "a"} ${prof.ambition.toLowerCase()}.`);
-        return parts.join(" ") || `${first} is settling in well. Notes will be added as the term progresses.`;
+        if (prof && prof.ambition) out.push({ text: `We encourage ${first}'s dream of becoming ${/^[aeiou]/i.test(prof.ambition) ? "an" : "a"} ${prof.ambition.toLowerCase()}.`,
+            rule: "The student's own ambition from About me", data: prof.ambition });
+        if (!out.length) out.push({ text: `${first} is settling in well. Notes will be added as the term progresses.`, rule: "No data yet", data: "-" });
+        return out;
     }
+    function draftRemark(sid, term) { return insights(sid, term).remark.map((p) => p.text).join(" "); }
 
     // ---------------------------------------------------------------------
     // Pipeline status for a class (what's left)
@@ -562,6 +621,7 @@
         load, save, reset, uid, clone, round1, rng,
         cls, className, student, studentsOf, staff, paper, stageOf, levelsOf, examById, examsOfTerm, libFor, loIndex,
         units, qMarks, secMax, breakdown, paperResult, papersFor, subjectResult, termResult, convert, gradeFor, loMastery,
-        H, mean, domainScores, teacherRatedComplete, selfDone, parentDone, suggestion, draftRemark, pipeline
+        H, mean, domainScores, teacherRatedComplete, selfDone, parentDone, suggestion, draftRemark, pipeline,
+        insights, remarkParts, LEVEL_CUTS, NEXT_BELOW
     };
 })();

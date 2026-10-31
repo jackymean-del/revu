@@ -328,6 +328,7 @@
                 <div class="row mt-8"><button class="btn btn-sm" id="tt-add">${icon("plus")}Add part</button><span class="small muted">Parts with no published paper are left out of a student's total; parts not yet marked show as "pending".</span></div>
                 ${issues.length ? `<div class="alert alert-warn mt-8">${icon("alert")}<div class="body">${issues.map(esc).join("<br>")}</div></div>`
                     : sum !== 100 ? `<div class="alert alert-info mt-8">${icon("info")}<div class="body">These parts add up to ${fmt(sum)}. Reports will show totals out of ${fmt(sum)} and grade them as a percentage.</div></div>` : ""}
+                <label class="check mt-16"><input type="checkbox" id="tt-abzero" ${db.absentAsZero ? "checked" : ""}> Count an absence as zero <span class="small muted">(off: an absent part shows AB and the grade uses the parts attended)</span></label>
                 <div class="row mt-16"><button class="btn btn-primary" id="tt-save" ${issues.length ? "disabled" : ""}>${icon("check")}Save term total</button><button class="btn" id="tt-default">Reset ${esc(term)} to default</button>${dirty ? `<span class="small muted">Unsaved changes</span>` : ""}</div>`;
 
             $$("#tt-term button", host).forEach((b) => b.addEventListener("click", () => { term = b.dataset.t; render(); }));
@@ -349,6 +350,7 @@
                     : { key: Store.uid("tt"), label: "New part", short: "New", exam: termExams[0].id, outOf: 10 });
                 dirty = true; render();
             });
+            $("#tt-abzero", host).addEventListener("change", (e) => { db.absentAsZero = e.target.checked; Store.save(true); toast(e.target.checked ? "Absences now count as zero" : "Absent parts are left out of the grade"); });
             $("#tt-default", host).addEventListener("click", () => { draft[term] = Store.clone(FW.TERM_TOTAL[term] || []); dirty = true; render(); });
             $("#tt-save", host).addEventListener("click", () => {
                 const bad = Object.entries(draft).find(([, ps]) => problems(ps).length);

@@ -22,6 +22,10 @@ Open http://localhost:8090 and choose **Students** (or go straight to http://loc
 | **Voices** | Self check-in, peer feedback and parent voice |
 | **Reports** | One A4 sheet per student (front and back): at-a-glance grade, strengths and next steps; subjects with term totals and every skill as a level chip; Growth 360°; voices; teacher's note. Optional outcome-detail appendix. Drafted from the data, published and printed in bulk. Its title is a setting (e.g. "Holistic Progress Card" for NEP schools) |
 
+| **How it works** | Live trace of one student: question marks -> outcome levels -> skill areas -> term total and grade -> growth 360 -> each insight sentence with its rule and data -> downloads (report PDF, class PDF, class results Excel, marks templates, backup) |
+
+**Insight engine** (`Store.insights`): transparent rules, no black box. Outcome % from every mapped question in the term -> level (3 steps: <40, 40-74, 75+; 4 steps: <35, 35-59, 60-79, 80+). Skill area = average of its outcomes. Term total = configured parts, each scaled from its own marks; pending parts never count as zero; an absent part shows AB and is left out of the grade unless the school counts absences as zero. Strengths = top 3 of all skill and growth items on one 0-100 scale; next steps = lowest under 75. The teacher's note is drafted sentence by sentence, each with its rule, and always approved by the teacher.
+
 Stages: Early Years · Primary · Middle School · High School · College & University.
 
 ## How the MPS spec maps to the app
