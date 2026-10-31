@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/jackymean-del/revu/internal/api"
 )
 
@@ -27,17 +26,13 @@ func TestHealth(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			app := fiber.New()
-			app.Get("/api/health", Health(tc.db, "test-1"))
-			res, err := app.Test(httptest.NewRequest("GET", "/api/health", nil))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.StatusCode != 200 {
-				t.Fatalf("status %d, want 200", res.StatusCode)
+			rec := httptest.NewRecorder()
+			Health(tc.db, "test-1")(rec, httptest.NewRequest("GET", "/api/health", nil))
+			if rec.Code != 200 {
+				t.Fatalf("status %d, want 200", rec.Code)
 			}
 			var body api.Health
-			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+			if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
 			if body.Status != api.HealthOk || body.Database != tc.wantDB || body.Version != "test-1" {

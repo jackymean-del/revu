@@ -1,7 +1,7 @@
 # revU engineering rules
 
 - Product: revU by Bhusku. Assessment, results and holistic progress platform. Read docs/blueprint before any task.
-- Stack: React 19 with Vite, TypeScript strict and Tailwind 4 in frontend. Go 1.26 with Fiber v3 and pgx in backend. PostgreSQL 18. Clerk auth. Cloudflare R2 storage. Cloudflare Pages for the sites, Railway for the server and database.
+- Stack (blueprint v6, Part 38): React 19 with Vite 8, TypeScript strict, Tailwind 4, TanStack Query, React Router, Zustand and Zod in frontend. Go 1.26 with Chi on net/http and pgx in backend, a separate worker on a PostgreSQL-backed queue. PostgreSQL 18. Clerk for sign-in, revU's own tables for permissions. Cloudflare R2 storage. Chromium (Gotenberg) for PDFs. Cloudflare Pages for the sites, Railway for the server, worker and database. Go test, harnesses, Vitest and Playwright. OpenTelemetry and Sentry for monitoring.
 - Spec-first API: edit contracts/openapi.yaml first, then regenerate the TypeScript client and Go types. Never hand-edit generated code.
 - Database: every change is a numbered SQL file in database/migrations. Queries are plain SQL through pgx, kept in each module's repository file. Every tenant table has org_id and row-level security.
 - No hard-coded institution words in the UI, PDFs, emails or generated text. Use the terminology resolver t().
@@ -72,10 +72,27 @@ A rule nothing checks comes back.
   not in the spec, or in the spec but not served. Feature endpoints live
   under /v1; /api/health stays where it is.
 
+## Stack decisions (blueprint v6)
+
+- Chi on net/http, not Fiber: Part 38 picks Chi for greenfield work, and the
+  backend had only its health check when v6 arrived. Part 12 still says
+  Fiber; Part 38 is newer and wins.
+- Libraries named in Part 38 (React Router, Zustand, Zod, Vitest,
+  OpenTelemetry, Sentry) are added with the first feature that uses them,
+  never ahead of it: knip and go mod tidy fail on unused dependencies.
+- Vitest is for component and unit tests; the *-verify.mts harnesses stay
+  for repo-wide guards (style, licences, bundle, API errors).
+- Tenant scope always comes from the signed-in identity and revU's own
+  membership rows, never from a client-sent id alone. RLS is the second
+  line, set per transaction so pooled connections never leak a tenant.
+- Long work (report batches, imports, exports, scans) is queued and returns
+  a job id; the request never stays open for it.
+- One template and one renderer for preview and final PDF.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com
-- backend/ - the server (Go 1.26 + Fiber v3 + pgx): cmd/server, cmd/worker, internal/
+- backend/ - the server (Go 1.26 + Chi + pgx): cmd/server, cmd/worker, internal/
 - database/migrations/ - numbered SQL files, applied in order
 - contracts/openapi.yaml - the API contract, source of truth
 - marketing/ - the public site (Next.js static export), built in v6.10

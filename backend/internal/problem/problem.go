@@ -5,13 +5,13 @@
 package problem
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/jackymean-del/revu/internal/api"
+	"github.com/jackymean-del/revu/internal/reqid"
 )
 
 // ContentType is the media type of every error body.
@@ -42,56 +42,46 @@ func Invalid(fields ...api.FieldError) *Error {
 		Detail: "Some fields need attention.", Fields: fields}
 }
 
-// Codes for errors Fiber raises itself (unknown route, bad body, ...).
-var fiberCodes = map[int]string{
-	http.StatusBadRequest:            "request.bad",
-	http.StatusUnauthorized:          "auth.required",
-	http.StatusForbidden:             "auth.forbidden",
-	http.StatusNotFound:              "route.not_found",
-	http.StatusMethodNotAllowed:      "route.method_not_allowed",
-	http.StatusRequestEntityTooLarge: "request.too_large",
-	http.StatusUnsupportedMediaType:  "request.unsupported_type",
-	http.StatusTooManyRequests:       "rate.limited",
-}
+// Errors the router raises itself.
+var (
+	NotFound         = New(http.StatusNotFound, "route.not_found", "There is nothing at this address.")
+	MethodNotAllowed = New(http.StatusMethodNotAllowed, "route.method_not_allowed", "This address does not accept that method.")
+)
 
 const internalDetail = "Something went wrong on our side. Quote the request id if you report it."
 
 // From maps any error to its problem body. Instance and request id are
-// filled in by Handler, which knows the request.
+// filled in by Write, which knows the request.
 func From(err error) api.Problem {
 	var pe *Error
 	if errors.As(err, &pe) {
 		return api.Problem{Type: typeBase + pe.Code, Title: http.StatusText(pe.Status),
 			Status: pe.Status, Code: pe.Code, Detail: pe.Detail, Errors: pe.Fields}
 	}
-	var fe *fiber.Error
-	if errors.As(err, &fe) && fe.Code < 500 {
-		code, ok := fiberCodes[fe.Code]
-		if !ok {
-			code = "request.rejected"
-		}
-		return api.Problem{Type: "about:blank", Title: http.StatusText(fe.Code),
-			Status: fe.Code, Code: code, Detail: fe.Message}
-	}
-	status := http.StatusInternalServerError
-	if fe != nil {
-		status = fe.Code
-	}
-	return api.Problem{Type: "about:blank", Title: http.StatusText(status),
-		Status: status, Code: "internal", Detail: internalDetail}
+	return api.Problem{Type: "about:blank", Title: http.StatusText(http.StatusInternalServerError),
+		Status: http.StatusInternalServerError, Code: "internal", Detail: internalDetail}
 }
 
-// StatusOf is the status the response for err will carry.
-func StatusOf(err error) int { return From(err).Status }
-
-// Handler is the Fiber error handler: every error becomes a problem body.
-// Server-side failures are logged with the request id the body carries.
-func Handler(c fiber.Ctx, err error) error {
+// Write sends err as a problem body. Server-side failures are logged with
+// the request id the body carries.
+func Write(w http.ResponseWriter, r *http.Request, err error) {
 	p := From(err)
-	p.Instance = c.Path()
-	p.RequestId = requestid.FromContext(c)
+	p.Instance = r.URL.Path
+	p.RequestId = reqid.From(r.Context())
 	if p.Status >= 500 {
-		slog.Error("request failed", "err", err, "method", c.Method(), "path", p.Instance, "request_id", p.RequestId)
+		slog.Error("request failed", "err", err, "method", r.Method, "path", p.Instance, "request_id", p.RequestId)
 	}
-	return c.Status(p.Status).JSON(p, ContentType)
+	w.Header().Set("Content-Type", ContentType)
+	w.WriteHeader(p.Status)
+	_ = json.NewEncoder(w).Encode(p)
+}
+
+// Handler adapts a handler that returns an error: a nil error means it has
+// written its response, anything else is written as a problem.
+func Handler(fn func(w http.ResponseWriter, r *http.Request) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := fn(w, r); err != nil {
+			Write(w, r, err)
+		}
+	}
 }

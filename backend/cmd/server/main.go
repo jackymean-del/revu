@@ -3,8 +3,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -41,15 +43,22 @@ func main() {
 		pinger = pool
 	}
 
-	app := server.New(cfg, pinger)
-
+	srv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           server.New(cfg, pinger),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	go func() {
 		<-ctx.Done()
-		_ = app.ShutdownWithTimeout(10 * time.Second)
+		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdown)
 	}()
-	addr := fmt.Sprintf(":%d", cfg.Port)
-	slog.Info("revu api listening", "addr", addr, "version", cfg.Version)
-	if err := app.Listen(addr); err != nil {
+	slog.Info("revu api listening", "addr", srv.Addr, "version", cfg.Version)
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server stopped", "err", err)
 		os.Exit(1)
 	}

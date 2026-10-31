@@ -2,22 +2,23 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/gofiber/fiber/v3"
+	"github.com/go-chi/chi/v5"
 	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/problem"
+	"github.com/jackymean-del/revu/internal/reqid"
 	"go.yaml.in/yaml/v3"
 )
 
 // specRoutes reads contracts/openapi.yaml and returns "METHOD /path" for
-// every operation, with {param} written the way Fiber writes :param.
+// every operation. Chi writes path parameters as {id}, the same as OpenAPI.
 func specRoutes(t *testing.T) []string {
 	t.Helper()
 	raw, err := os.ReadFile("../../../contracts/openapi.yaml")
@@ -30,13 +31,12 @@ func specRoutes(t *testing.T) []string {
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	param := regexp.MustCompile(`\{([^}]+)\}`)
 	methods := []string{"get", "put", "post", "delete", "patch", "options", "head"}
 	var out []string
 	for path, item := range doc.Paths {
 		for m := range item {
 			if slices.Contains(methods, m) {
-				out = append(out, strings.ToUpper(m)+" "+param.ReplaceAllString(path, ":$1"))
+				out = append(out, strings.ToUpper(m)+" "+path)
 			}
 		}
 	}
@@ -44,13 +44,15 @@ func specRoutes(t *testing.T) []string {
 	return out
 }
 
-func routesOf(app *fiber.App) []string {
+func routesOf(t *testing.T, r chi.Router) []string {
+	t.Helper()
 	var out []string
-	for _, r := range app.GetRoutes(true) {
-		if r.Method == fiber.MethodHead { // Fiber adds HEAD for every GET by itself
-			continue
-		}
-		out = append(out, r.Method+" "+r.Path)
+	err := chi.Walk(r, func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
+		out = append(out, method+" "+route)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	slices.Sort(out)
 	return slices.Compact(out)
@@ -79,7 +81,7 @@ func TestEveryRouteIsInTheContract(t *testing.T) {
 	if len(spec) == 0 {
 		t.Fatal("no operations found in contracts/openapi.yaml")
 	}
-	undocumented, missing := diff(spec, routesOf(New(config.Config{Version: "test"}, nil)))
+	undocumented, missing := diff(spec, routesOf(t, New(config.Config{Version: "test"}, nil)))
 	for _, r := range undocumented {
 		t.Errorf("served but not in contracts/openapi.yaml: %s", r)
 	}
@@ -90,10 +92,10 @@ func TestEveryRouteIsInTheContract(t *testing.T) {
 
 // The guard must catch what it guards against.
 func TestContractGuardCatchesDrift(t *testing.T) {
-	app := New(config.Config{Version: "test"}, nil)
-	app.Post("/v1/undocumented/:id", func(c fiber.Ctx) error { return nil })
-	undocumented, missing := diff(append(specRoutes(t), "GET /v1/promised"), routesOf(app))
-	if !slices.Equal(undocumented, []string{"POST /v1/undocumented/:id"}) {
+	r := New(config.Config{Version: "test"}, nil)
+	r.Post("/v1/undocumented/{id}", func(http.ResponseWriter, *http.Request) {})
+	undocumented, missing := diff(append(specRoutes(t), "GET /v1/promised"), routesOf(t, r))
+	if !slices.Equal(undocumented, []string{"POST /v1/undocumented/{id}"}) {
 		t.Fatalf("undocumented route not caught: %v", undocumented)
 	}
 	if !slices.Equal(missing, []string{"GET /v1/promised"}) {
@@ -101,40 +103,42 @@ func TestContractGuardCatchesDrift(t *testing.T) {
 	}
 }
 
-// Errors from the real app are problem details with a stable code.
+// Errors from the real router are problem details with a stable code.
 func TestErrorsAreProblemDetails(t *testing.T) {
-	app := New(config.Config{Version: "test"}, nil)
-	app.Get("/boom", func(c fiber.Ctx) error { panic("kaboom") })
-	app.Get("/locked", func(c fiber.Ctx) error {
+	r := New(config.Config{Version: "test"}, nil)
+	r.Get("/boom", func(http.ResponseWriter, *http.Request) { panic("kaboom") })
+	r.Get("/locked", problem.Handler(func(http.ResponseWriter, *http.Request) error {
 		return problem.New(409, "evidence.locked", "These marks are locked.")
-	})
+	}))
 	cases := []struct {
-		path   string
-		status int
-		code   string
+		method, path string
+		status       int
+		code         string
 	}{
-		{"/v1/nothing-here", 404, "route.not_found"},
-		{"/boom", 500, "internal"},
-		{"/locked", 409, "evidence.locked"},
+		{"GET", "/v1/nothing-here", 404, "route.not_found"},
+		{"DELETE", "/api/health", 405, "route.method_not_allowed"},
+		{"GET", "/boom", 500, "internal"},
+		{"GET", "/locked", 409, "evidence.locked"},
 	}
 	for _, tc := range cases {
-		t.Run(tc.path, func(t *testing.T) {
-			res, err := app.Test(httptest.NewRequest("GET", tc.path, nil))
-			if err != nil {
-				t.Fatal(err)
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
+			if rec.Code != tc.status {
+				t.Fatalf("status %d, want %d", rec.Code, tc.status)
 			}
-			if res.StatusCode != tc.status {
-				t.Fatalf("status %d, want %d", res.StatusCode, tc.status)
-			}
-			if ct := res.Header.Get("Content-Type"); !strings.HasPrefix(ct, problem.ContentType) {
+			if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, problem.ContentType) {
 				t.Fatalf("content type %q, want %s", ct, problem.ContentType)
 			}
 			var p api.Problem
-			if err := json.NewDecoder(res.Body).Decode(&p); err != nil {
+			if err := json.NewDecoder(rec.Body).Decode(&p); err != nil {
 				t.Fatal(err)
 			}
-			if p.Code != tc.code || p.Status != tc.status || p.Instance != tc.path || p.RequestId == "" {
-				t.Fatalf("problem %+v, want code %s with instance and request id", p, tc.code)
+			if p.Code != tc.code || p.Status != tc.status || p.Instance != tc.path {
+				t.Fatalf("problem %+v, want code %s with instance", p, tc.code)
+			}
+			if p.RequestId == "" || p.RequestId != rec.Header().Get(reqid.Header) {
+				t.Fatalf("request id %q not matching header %q", p.RequestId, rec.Header().Get(reqid.Header))
 			}
 			if strings.Contains(p.Detail, "kaboom") {
 				t.Fatal("a panic message leaked into the response")
