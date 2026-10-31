@@ -36,7 +36,9 @@ the character by code point so the guard does not contain what it forbids.
 
 No test framework. Harnesses run with npx tsx from frontend/, and every one
 must pass before a change is done. Also: npx tsc -b, npx eslint src with
-0 warnings, npx vite build, and in backend/: go build, go vet, go test.
+0 warnings, npx knip (dead code, unused dependencies), npx vite build, then
+npx tsx bundle-verify.mts. In backend/: go mod tidy -diff, go vet, staticcheck,
+go-licenses check, go test (see .github/workflows/ci.yml for exact commands).
 The browser journey runs with: cd e2e && npm test.
 
 ## Measure against what the institution decided

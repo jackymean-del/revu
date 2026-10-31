@@ -1,0 +1,82 @@
+name: CI
+
+# Every push and pull request: the checks a change must pass before it is done
+# (REVU.md, "Verifying a change"). The nightly run adds the browser journey.
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Type check
+        run: npx tsc -b
+      - name: Lint (0 warnings)
+        run: npx eslint src *.mts --max-warnings 0
+      - name: Generated API types match the contract
+        run: |
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.gen.ts || { echo "::error::contracts/openapi.yaml changed; run npm run gen:api and commit"; exit 1; }
+      - name: Harnesses
+        run: |
+          failed=""
+          for f in *-verify.mts; do
+            [ "$f" = "bundle-verify.mts" ] && continue
+            if npx tsx "$f"; then :; else failed="$failed $f"; fi
+          done
+          if [ -n "$failed" ]; then echo "::error::Harnesses failed:$failed"; exit 1; fi
+      - name: Dead code and unused dependencies
+        run: npx knip
+      - name: Build and bundle budget
+        run: |
+          npx vite build
+          npx tsx bundle-verify.mts
+
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Start PostgreSQL 18
+        run: |
+          docker run -d --name pg -e POSTGRES_DB=revu -e POSTGRES_USER=revu -e POSTGRES_PASSWORD=secret -p 5432:5432 postgres:18 >/dev/null
+          for i in $(seq 1 60); do docker exec pg pg_isready -U revu -d revu >/dev/null 2>&1 && break; sleep 2; done
+      - name: go.mod is tidy (no unused dependencies)
+        working-directory: backend
+        run: go mod tidy -diff
+      - name: Vet and static checks (includes unused code)
+        working-directory: backend
+        run: |
+          go vet ./...
+          go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+      - name: Licences
+        working-directory: backend
+        run: go run github.com/google/go-licenses/v2@v2.0.1 check ./... --allowed_licenses=MIT,ISC,BSD-2-Clause,BSD-3-Clause,Apache-2.0 --ignore github.com/jackymean-del/revu
+      - name: Tests on PostgreSQL 18
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql://revu:secret@localhost:5432/revu?sslmode=disable
+          MIGRATIONS_DIR: ../database/migrations
+        run: go test ./... -count=1 -p 1

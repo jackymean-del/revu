@@ -70,6 +70,7 @@ jobs:
             if npx tsx "$f" > "log-$f.txt" 2>&1; then echo "ok    $f"; else echo "FAIL  $f"; tail -n 25 "log-$f.txt"; failed="$failed $f"; fi
           done
           if [ -n "$failed" ]; then echo "::error::Harnesses failed:$failed"; exit 1; fi
+          npx knip
           npx vite build
           npx tsx bundle-verify.mts
 

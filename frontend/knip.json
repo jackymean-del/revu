@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["*-verify.mts"],
+  "project": ["src/**/*.{ts,tsx}", "*.mts"],
+  "ignore": ["src/**/*.gen.ts"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": ["tailwindcss"]
+}
