@@ -172,18 +172,48 @@
                 <div class="grid grid-2"><div class="field"><label for="np-sub">Subject</label><select class="select" id="np-sub">${subs.map((s) => `<option value="${esc(s.name)}">${esc(s.name)}${s.hpc ? "" : " (marks only)"}</option>`).join("")}${parseInt(cls.grade, 10) >= 6 ? `<option>Physics</option><option>Chemistry</option><option>Biology</option>` : ""}<option value="__other">Other...</option></select></div>
                 <div class="field hidden" id="np-other-wrap"><label for="np-other">Subject name</label><input class="input" id="np-other" placeholder="e.g. Sanskrit"></div>
                 <div class="field"><label for="np-dur">Duration</label><input class="input" id="np-dur" value="1.5 hrs"></div></div>
-                <div class="field"><label for="np-start">Start from</label><select class="select" id="np-start"><option value="blank">Blank paper (one core section)</option><option value="lo">Sections from Outcomes (one per skill area + extra sections)</option>${prev.map((p) => `<option value="copy:${p.id}">Copy: ${esc(p.title)}</option>`).join("")}</select>
-                <span class="help">Hindi, Odia and Sanskrit can be typed or pasted directly into any question.</span></div></div>`,
+                <div class="field"><label for="np-start">Start from</label><select class="select" id="np-start"><option value="quick">Quick scheme - type question numbers, marks and outcomes (fastest)</option><option value="blank">Blank paper - write every question here</option><option value="lo">Sections from Outcomes (one per skill area + extra sections)</option>${prev.map((p) => `<option value="copy:${p.id}">Copy: ${esc(p.title)}</option>`).join("")}</select>
+                <span class="help">Paper already made in Word? Quick scheme is all revU needs to evaluate it. Hindi, Odia and Sanskrit work everywhere.</span></div>
+                <div id="np-quick" class="stack" style="gap:8px">
+                    <div class="row-between"><label class="label" for="np-scheme">Marking scheme</label><button type="button" class="btn btn-sm btn-soft" id="np-fill">${icon("sparkle")}Start from outcomes</button></div>
+                    <textarea class="textarea" id="np-scheme" rows="9" spellcheck="false" style="font-family:var(--font-mono);font-size:12.5px" placeholder="# Reading\n1a 2 EN7.1.1\n1b 3 EN7.1.2\n# Grammar\n2 5 EN7.2\n# Notebook [notebook]\n3 2"></textarea>
+                    <div class="small muted"><b>#</b> starts a section; add <b>[oral]</b>, <b>[activity]</b>, <b>[enrichment]</b> or <b>[notebook]</b> for extra sections. Then one line per question: number, marks, outcome codes. Text after <b>|</b> becomes the question.</div>
+                    <div id="np-preview"></div>
+                </div></div>`,
             foot: `<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-ok>Create & open</button>`,
             onMount: (m) => {
-                $("#np-sub", m.el).addEventListener("change", (e) => $("#np-other-wrap", m.el).classList.toggle("hidden", e.target.value !== "__other"));
+                const subjectNow = () => { const v = $("#np-sub", m.el).value; return v === "__other" ? $("#np-other", m.el).value.trim() : v; };
+                const preview = () => {
+                    const box = $("#np-preview", m.el);
+                    const txt = $("#np-scheme", m.el).value;
+                    if (!txt.trim()) { box.innerHTML = ""; return null; }
+                    const r = Store.parseScheme(txt, cls.grade, subjectNow());
+                    box.innerHTML = `<div class="breakdown" style="font-size:13px"><span class="part">${esc(subjectNow())} ${fmt(r.main)}</span>${Object.entries(r.comps).map(([k, v]) => `<span class="plus">+</span><span class="part add">${esc(FW.componentLabel(k, subjectNow()))} ${fmt(v)}</span>`).join("")}<span class="ref">${r.questions} questions in ${r.sections.length} sections</span></div>
+                        ${r.errors.length ? `<div class="alert alert-danger mt-8">${icon("alert")}<div class="body">${r.errors.map(esc).join("<br>")}</div></div>` : ""}
+                        ${r.warnings.length ? `<div class="alert alert-warn mt-8">${icon("alert")}<div class="body">${r.warnings.slice(0, 6).map(esc).join("<br>")}${r.warnings.length > 6 ? `<br>...and ${r.warnings.length - 6} more` : ""}</div></div>` : ""}`;
+                    return r;
+                };
+                const syncStart = () => { $("#np-quick", m.el).classList.toggle("hidden", $("#np-start", m.el).value !== "quick"); };
+                $("#np-start", m.el).addEventListener("change", syncStart); syncStart();
+                $("#np-scheme", m.el).addEventListener("input", preview);
+                $("#np-fill", m.el).addEventListener("click", () => {
+                    const t = Store.schemeFromOutcomes(cls.grade, subjectNow());
+                    if (!t) { toast(`No outcomes for ${subjectNow()} yet - type the scheme, or add outcomes first`, "err"); return; }
+                    $("#np-scheme", m.el).value = t; preview();
+                });
+                $("#np-sub", m.el).addEventListener("change", (e) => { $("#np-other-wrap", m.el).classList.toggle("hidden", e.target.value !== "__other"); preview(); });
                 $("[data-ok]", m.el).addEventListener("click", () => {
                     let subject = $("#np-sub", m.el).value; if (subject === "__other") subject = $("#np-other", m.el).value.trim();
                     if (!subject) { toast("Enter a subject", "err"); return; }
                     const start = $("#np-start", m.el).value;
                     const exam = Store.examById(App.ctx.exam);
                     let p;
-                    if (start.startsWith("copy:")) {
+                    if (start === "quick") {
+                        const r = Store.parseScheme($("#np-scheme", m.el).value, cls.grade, subject);
+                        if (!r.questions) { toast("Type at least one question line, e.g. \"1a 2\"", "err"); return; }
+                        if (r.errors.length) { toast("Fix the lines marked in red first", "err"); return; }
+                        p = { id: Store.uid("pp"), classId: cls.id, subject, hpcSubject: subject, settings: { answerSpace: false }, sections: r.sections, quick: true };
+                    } else if (start.startsWith("copy:")) {
                         p = Store.clone(Store.paper(start.slice(5)));
                         p.id = Store.uid("pp"); p.sections.forEach((s) => { s.id = Store.uid("sec"); s.questions.forEach((q) => { q.id = Store.uid("q"); (q.parts || []).forEach((pt) => { pt.id = Store.uid("p"); }); }); });
                         p.subject = subject;
@@ -483,7 +513,7 @@
         const head = `
         <div class="view-header"><div><h2>Marks</h2><span class="subtitle">Marks are saved per question. Subject totals count core sections only; each extra section is totalled separately for its report field.</span></div>
         <div class="actions">${p ? `<div class="seg" id="gr-mode"><button class="${st.mode === "table" ? "on" : ""}" data-m="table">Table</button><button class="${st.mode === "student" ? "on" : ""}" data-m="student">Student-wise</button></div>
-            <button class="btn" id="gr-tpl">${icon("download")}Excel template</button><button class="btn" id="gr-up">${icon("upload")}Upload Excel</button>` : ""}</div></div>
+            <a class="btn" href="#/analysis/${p ? p.id : ""}">${icon("dashboard")}Analysis</a><button class="btn" id="gr-tpl">${icon("download")}Excel template</button><button class="btn" id="gr-up">${icon("upload")}Upload Excel</button>` : ""}</div></div>
         <div class="toolbar">${App.classSelect()}${App.examSelect()}
             <div class="field"><label for="gr-paper">Question paper</label><select class="select" id="gr-paper">${papers.map((x) => `<option value="${x.id}" ${p && x.id === p.id ? "selected" : ""}>${esc(x.subject)} - ${esc(breakdownText(x))}</option>`).join("")}</select></div>
             <div class="spacer"></div>${p ? `<div id="gr-progress" class="small muted"></div>` : ""}</div>`;
@@ -498,6 +528,12 @@
         const b = Store.breakdown(p);
         const compKeys = Object.keys(b.comps);
         const lockI = icon("lock", "lock");
+        // Mistake tags: one tap on a question where marks were lost
+        const tagSet = FW.mistakeSet(p.hpcSubject);
+        const lostOn = (sid, u) => { const r = book[sid]; if (!r || r.ab) return false; const v = r.m[u.id]; return v !== undefined && v !== null && v !== "" && Number(v) < u.max; };
+        const tagsOf = (sid, u) => Store.mistakesOf(p.id, sid)[u.id] || [];
+        const chips = (sid, u) => tagSet.map((t) => `<button type="button" class="mk-tag ${tagsOf(sid, u).includes(t) ? "on" : ""}" data-tag="${t}" data-s="${sid}" data-u="${u.id}">${esc(FW.MISTAKES[t].label)}</button>`).join("");
+        const tagBtn = (sid, u) => { const n = tagsOf(sid, u).length; return `<button type="button" class="mk-tagbtn ${n ? "has" : ""} ${lostOn(sid, u) || n ? "" : "hidden"}" data-tagbtn data-s="${sid}" data-u="${u.id}" title="Why were marks lost?" aria-label="Mistake tags">${n ? n : "+"}</button>`; };
 
         const progress = () => { const done = studs.filter((s) => { const r = Store.paperResult(p, s.id); return r && r.complete; }).length; const el = $("#gr-progress", root); if (el) el.innerHTML = `<b>${done}</b> of ${studs.length} students complete`; };
         const valOf = (sid, u) => { const r = book[sid]; if (!r) return ""; if (r.ab) return "AB"; const v = r.m[u.id]; return v == null ? "" : v; };
@@ -521,7 +557,7 @@
             const rowHtml = (s) => {
                 let cells = `<td class="name sticky-col"><span class="muted num">${s.roll}.</span> ${esc(s.name)}</td>`;
                 p.sections.forEach((sec) => {
-                    us.filter((u) => u.section === sec).forEach((u) => { const v = valOf(s.id, u); cells += `<td><input class="mk ${v === "AB" ? "ab" : ""}" inputmode="decimal" data-s="${s.id}" data-u="${u.id}" data-max="${u.max}" value="${esc(v)}" aria-label="${esc(s.name)} Q${esc(u.label)}"></td>`; });
+                    us.filter((u) => u.section === sec).forEach((u) => { const v = valOf(s.id, u); cells += `<td class="mk-cell"><input class="mk ${v === "AB" ? "ab" : ""}" inputmode="decimal" data-s="${s.id}" data-u="${u.id}" data-max="${u.max}" value="${esc(v)}" aria-label="${esc(s.name)} Q${esc(u.label)}">${tagBtn(s.id, u)}</td>`; });
                     cells += `<td class="sub" data-subof="${sec.id}"></td>`;
                 });
                 cells += `<td class="tot" data-main></td>` + compKeys.map((k) => `<td class="comp" data-comp="${k}"></td>`).join("") + `<td class="small muted num" data-paper></td>`;
@@ -529,17 +565,18 @@
                 return `<tr data-row="${s.id}">${cells}</tr>`;
             };
             body = `<div class="table-wrap" style="max-height:calc(100vh - 330px)"><table class="table marks-table"><thead><tr>${r1}</tr><tr>${r2}</tr><tr>${r3}</tr></thead><tbody>${studs.map(rowHtml).join("")}</tbody></table></div>
-            <div class="row mt-8 small muted">${icon("info", "")}<span>Type <b>AB</b> in any cell (or tick AB) for an absent student. Enter moves down, Tab moves across. Saved automatically.</span></div>`;
+            <div class="row mt-8 small muted">${icon("info", "")}<span>Type <b>AB</b> in any cell (or tick AB) for an absent student. Enter moves down, Tab moves across. Where marks are lost, tap <b>+</b> to note why (spelling, calculation...) - it powers the insights. Saved automatically.</span></div>`;
         } else {
             st.sIdx = Math.min(st.sIdx, studs.length - 1);
             const s = studs[st.sIdx];
             body = `<div class="card"><div class="card-head"><div class="row">${avatar(s)}<div><h3>${esc(s.name)}</h3><span class="small muted">Roll ${s.roll} - ${st.sIdx + 1} of ${studs.length}</span></div></div>
                 <div class="row"><label class="check"><input type="checkbox" data-ab="${s.id}" ${book[s.id] && book[s.id].ab ? "checked" : ""}> Absent</label><button class="btn btn-sm" id="sw-prev" ${st.sIdx === 0 ? "disabled" : ""}>${icon("back")}Previous</button><button class="btn btn-sm btn-primary" id="sw-next">${st.sIdx === studs.length - 1 ? "Finish" : "Submit & next"}${icon("arrow")}</button></div></div>
                 <div data-row="${s.id}">${p.sections.map((sec) => `<div style="border-bottom:1px solid var(--border-color)"><div class="row-between" style="padding:10px 20px;background:${sec.type === "additional" ? "var(--color-secondary-soft)" : "var(--bg-sunken)"}"><b>${esc(sec.name)}</b><span class="small strong">Subtotal <span data-subof="${sec.id}"></span> / ${fmt(Store.secMax(sec))}</span></div>
-                    ${us.filter((u) => u.section === sec).map((u) => `<div class="row-between" style="padding:8px 20px;border-top:1px dashed var(--border-color)"><span><b>Q${esc(u.label)}</b> <span class="small muted">${UI.cleanRich((u.q.parts || []).find((x) => x.id === u.id)?.text || u.q.text).replace(/<[^>]+>/g, " ").slice(0, 90)}</span></span><span class="row" style="gap:6px;flex-wrap:nowrap"><input class="input mk num" style="width:70px;text-align:center" inputmode="decimal" data-s="${s.id}" data-u="${u.id}" data-max="${u.max}" value="${esc(valOf(s.id, u))}" aria-label="Q${esc(u.label)}"><span class="small muted">/ ${fmt(u.max)}</span></span></div>`).join("")}</div>`).join("")}
+                    ${us.filter((u) => u.section === sec).map((u) => `<div style="padding:8px 20px;border-top:1px dashed var(--border-color)"><div class="row-between"><span><b>Q${esc(u.label)}</b> <span class="small muted">${UI.cleanRich((u.q.parts || []).find((x) => x.id === u.id)?.text || u.q.text).replace(/<[^>]+>/g, " ").slice(0, 90)}</span></span><span class="row" style="gap:6px;flex-wrap:nowrap"><input class="input mk num" style="width:70px;text-align:center" inputmode="decimal" data-s="${s.id}" data-u="${u.id}" data-max="${u.max}" value="${esc(valOf(s.id, u))}" aria-label="Q${esc(u.label)}"><span class="small muted">/ ${fmt(u.max)}</span></span></div>
+                        <div class="mk-tags ${lostOn(s.id, u) || tagsOf(s.id, u).length ? "" : "hidden"}" data-tags-for="${u.id}"><span class="small muted">Marks lost to:</span>${chips(s.id, u)}</div></div>`).join("")}</div>`).join("")}
                 <div class="row" style="padding:12px 20px;gap:18px"><span class="strong">${esc(p.subject)}: <span data-main></span> / ${fmt(b.main)}</span>${compKeys.map((k) => `<span class="strong">${esc(FW.componentLabel(k, p.hpcSubject))}: <span data-comp="${k}"></span> / ${fmt(b.comps[k])}</span>`).join("")}<span class="small muted">Paper ref. <span data-paper></span></span></div></div></div>`;
         }
-        root.innerHTML = head + body;
+        root.innerHTML = head + `<div id="mk-body">${body}</div>`;
         App.bindCtx(root);
         $("#gr-paper", root).addEventListener("change", (e) => App.go("marks/" + e.target.value));
         $$("#gr-mode button", root).forEach((bt) => bt.addEventListener("click", () => { st.mode = bt.dataset.m; V.marks(root, [p.id]); }));
@@ -573,7 +610,7 @@
                         const cb = root.querySelector(`[data-ab="${sid}"]`); if (cb) cb.checked = false;
                     }
                 }
-                Store.save(); recalc(sid); progress();
+                Store.save(); recalc(sid); progress(); syncTags(sid, uidv);
             });
             inp.addEventListener("keydown", (e) => {
                 if (e.key !== "Enter" && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
@@ -596,6 +633,30 @@
             const r = Store.paperResult(p, studs[st.sIdx].id);
             if (!r || !r.complete) toast("Some questions are blank - saved anyway", "err");
             if (st.sIdx < studs.length - 1) { st.sIdx++; V.marks(root, [p.id]); } else { toast("All students done"); st.mode = "table"; V.marks(root, [p.id]); }
+        });
+        function syncTags(sid, unitId) {
+            const u = us.find((x) => x.id === unitId); if (!u) return;
+            const show = lostOn(sid, u) || tagsOf(sid, u).length;
+            const row = root.querySelector(`[data-tags-for="${unitId}"]`); if (row) row.classList.toggle("hidden", !show);
+            const btn = root.querySelector(`[data-tagbtn][data-s="${sid}"][data-u="${unitId}"]`); if (btn) btn.outerHTML = tagBtn(sid, u);
+        }
+        const toggle = (sid, unitId, tag) => { const now = Store.toggleMistake(p.id, sid, unitId, tag); syncTags(sid, unitId); return now; };
+        $("#mk-body", root).addEventListener("click", (e) => {
+            const chip = e.target.closest(".mk-tag[data-tag]");
+            if (chip && root.contains(chip) && !chip.closest(".tag-pop")) { chip.classList.toggle("on", toggle(chip.dataset.s, chip.dataset.u, chip.dataset.tag).includes(chip.dataset.tag)); return; }
+            const btn = e.target.closest("[data-tagbtn]");
+            if (!btn) return;
+            const u = us.find((x) => x.id === btn.dataset.u); const sid = btn.dataset.s;
+            document.querySelectorAll(".tag-pop").forEach((x) => x.remove());
+            const pop = document.createElement("div");
+            pop.className = "tag-pop";
+            pop.innerHTML = `<div class="small strong" style="margin-bottom:6px">${esc(Store.student(sid).name)} - Q${esc(u.label)}: marks lost to</div><div class="mk-tags">${chips(sid, u)}</div>`;
+            document.body.appendChild(pop);
+            const r = btn.getBoundingClientRect();
+            pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 8, r.left) + "px";
+            pop.style.top = (r.bottom + pop.offsetHeight + 8 > window.innerHeight ? r.top - pop.offsetHeight - 6 : r.bottom + 6) + "px";
+            pop.addEventListener("click", (ev) => { const c = ev.target.closest(".mk-tag"); if (!c) return; c.classList.toggle("on", toggle(sid, u.id, c.dataset.tag).includes(c.dataset.tag)); });
+            setTimeout(() => document.addEventListener("click", function off(ev) { if (!pop.contains(ev.target)) { pop.remove(); document.removeEventListener("click", off); } }), 0);
         });
         $("#gr-tpl", root).addEventListener("click", () => excelTemplate(p).catch((e) => toast(e.message, "err")));
         $("#gr-up", root).addEventListener("click", () => excelUpload(p, () => V.marks(root, [p.id])).catch((e) => toast(e.message, "err")));

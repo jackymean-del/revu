@@ -377,6 +377,20 @@ body.theme-dark .marks-table td.tot, body.theme-dark .marks-table th.tot { color
 .marks-table td.comp, .marks-table th.comp { background: var(--color-gold-soft); font-weight: 800; font-variant-numeric: tabular-nums; }
 .marks-table th .lock { width: 10px; height: 10px; vertical-align: -1px; fill: none; stroke: currentColor; stroke-width: 2.5; }
 
+/* Exam analysis */
+.an-bar { flex: 1; min-width: 60px; height: 8px; background: var(--bg-sunken); border-radius: 999px; overflow: hidden; }
+.an-bar > span { display: block; height: 100%; background: var(--color-primary); border-radius: 999px; }
+
+/* Mistake tags */
+.mk-cell { position: relative; }
+.mk-tagbtn { display: block; margin: 2px auto 0; min-width: 20px; height: 16px; padding: 0 5px; border-radius: 999px; border: 1px dashed var(--border-strong); background: var(--bg-card); color: var(--text-subtle); font-size: 10px; font-weight: 800; line-height: 1; cursor: pointer; }
+.mk-tagbtn.has { border-style: solid; border-color: var(--color-gold); background: var(--color-gold-soft); color: var(--color-gold-ink); }
+.mk-tags { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 6px; }
+.mk-tag { border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-muted); border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.mk-tag:hover { border-color: var(--color-gold); }
+.mk-tag.on { background: var(--color-gold-soft); border-color: var(--color-gold); color: var(--color-gold-ink); font-weight: 800; }
+.tag-pop { position: fixed; z-index: 950; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); box-shadow: var(--shadow-xl); padding: 10px 12px; max-width: 340px; }
+
 /* Paper builder */
 .breakdown { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-family: var(--font-heading); font-weight: 700; font-size: 16px; }
 .breakdown .plus { color: var(--text-subtle); font-weight: 500; }
@@ -574,6 +588,10 @@ body.theme-dark .gd-num { background: var(--text-primary); color: var(--bg-main)
 .rp-skill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 5px; border-radius: 999px; border: 1px solid var(--rp-line); font-size: 10px; line-height: 1.5; white-space: nowrap; }
 .rp-skill.x { border-style: dashed; border-color: #E9CF95; }
 
+.rp-ins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.rp-in { background: var(--rp-tint); border-left: 3px solid var(--rp-gold); border-radius: 0 6px 6px 0; padding: 5px 9px; font-size: 10.5px; line-height: 1.4; }
+.rp-in.good { border-left-color: var(--rp-l2); }
+.rp-in .tip { display: block; color: var(--rp-subtle); margin-top: 1px; }
 .rp-two { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 12px; align-items: center; }
 .rp-lvl { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 .rp-lvl.none { color: var(--rp-subtle); font-weight: 500; }
@@ -603,7 +621,7 @@ body.theme-dark .gd-num { background: var(--text-primary); color: var(--bg-main)
 @media (max-width: 760px) {
     .rp { padding: 18px 16px; font-size: 11px; }
     .rp-student { grid-template-columns: 1fr 1fr; }
-    .rp-glance, .rp-two, .rp-sn { grid-template-columns: minmax(0, 1fr); }
+    .rp-glance, .rp-two, .rp-sn, .rp-ins { grid-template-columns: minmax(0, 1fr); }
     .rp-two > div:last-child { max-width: 260px; margin: 0 auto; }
     .rp-table-wrap { overflow-x: auto; }
     .rp-outcomes { columns: 1; }

@@ -315,27 +315,73 @@
         higher: [[90, "O"], [80, "A+"], [70, "A"], [60, "B+"], [50, "B"], [45, "C"], [40, "P"], [0, "F"]]
     };
 
+    // Default exam calendar - schools edit their own copy in Settings
     const EXAMS = [
-        { id: "pt1", name: "Periodic Test 1", term: "Term 1" },
-        { id: "mid", name: "Mid-Term", term: "Term 1" },
-        { id: "pt2", name: "Periodic Test 2", term: "Term 2" },
-        { id: "postmid", name: "Post Mid-Term", term: "Term 2" }
+        { id: "pt1", name: "Periodic Test 1", short: "PT1", term: "Term 1" },
+        { id: "mid", name: "Mid-Term", short: "Mid-Term", term: "Term 1" },
+        { id: "pt2", name: "Periodic Test 2", short: "PT2", term: "Term 2" },
+        { id: "postmid", name: "Post Mid-Term", short: "Post Mid", term: "Term 2" }
     ];
 
-    // How a subject's term total (out of 100) is built. "exam" parts take the core-section
-    // percentage of that exam; the "fields" part pools every extra-section field in the term.
-    const TERM_TOTAL = {
-        "Term 1": [
-            { key: "pt", label: "Periodic Test", short: "PT", exam: "pt1", outOf: 10 },
-            { key: "exam", label: "Mid-Term", short: "Mid-Term", exam: "mid", outOf: 80 },
-            { key: "fields", label: "Skills", fields: true, outOf: 10 }
-        ],
-        "Term 2": [
-            { key: "pt", label: "Periodic Test", short: "PT", exam: "pt2", outOf: 10 },
-            { key: "exam", label: "Post Mid-Term", short: "Post Mid", exam: "postmid", outOf: 80 },
-            { key: "fields", label: "Skills", fields: true, outOf: 10 }
-        ]
+    // Results link exams together. Each part takes one exam (its core sections), the pooled
+    // extra-section fields, or another result - scaled to its own "out of". A result shown on
+    // a term's report is that term's total; results can feed later results (Term 1 -> Annual).
+    const RESULTS = [
+        { id: "r-t1", name: "Term 1 result", term: "Term 1", parts: [
+            { key: "pt", label: "Periodic Test 1", short: "PT1", src: "exam", ref: "pt1", outOf: 10 },
+            { key: "exam", label: "Mid-Term", short: "Mid-Term", src: "exam", ref: "mid", outOf: 80 },
+            { key: "fields", label: "Skills", src: "fields", ref: "*", outOf: 10 }
+        ] },
+        { id: "r-t2", name: "Term 2 result", term: "Term 2", parts: [
+            { key: "pt", label: "Periodic Test 2", short: "PT2", src: "exam", ref: "pt2", outOf: 10 },
+            { key: "exam", label: "Post Mid-Term", short: "Post Mid", src: "exam", ref: "postmid", outOf: 80 },
+            { key: "fields", label: "Skills", src: "fields", ref: "*", outOf: 10 }
+        ] },
+        { id: "r-annual", name: "Annual result", term: null, parts: [
+            { key: "t1", label: "Term 1 result", short: "Term 1", src: "result", ref: "r-t1", outOf: 50 },
+            { key: "t2", label: "Term 2 result", short: "Term 2", src: "result", ref: "r-t2", outOf: 50 }
+        ] }
+    ];
+
+    // Mistake tags: one tap while marking a question where marks were lost. Each carries a
+    // practice tip that appears with the insight on the report.
+    const MISTAKES = {
+        spelling: { label: "Spelling", tip: "Keep a personal list of misspelt words and do a 10-word dictation daily." },
+        grammar: { label: "Grammar", tip: "Practise one grammar rule a day with five short sentences." },
+        punctuation: { label: "Punctuation", tip: "Read each answer aloud once to check full stops, commas and capitals." },
+        vocabulary: { label: "Word choice", tip: "Learn three new words a day and use each in a sentence." },
+        comprehension: { label: "Understanding the text", tip: "Underline key words in the passage and the question before answering." },
+        handwriting: { label: "Handwriting", tip: "Ten minutes of guided handwriting practice every day." },
+        calculation: { label: "Calculation", tip: "Re-check every step; ten mixed sums daily build speed and accuracy." },
+        concept: { label: "Concept", tip: "Revisit the idea with one worked example, then try three similar questions." },
+        steps: { label: "Steps missing", tip: "Write every step of working - method earns marks." },
+        units: { label: "Units", tip: "Always write and check the unit in the final answer." },
+        copying: { label: "Copying error", tip: "Re-read numbers from the question after copying them down." },
+        terms: { label: "Key terms", tip: "Make flashcards of key terms and their meanings for each chapter." },
+        diagram: { label: "Diagram / labels", tip: "Practise one neat, fully labelled diagram per chapter." },
+        reasoning: { label: "Reasoning", tip: "Support every answer with \"because...\" and one reason." },
+        facts: { label: "Facts / dates", tip: "Use a timeline and a five-question quiz each week." },
+        map: { label: "Map work", tip: "Locate five places on an outline map every week." },
+        incomplete: { label: "Incomplete answer", tip: "Plan time so every question is attempted; keep five minutes to finish." },
+        misread: { label: "Misread question", tip: "Underline what the question asks before starting to write." },
+        presentation: { label: "Presentation", tip: "Number answers clearly and leave a line between them." }
     };
+    const MISTAKE_SETS = {
+        language: ["spelling", "grammar", "punctuation", "vocabulary", "comprehension", "handwriting", "incomplete", "misread"],
+        math: ["calculation", "concept", "steps", "units", "copying", "misread", "incomplete"],
+        science: ["concept", "terms", "diagram", "reasoning", "units", "spelling", "incomplete"],
+        social: ["facts", "map", "reasoning", "terms", "spelling", "incomplete"],
+        general: ["concept", "spelling", "incomplete", "misread", "presentation"]
+    };
+    function mistakeSet(subject) {
+        const s2 = String(subject || "");
+        if (/social|history|geography|civics/i.test(s2)) return MISTAKE_SETS.social;
+        if (/english|hindi|odia|sanskrit|language|literacy/i.test(s2)) return MISTAKE_SETS.language;
+        if (/math/i.test(s2)) return MISTAKE_SETS.math;
+        if (/science|evs|physics|chemistry|biology/i.test(s2)) return MISTAKE_SETS.science;
+        return MISTAKE_SETS.general;
+    }
+
     // What the pooled extra-section part is called for a grade
     function fieldsLabel(grade, short) {
         const n = parseInt(grade, 10);
@@ -345,7 +391,7 @@
     }
 
     window.HPC_FW = {
-        LEVELS, SELF_SCALES, STAGES, COMPONENTS, ENRICHMENT_NAMES, LO_LIBRARY, QUESTION_BANK, GRADE_SCALES, EXAMS, MERGE_HINTS, TERM_TOTAL,
-        stageForGrade, componentLabel, componentsForGrade, subjectsForGrade, fieldsLabel
+        LEVELS, SELF_SCALES, STAGES, COMPONENTS, ENRICHMENT_NAMES, LO_LIBRARY, QUESTION_BANK, GRADE_SCALES, EXAMS, MERGE_HINTS, RESULTS, MISTAKES,
+        stageForGrade, componentLabel, componentsForGrade, subjectsForGrade, fieldsLabel, mistakeSet
     };
 })();

@@ -56,7 +56,7 @@
             ${mine.map((c) => `<option value="${c.id}" ${c.id === App.ctx.classId ? "selected" : ""}>${esc(Store.className(c))} - ${esc(Store.stageOf(c).name)}</option>`).join("")}</select></div>`;
     };
     App.examSelect = (id) => `<div class="field"><label for="${id || "ctx-exam"}">Examination</label><select class="select" id="${id || "ctx-exam"}" data-ctx="exam">
-        ${HPC_FW.EXAMS.map((e) => `<option value="${e.id}" ${e.id === App.ctx.exam ? "selected" : ""}>${esc(e.name)} (${e.term})</option>`).join("")}</select></div>`;
+        ${Store.exams().map((e) => `<option value="${e.id}" ${e.id === App.ctx.exam ? "selected" : ""}>${esc(e.name)} (${e.term})</option>`).join("")}</select></div>`;
     App.termSelect = (id) => `<div class="field"><label for="${id || "ctx-term"}">Term</label><select class="select" id="${id || "ctx-term"}" data-ctx="term">
         ${["Term 1", "Term 2"].map((t) => `<option ${t === App.ctx.term ? "selected" : ""}>${t}</option>`).join("")}</select></div>`;
     App.bindCtx = (root) => $$("[data-ctx]", root).forEach((sel) => sel.addEventListener("change", () => { App.setCtx({ [sel.dataset.ctx]: sel.value }); App.render(); }));
@@ -73,7 +73,7 @@
         ];
         const sections = [
             ["", [["home", "Home", "dashboard"]]],
-            ["Assess", [["outcomes", "Outcomes", "library"], ["papers", "Papers", "builder"], ["marks", "Marks", "grader"], ["growth", "Growth", "holistic"], ["voices", "Voices", "voices"]]],
+            ["Assess", [["outcomes", "Outcomes", "library"], ["papers", "Papers", "builder"], ["marks", "Marks", "grader"], ["analysis", "Exam analysis", "dashboard"], ["growth", "Growth", "holistic"], ["voices", "Voices", "voices"]]],
             ["Share", [["students", "Students", "students"], ["reports", "Reports", "card"], ["guide", "How it works", "sparkle"]]]
         ];
         if (p.key === "admin") sections.push(["Admin", [["settings", "Settings", "settings"]]]);

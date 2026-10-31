@@ -87,18 +87,19 @@
                 <div class="small muted">${k.outs.map((o) => `${esc(o.lo.code)} ${o.pct}% (${esc(L[o.lvl].label)})`).join(" + ")} &rarr; average ${k.pct}%</div></div>`).join("") : `<div class="empty">No skill areas for this subject.</div>`}</div></div>
         </div>
 
-        <div class="card mt-16" id="gd-4">${step(4, "Grades come from the term total", `Each part is scaled from its own marks (set in Settings &rarr; Term total), added up and graded on the school scale.`)}
+        <div class="card mt-16" id="gd-4">${step(4, "Grades come from the term total", `Each part is scaled from its own marks - an exam, the extra sections, or a whole linked result - then added up and graded on the school scale (Settings &rarr; Exams & results).`)}
             <div class="card-body grid grid-2">
                 <div>${row ? `<table class="table" style="border:1px solid var(--border-color);border-radius:8px"><thead><tr><th>${esc(row.sub)}</th><th class="num">Scaled</th></tr></thead><tbody>
                     ${row.tr.parts.filter((p) => p.status !== "none").map((p) => {
-                        const raw = p.part.fields ? (() => { let g = 0, m = 0; Store.examsOfTerm(term).forEach((e) => { const r = Store.subjectResult(cls.id, e.id, row.sub, s.id); if (r) Object.values(r.comps).forEach((c) => { g += c.got; m += c.max; }); }); return m ? `${fmt(g)}/${fmt(m)} in extra sections` : ""; })()
-                            : (() => { const r = Store.subjectResult(cls.id, p.part.exam, row.sub, s.id); return r && r.any ? (r.ab ? "absent" : `${fmt(r.main)}/${fmt(r.mainMax)} in ${Store.examById(p.part.exam).name} core sections`) : "not marked yet"; })();
+                        const raw = p.status === "ab" ? "absent" : p.status === "pending" ? "not marked yet"
+                            : p.part.src === "result" ? `${p.sub ? `${fmt(p.sub.total)}/${p.sub.markedMax} in ${p.sub.name}` : ""} (linked result)`
+                            : p.raw ? `${fmt(p.raw.got)}/${fmt(p.raw.max)} in ${p.part.src === "fields" ? "extra sections" : `${Store.examById(p.part.ref).name} core sections`}` : "";
                         return `<tr><td>${esc(p.label)} <span class="small muted">- ${esc(raw)}</span></td><td class="num">${p.status === "ok" ? `${fmt(p.score)} / ${p.outOf}` : p.status === "ab" ? "AB" : "pending"}</td></tr>`; }).join("")}
                     <tr><td class="strong">Term total${row.tr.absentExcluded ? ` <span class="small muted">- absent part left out</span>` : ""}</td><td class="num strong">${row.tr.pct == null ? "-" : `${fmt(row.tr.total)} / ${row.tr.markedMax}`}</td></tr>
                     </tbody></table>` : ""}</div>
                 <div><div class="small strong" style="margin-bottom:6px">Grade scale</div><div class="row" style="gap:6px">${scale.map(([min, g], i) => `<span class="badge ${row && row.tr.grade === g ? "badge-blue" : "badge-gray"}" style="${row && row.tr.grade === g ? "outline:2px solid var(--color-primary)" : ""}">${g} &middot; ${min}${i ? `-${scale[i - 1][0] - 1}` : "+"}</span>`).join("")}</div>
                     ${row && row.tr.pct != null ? `<p class="mt-8">${esc(first)} scored <b>${Math.round(row.tr.pct)}%</b> in ${esc(row.sub)} &rarr; grade <b>${esc(row.tr.grade)}</b>. The overall grade on the report is the average of all graded subjects: <b>${ins.overall == null ? "-" : `${Math.round(ins.overall)}% (${Store.gradeFor(ins.overall)})`}</b>.</p>` : ""}
-                    <p class="small muted mt-8">Parts not marked yet show as "pending" and are never counted as zero. An absence shows as AB and is ${Store.db.absentAsZero ? "counted as zero (school setting)" : "left out of the grade - the grade uses the parts attended (change this in Settings &rarr; Term total)"}.</p></div>
+                    <p class="small muted mt-8">Parts not marked yet show as "pending" and are never counted as zero. An absence shows as AB and is ${Store.db.absentAsZero ? "counted as zero (school setting)" : "left out of the grade - the grade uses the parts attended (change this in Settings &rarr; Exams & results)"}.</p></div>
             </div>
         </div>
 
@@ -117,6 +118,11 @@
                         || (ins.stretch ? `<div class="gd-why next"><b>Stretch: ${esc(ins.stretch.name)}</b> <span class="muted">${esc(ins.stretch.where)}</span><div class="small muted">Everything is ${Store.NEXT_BELOW}+; this is the lowest (${Math.round(ins.stretch.score)})</div></div>` : `<div class="muted">None.</div>`)}</div>
             </div>
             <div class="card-body" style="border-top:1px solid var(--border-color)">
+                <div class="small strong" style="margin-bottom:6px">Learning insights - from question marks and mistake tags</div>
+                <p class="small muted" style="margin-bottom:8px">Rules: a mistake type must recur in ${Store.INSIGHT_RULES.mistakeMin}+ questions; an outcome is flagged under ${Store.INSIGHT_RULES.gapBelow}% and ${Store.INSIGHT_RULES.gapVsClass}+ points below the class (or ${Store.INSIGHT_RULES.strongAbove}%+ and ${Store.INSIGHT_RULES.gapVsClass}+ above); a subject moving ${Store.INSIGHT_RULES.trendPoints}+ points between linked exams; long answers ${Store.INSIGHT_RULES.answerGap}+ points under short ones. The report shows the top 3 to work on and 1 going well.</p>
+                ${ins.academic.length ? `<table class="table" style="border:1px solid var(--border-color);border-radius:8px;margin-bottom:14px"><thead><tr><th style="width:45%">Insight</th><th>Evidence</th><th>Tip</th></tr></thead><tbody>
+                ${ins.academic.map((x) => `<tr><td><span class="badge ${x.tone === "good" ? "badge-green" : "badge-yellow"}">${x.tone === "good" ? "going well" : "work on"}</span> ${esc(x.text)}</td><td class="small">${esc(x.why)}</td><td class="small">${esc(x.tip || "-")}</td></tr>`).join("")}
+                </tbody></table>` : `<p class="muted" style="margin-bottom:14px">No learning insights yet - they appear as marks and mistake tags come in.</p>`}
                 <div class="small strong" style="margin-bottom:6px">Teacher's note - auto-draft, sentence by sentence</div>
                 <table class="table" style="border:1px solid var(--border-color);border-radius:8px"><thead><tr><th style="width:45%">Sentence</th><th>Rule</th><th>Data it used</th></tr></thead><tbody>
                 ${ins.remark.map((p) => `<tr><td>${esc(p.text)}</td><td class="small">${esc(p.rule)}</td><td class="small">${esc(p.data)}</td></tr>`).join("")}
@@ -207,10 +213,11 @@
         all.forEach(({ s, ins }) => ins.rows.forEach((r) => r.skills.forEach((k) => k.outs.forEach((o) => ws4.addRow([s.roll, s.name, r.sub, k.c.title, o.lo.code, o.lo.text, o.pct, L[o.lvl].label])))));
 
         // 5. Insights & notes
-        const ws5 = sheet("Insights", ["Roll", "Student", "Strengths", "Next steps", "Teacher's note", "Status"], [6, 24, 40, 40, 70, 12]);
+        const ws5 = sheet("Insights", ["Roll", "Student", "Strengths", "Next steps", "Learning insights", "Teacher's note", "Status"], [6, 24, 36, 36, 70, 70, 12]);
         all.forEach(({ s, ins }) => {
             const rem = (db.remarks[term] || {})[s.id];
-            const row = ws5.addRow([s.roll, s.name, ins.strengths.map((i) => `${i.name} (${i.where})`).join("; "), (ins.nexts.length ? ins.nexts : ins.stretch ? [ins.stretch] : []).map((i) => `${i.name} (${i.where})`).join("; "), rem && rem.text ? rem.text : "", rem ? rem.status : "not started"]);
+            const learning = ins.academic.map((x) => `${x.tone === "good" ? "+" : "!"} ${x.text}${x.tip ? ` Tip: ${x.tip}` : ""}`).join("\n");
+            const row = ws5.addRow([s.roll, s.name, ins.strengths.map((i) => `${i.name} (${i.where})`).join("; "), (ins.nexts.length ? ins.nexts : ins.stretch ? [ins.stretch] : []).map((i) => `${i.name} (${i.where})`).join("; "), learning, rem && rem.text ? rem.text : "", rem ? rem.status : "not started"]);
             row.alignment = { wrapText: true, vertical: "top" };
         });
 

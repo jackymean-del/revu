@@ -279,83 +279,137 @@
     // ---------------------------------------------------------------------
     // Settings (admin)
     // ---------------------------------------------------------------------
-    // Term total editor: parts per term, each from one exam's core sections or from the
-    // pooled extra-section fields, scaled to its own "out of".
-    function termTotalEditor(host) {
+    // Exams & results editor. Exams are the school calendar; results link exams (and other
+    // results) into scaled totals - e.g. PT1 40 -> 10, Half-Yearly -> 30 of the Annual.
+    function resultsEditor(host) {
         const db = Store.db;
-        const draft = Store.clone(db.termTotal || FW.TERM_TOTAL);
-        let term = App.ctx.term && draft[App.ctx.term] ? App.ctx.term : Object.keys(draft)[0];
+        const draft = { exams: Store.clone(Store.exams()), results: Store.clone(Store.results()) };
         let dirty = false;
+        const TERMS = ["Term 1", "Term 2"];
+        const slug = (t, taken) => { let b = String(t).toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10) || "x"; let k = b, i = 2; while (taken.includes(k)) k = b + i++; return k; };
+        const examName = (id) => (draft.exams.find((e) => e.id === id) || { name: `(deleted: ${id})` }).name;
+        const resName = (id) => (draft.results.find((r) => r.id === id) || { name: `(deleted result)` }).name;
+        const papersOf = (exId) => db.papers.filter((p) => p.exam === exId).length;
 
-        const problems = (parts) => {
+        const problems = () => {
             const out = [];
-            if (!parts.length) out.push("Add at least one part.");
-            parts.forEach((p, i) => {
-                if (!String(p.label || "").trim()) out.push(`Part ${i + 1} needs a name.`);
-                if (!(Number(p.outOf) > 0)) out.push(`"${p.label || `Part ${i + 1}`}" needs an "out of" above 0.`);
-            });
-            if (parts.filter((p) => p.fields).length > 1) out.push("Extra-section fields can be used by only one part - they would be counted twice.");
-            const exams = parts.filter((p) => !p.fields).map((p) => p.exam);
-            const dup = exams.find((e, i) => exams.indexOf(e) !== i);
-            if (dup) out.push(`${(Store.examById(dup) || {}).name || dup} is used twice - its marks would be counted twice.`);
-            return out;
+            const names = draft.exams.map((e) => e.name.trim().toLowerCase());
+            if (names.some((n) => !n)) out.push("Every exam needs a name.");
+            const dupName = names.find((n, i) => n && names.indexOf(n) !== i);
+            if (dupName) out.push(`Two exams are called "${dupName}".`);
+            draft.results.forEach((r) => r.parts.forEach((p) => {
+                if (p.src === "exam" && !draft.exams.some((e) => e.id === p.ref)) out.push(`"${r.name}" uses an exam that no longer exists.`);
+                if (p.src === "result" && !draft.results.some((x) => x.id === p.ref)) out.push(`"${r.name}" uses a result that no longer exists.`);
+            }));
+            // loop / double counting checks use the same rules as the engine
+            const saved = { e: db.exams, r: db.results }; db.exams = draft.exams;
+            try { out.push(...Store.resultProblems(draft.results)); } finally { db.exams = saved.e; }
+            return [...new Set(out)];
+        };
+        const sourceOptions = (r, p) => {
+            const opts = draft.exams.map((e) => [`exam:${e.id}`, `Exam - ${e.name} (core sections)`]);
+            opts.push(["fields:*", "Extra sections of the exams in this result"]);
+            draft.exams.forEach((e) => opts.push([`fields:${e.id}`, `Extra sections - ${e.name} only`]));
+            draft.results.filter((x) => x.id !== r.id).forEach((x) => opts.push([`result:${x.id}`, `Result - ${x.name}`]));
+            const cur = `${p.src}:${p.ref}`;
+            return opts.map(([v, l]) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`).join("");
+        };
+        const formula = (r) => {
+            const sum = r.parts.reduce((s, p) => s + (Number(p.outOf) || 0), 0);
+            return `<div class="breakdown" style="font-size:13px">${r.parts.map((p) => `<span class="part ${p.src === "fields" ? "add" : p.src === "result" ? "" : ""}" ${p.src === "result" ? 'style="background:var(--color-accent-soft);color:var(--color-accent)"' : ""}>${esc(p.short || p.label)} ${fmt(Number(p.outOf) || 0)}</span>`).join('<span class="plus">+</span>')}<span class="plus">=</span><span class="part" style="background:var(--color-primary);color:#fff">${fmt(sum)}</span></div>`;
         };
 
         function render() {
-            const parts = draft[term];
-            const sum = parts.reduce((s, p) => s + (Number(p.outOf) || 0), 0);
-            const issues = problems(parts);
-            const termExams = Store.examsOfTerm(term);
-            const usesFields = parts.some((p) => p.fields);
+            const issues = problems();
             host.innerHTML = `
-                <div class="row-between" style="margin-bottom:12px">
-                    <div class="seg" id="tt-term">${Object.keys(draft).map((t) => `<button class="${t === term ? "on" : ""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>
-                    <div class="breakdown" style="font-size:14px">${parts.map((p) => `<span class="part ${p.fields ? "add" : ""}">${esc(p.short || p.label)} ${fmt(Number(p.outOf) || 0)}</span>`).join('<span class="plus">+</span>')}<span class="plus">=</span><span class="part" style="background:var(--color-primary);color:#fff">${fmt(sum)}</span></div>
-                </div>
-                <div class="table-wrap"><table class="table">
-                    <thead><tr><th>Part (on report legend)</th><th>Column header</th><th>Marks come from</th><th class="num">Out of</th><th></th></tr></thead>
-                    <tbody>${parts.map((p, i) => `<tr data-i="${i}">
-                        <td><input class="input" data-k="label" value="${esc(p.label)}" style="width:100%;min-width:140px" aria-label="Part name"></td>
-                        <td><input class="input" data-k="short" value="${esc(p.short || "")}" maxlength="10" placeholder="${esc(p.label.slice(0, 10))}" style="width:110px" aria-label="Column header"></td>
-                        <td><select class="select" data-k="source" aria-label="Marks come from">
-                            ${termExams.map((e) => `<option value="exam:${e.id}" ${!p.fields && p.exam === e.id ? "selected" : ""}>${esc(e.name)} - core sections</option>`).join("")}
-                            <option value="fields" ${p.fields ? "selected" : ""} ${usesFields && !p.fields ? "disabled" : ""}>Extra sections (Oral, Activity, Enrichment, Notebook)</option>
-                        </select></td>
-                        <td class="num"><input class="input num" type="number" min="1" max="1000" step="0.5" data-k="outOf" value="${esc(p.outOf)}" style="width:80px;text-align:right" aria-label="Out of"></td>
-                        <td class="num"><button class="btn btn-sm btn-ghost btn-danger" data-del="${i}" aria-label="Remove part" ${parts.length === 1 ? "disabled" : ""}>${icon("trash")}</button></td>
-                    </tr>`).join("")}</tbody>
-                </table></div>
-                <div class="row mt-8"><button class="btn btn-sm" id="tt-add">${icon("plus")}Add part</button><span class="small muted">Parts with no published paper are left out of a student's total; parts not yet marked show as "pending".</span></div>
-                ${issues.length ? `<div class="alert alert-warn mt-8">${icon("alert")}<div class="body">${issues.map(esc).join("<br>")}</div></div>`
-                    : sum !== 100 ? `<div class="alert alert-info mt-8">${icon("info")}<div class="body">These parts add up to ${fmt(sum)}. Reports will show totals out of ${fmt(sum)} and grade them as a percentage.</div></div>` : ""}
-                <label class="check mt-16"><input type="checkbox" id="tt-abzero" ${db.absentAsZero ? "checked" : ""}> Count an absence as zero <span class="small muted">(off: an absent part shows AB and the grade uses the parts attended)</span></label>
-                <div class="row mt-16"><button class="btn btn-primary" id="tt-save" ${issues.length ? "disabled" : ""}>${icon("check")}Save term total</button><button class="btn" id="tt-default">Reset ${esc(term)} to default</button>${dirty ? `<span class="small muted">Unsaved changes</span>` : ""}</div>`;
+            <div class="small strong" style="margin-bottom:6px">Exams <span class="muted" style="font-weight:500">- your school's exam calendar</span></div>
+            <div class="table-wrap"><table class="table"><thead><tr><th>Exam</th><th>Short name</th><th>Term</th><th class="num">Papers</th><th></th></tr></thead><tbody>
+            ${draft.exams.map((e, i) => `<tr data-ex="${i}">
+                <td><input class="input" data-ek="name" value="${esc(e.name)}" style="width:100%;min-width:150px" aria-label="Exam name"></td>
+                <td><input class="input" data-ek="short" value="${esc(e.short || "")}" maxlength="10" style="width:110px" aria-label="Short name"></td>
+                <td><select class="select" data-ek="term" aria-label="Term">${TERMS.map((t) => `<option ${t === e.term ? "selected" : ""}>${t}</option>`).join("")}</select></td>
+                <td class="num">${papersOf(e.id)}</td>
+                <td class="num"><button class="btn btn-sm btn-ghost btn-danger" data-exdel="${i}" ${papersOf(e.id) ? 'disabled title="Has papers - cannot delete"' : ""} aria-label="Delete exam">${icon("trash")}</button></td>
+            </tr>`).join("")}</tbody></table></div>
+            <div class="row mt-8"><button class="btn btn-sm" id="ex-add">${icon("plus")}Add exam</button><span class="small muted">e.g. Half-Yearly, Unit Test 3, Annual. Papers are built per exam.</span></div>
 
-            $$("#tt-term button", host).forEach((b) => b.addEventListener("click", () => { term = b.dataset.t; render(); }));
-            $$("tr[data-i]", host).forEach((tr) => {
-                const p = parts[Number(tr.dataset.i)];
-                $$("[data-k]", tr).forEach((el) => el.addEventListener("change", () => {
-                    if (el.dataset.k === "source") {
-                        if (el.value === "fields") { p.fields = true; delete p.exam; }
-                        else { p.fields = false; delete p.fields; p.exam = el.value.slice(5); }
-                    } else if (el.dataset.k === "outOf") p.outOf = Number(el.value);
-                    else p[el.dataset.k] = el.value.trim();
-                    dirty = true; render();
+            <div class="small strong" style="margin:22px 0 6px">Results <span class="muted" style="font-weight:500">- link exams into totals. A part can be an exam, the extra sections, or another result.</span></div>
+            <div class="stack" style="gap:12px">${draft.results.map((r, ri) => `
+                <div class="card" style="box-shadow:none" data-res="${ri}">
+                    <div class="card-head" style="gap:10px">
+                        <input class="input" data-rk="name" value="${esc(r.name)}" style="font-weight:700;min-width:180px;flex:1;max-width:280px" aria-label="Result name">
+                        <label class="small muted" style="display:flex;align-items:center;gap:6px">Shown on
+                            <select class="select" data-rk="term" aria-label="Shown on report">${[["", "No report (feeds other results)"]].concat(TERMS.map((t) => [t, `${t} report`])).map(([v, l]) => `<option value="${v}" ${String(r.term || "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+                        <span style="flex:1"></span>${formula(r)}
+                        <button class="btn btn-sm btn-ghost btn-danger" data-resdel="${ri}" aria-label="Delete result" ${draft.results.some((x) => x.parts.some((p) => p.src === "result" && p.ref === r.id)) ? 'disabled title="Used by another result"' : ""}>${icon("trash")}</button>
+                    </div>
+                    <div class="table-wrap" style="border:0;border-radius:0"><table class="table"><thead><tr><th>Part (legend)</th><th>Column</th><th>Marks come from</th><th class="num">Scaled to</th><th></th></tr></thead><tbody>
+                    ${r.parts.map((p, pi) => `<tr data-pi="${pi}">
+                        <td><input class="input" data-pk="label" value="${esc(p.label)}" style="width:100%;min-width:130px" aria-label="Part name"></td>
+                        <td><input class="input" data-pk="short" value="${esc(p.short || "")}" maxlength="10" style="width:100px" aria-label="Column header"></td>
+                        <td><select class="select" data-pk="source" style="max-width:320px" aria-label="Marks come from">${sourceOptions(r, p)}</select></td>
+                        <td class="num"><input class="input num" type="number" min="0.5" step="0.5" data-pk="outOf" value="${esc(p.outOf)}" style="width:80px;text-align:right" aria-label="Scaled to"></td>
+                        <td class="num"><button class="btn btn-sm btn-ghost btn-danger" data-pdel="${pi}" ${r.parts.length === 1 ? "disabled" : ""} aria-label="Remove part">${icon("x")}</button></td>
+                    </tr>`).join("")}</tbody></table></div>
+                    <div class="row" style="padding:8px 16px 12px"><button class="btn btn-sm" data-padd="${ri}">${icon("plus")}Add part</button>
+                        <span class="small muted">${r.parts.map((p) => p.src === "exam" ? `${examName(p.ref)} &rarr; ${fmt(Number(p.outOf) || 0)}` : p.src === "result" ? `${esc(resName(p.ref))} &rarr; ${fmt(Number(p.outOf) || 0)}` : `extra sections &rarr; ${fmt(Number(p.outOf) || 0)}`).join(" &middot; ")}</span></div>
+                </div>`).join("")}
+            </div>
+            <div class="row mt-8"><button class="btn btn-sm" id="res-add">${icon("plus")}Add result</button><span class="small muted">e.g. "Half-Yearly" = PT1 &rarr; 10 + Half-Yearly exam &rarr; 80 + Notebook &rarr; 10; "Annual" = Half-Yearly &rarr; 30 + Annual exam &rarr; 70.</span></div>
+            <label class="check mt-16"><input type="checkbox" id="tt-abzero" ${db.absentAsZero ? "checked" : ""}> Count an absence as zero <span class="small muted">(off: an absent part shows AB and the grade uses the parts attended)</span></label>
+            ${issues.length ? `<div class="alert alert-warn mt-8">${icon("alert")}<div class="body">${issues.map(esc).join("<br>")}</div></div>` : ""}
+            <div class="row mt-16"><button class="btn btn-primary" id="res-save" ${issues.length ? "disabled" : ""}>${icon("check")}Save exams & results</button><button class="btn" id="res-default">Reset to default</button>${dirty ? `<span class="small muted">Unsaved changes</span>` : ""}</div>`;
+
+            const change = () => { dirty = true; render(); };
+            $$("tr[data-ex]", host).forEach((tr) => { const e = draft.exams[Number(tr.dataset.ex)]; $$("[data-ek]", tr).forEach((el) => el.addEventListener("change", () => { e[el.dataset.ek] = el.value.trim(); change(); })); });
+            $$("[data-exdel]", host).forEach((b) => b.addEventListener("click", () => { draft.exams.splice(Number(b.dataset.exdel), 1); change(); }));
+            $("#ex-add", host).addEventListener("click", () => { const name = "New exam"; draft.exams.push({ id: slug(name, draft.exams.map((e) => e.id)), name, short: "New", term: TERMS[0] }); change(); });
+            $$("[data-res]", host).forEach((card) => {
+                const r = draft.results[Number(card.dataset.res)];
+                $$("[data-rk]", card).forEach((el) => el.addEventListener("change", () => {
+                    if (el.dataset.rk === "term") {
+                        const t = el.value || null;
+                        if (t) draft.results.forEach((x) => { if (x !== r && x.term === t) x.term = null; });  // one result per report
+                        r.term = t;
+                    } else r.name = el.value.trim();
+                    change();
                 }));
+                $$("tr[data-pi]", card).forEach((tr) => {
+                    const p = r.parts[Number(tr.dataset.pi)];
+                    $$("[data-pk]", tr).forEach((el) => el.addEventListener("change", () => {
+                        if (el.dataset.pk === "source") {
+                            const [src, ref] = el.value.split(":");
+                            p.src = src; p.ref = ref;
+                            if (src === "exam") { const e = draft.exams.find((x) => x.id === ref); p.label = e.name; p.short = e.short || e.name.slice(0, 10); }
+                            if (src === "result") { const x = draft.results.find((y) => y.id === ref); p.label = x.name; p.short = x.name.replace(/\s*result$/i, "").slice(0, 10); }
+                            if (src === "fields") { p.label = "Skills"; p.short = ""; }
+                        } else if (el.dataset.pk === "outOf") p.outOf = Number(el.value);
+                        else p[el.dataset.pk] = el.value.trim();
+                        change();
+                    }));
+                });
+                $$("[data-pdel]", card).forEach((b) => b.addEventListener("click", () => { r.parts.splice(Number(b.dataset.pdel), 1); change(); }));
             });
-            $$("[data-del]", host).forEach((b) => b.addEventListener("click", () => { parts.splice(Number(b.dataset.del), 1); dirty = true; render(); }));
-            $("#tt-add", host).addEventListener("click", () => {
-                const unused = termExams.find((e) => !parts.some((p) => !p.fields && p.exam === e.id));
-                parts.push(unused ? { key: Store.uid("tt"), label: unused.name, short: unused.name.slice(0, 10), exam: unused.id, outOf: 10 }
-                    : { key: Store.uid("tt"), label: "New part", short: "New", exam: termExams[0].id, outOf: 10 });
-                dirty = true; render();
+            $$("[data-padd]", host).forEach((b) => b.addEventListener("click", () => {
+                const r = draft.results[Number(b.dataset.padd)];
+                const used = new Set(r.parts.filter((p) => p.src === "exam").map((p) => p.ref));
+                const e = draft.exams.find((x) => !used.has(x.id)) || draft.exams[0];
+                r.parts.push({ key: Store.uid("pt"), label: e.name, short: e.short || e.name.slice(0, 10), src: "exam", ref: e.id, outOf: 10 });
+                change();
+            }));
+            $$("[data-resdel]", host).forEach((b) => b.addEventListener("click", () => { draft.results.splice(Number(b.dataset.resdel), 1); change(); }));
+            $("#res-add", host).addEventListener("click", () => {
+                const e = draft.exams[0];
+                draft.results.push({ id: Store.uid("r"), name: "New result", term: null, parts: [{ key: Store.uid("pt"), label: e.name, short: e.short || e.name.slice(0, 10), src: "exam", ref: e.id, outOf: 100 }] });
+                change();
             });
             $("#tt-abzero", host).addEventListener("change", (e) => { db.absentAsZero = e.target.checked; Store.save(true); toast(e.target.checked ? "Absences now count as zero" : "Absent parts are left out of the grade"); });
-            $("#tt-default", host).addEventListener("click", () => { draft[term] = Store.clone(FW.TERM_TOTAL[term] || []); dirty = true; render(); });
-            $("#tt-save", host).addEventListener("click", () => {
-                const bad = Object.entries(draft).find(([, ps]) => problems(ps).length);
-                if (bad) { term = bad[0]; render(); toast(`Fix ${bad[0]} first`, "err"); return; }
-                db.termTotal = Store.clone(draft); Store.save(true); dirty = false; render(); toast("Term total saved - reports use it now");
+            $("#res-default", host).addEventListener("click", () => { draft.exams = Store.clone(FW.EXAMS).concat(draft.exams.filter((e) => !FW.EXAMS.some((d) => d.id === e.id) && papersOf(e.id))); draft.results = Store.clone(FW.RESULTS); change(); });
+            $("#res-save", host).addEventListener("click", () => {
+                if (problems().length) return;
+                db.exams = Store.clone(draft.exams); db.results = Store.clone(draft.results);
+                if (!db.exams.some((e) => e.id === db.institution.activeExam)) db.institution.activeExam = db.exams[0].id;
+                Store.save(true); dirty = false; render(); toast("Exams & results saved - reports use them now");
             });
         }
         render();
@@ -377,7 +431,7 @@
                 <div class="field"><label for="set-city">City</label><input class="input" id="set-city" value="${esc(inst.city || "")}"></div></div>
                 <div class="field"><label for="set-cardtitle">Report title</label><input class="input" id="set-cardtitle" value="${esc(inst.cardTitle || "Progress Report")}"><span class="help">Printed at the top of every report - e.g. "Holistic Progress Card" for NEP schools.</span></div>
                 <div class="grid grid-2">
-                    <div class="field"><label for="set-exam">Current examination</label><select class="select" id="set-exam">${FW.EXAMS.map((e) => `<option value="${e.id}" ${e.id === inst.activeExam ? "selected" : ""}>${esc(e.name)}</option>`).join("")}</select></div>
+                    <div class="field"><label for="set-exam">Current examination</label><select class="select" id="set-exam">${Store.exams().map((e) => `<option value="${e.id}" ${e.id === inst.activeExam ? "selected" : ""}>${esc(e.name)}</option>`).join("")}</select></div>
                     <div class="field"><label for="set-term">Current term</label><select class="select" id="set-term">${["Term 1", "Term 2"].map((t) => `<option ${t === inst.activeTerm ? "selected" : ""}>${t}</option>`).join("")}</select></div>
                 </div>
                 <div><button class="btn btn-primary" id="set-save">${icon("check")}Save institution</button></div>
@@ -392,7 +446,7 @@
             </div></div>
         </div>
         <div class="card mt-16">
-            <div class="card-head"><h3>Term total</h3><span class="hint">How each subject's total on the report is built. Every part is scaled from its own marks.</span></div>
+            <div class="card-head"><h3>Exams & results</h3><span class="hint">Your exam calendar, and how exams link into the totals on each report.</span></div>
             <div class="card-body" id="tt-body"></div>
         </div>
         <div class="grid grid-2 mt-16">
@@ -414,7 +468,7 @@
             $$("[data-cmax]", root).forEach((i) => { const v = Number(i.value); if (v > 0) db.componentMax[i.dataset.cmax] = v; });
             Store.save(); toast("Conversions saved");
         });
-        termTotalEditor($("#tt-body", root));
+        resultsEditor($("#tt-body", root));
         $("#data-export", root).addEventListener("click", () => UI.download(`revu-hpc-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(db, null, 1), "application/json"));
         $("#data-import", root).addEventListener("click", async () => {
             const f = await UI.pickFile(".json"); if (!f) return;

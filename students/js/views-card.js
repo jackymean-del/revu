@@ -38,6 +38,11 @@
         // One shared engine computes everything the report says (see Store.insights)
         const ins = Store.insights(sid, term);
         const { rows, graded, overall, ds, items, counts, strengths, nexts, stretch } = ins;
+        // Learning insights: the three biggest things to work on and one thing going well
+        const learn = ins.academic.filter((x) => x.tone === "focus").slice(0, 3).concat(ins.academic.filter((x) => x.tone === "good").slice(0, 1));
+        const learnHtml = (x) => (x.kind === "mistake" || x.kind === "answers"
+            ? `<b>${esc(x.title)}</b>${esc(x.kind === "mistake" ? x.text.slice(x.title.length) : ` - ${x.text}`)}`
+            : `<b>${esc(x.title)}.</b> ${esc(x.text)}`) + (x.tip ? `<span class="tip">Tip: ${esc(x.tip)}</span>` : "");
         const lom = Store.loMastery(sid, term);
         const cols = (rows[0] ? rows[0].tr.parts : []).map((p, i) => ({ i, label: p.label, short: p.short, outOf: p.outOf })).filter((c) => rows.some((r) => r.tr.parts[c.i].status !== "none"));
         const fullMax = cols.reduce((s2, c) => s2 + c.outOf, 0);
@@ -106,6 +111,9 @@
                     </tr>`).join("")}</tbody></table></div>
                     ${rows.some((r) => r.tr.pct != null && (!r.tr.complete || r.tr.absentExcluded)) ? `<div style="font-size:9.5px;color:var(--rp-subtle);margin-top:3px">* Graded on the parts ${rows.some((r) => r.tr.absentExcluded) ? "attended (AB = absent)" : "marked so far"}${rows.some((r) => r.tr.absentExcluded) && rows.some((r) => !r.tr.complete) ? "; some parts are still being marked" : ""}.</div>` : ""}` : `<p style="color:var(--rp-subtle)">No examinations published for this term yet.</p>`}
             </section>
+
+            ${learn.length ? `<section class="rp-sec"><h3>Learning insights <small>From question-level marks and the teachers' mistake notes</small></h3>
+                <div class="rp-ins">${learn.map((x) => `<div class="rp-in ${x.tone}">${learnHtml(x)}</div>`).join("")}</div></section>` : ""}
 
             <section class="rp-sec rp-two">
                 <div><h3>Growth 360° <small>Teacher, self${hasPeer ? ", peers" : ""} and home</small></h3>

@@ -79,7 +79,7 @@
             sections.push(sec);
         });
         return {
-            id: uid("pp"), classId: cls.id, exam, subject, hpcSubject: (opts && opts.hpcSubject) || subject, title: `${subject} - ${FW.EXAMS.find((e) => e.id === exam).name}`,
+            id: uid("pp"), classId: cls.id, exam, subject, hpcSubject: (opts && opts.hpcSubject) || subject, title: `${subject} - ${examById(exam).name}`,
             duration: mainTarget >= 60 ? "3 hrs" : mainTarget >= 30 ? "1.5 hrs" : "1 hr", status: (opts && opts.status) || "published", createdBy: opts && opts.by, createdAt: "2026-09-02",
             settings: { answerSpace: false }, sections
         };
@@ -91,7 +91,9 @@
             version: 1,
             institution: { name: "Demo Public School", short: "DPS", type: "school", session: "2026-27", city: "Bhubaneswar", activeExam: "postmid", activeTerm: "Term 2", logo: null, cardTitle: "Progress Report" },
             componentMax: { oral: 5, activity: 5, enrichment: 5, notebook: 5 },
-            termTotal: clone(FW.TERM_TOTAL),
+            exams: clone(FW.EXAMS),
+            results: clone(FW.RESULTS),
+            mistakes: {},
             library: clone(FW.LO_LIBRARY),
             staff: [
                 { id: "st-admin", name: "Dr. Anita Mishra", role: "admin", title: "Coordinator" },
@@ -243,6 +245,7 @@
             });
         });
         ensurePeriodicTest();
+        ensureMistakes();
         // Term 1 remarks published
         state.students.forEach((s) => {
             state.remarks["Term 1"][s.id] = { text: draftRemark(s.id, "Term 1"), status: "published", at: "2026-10-10", seeded: true };
@@ -276,12 +279,49 @@
         return true;
     }
 
+    // Demo mistake tags: each student has one or two habitual mistakes per kind of subject,
+    // tagged on questions where they lost a good share of the marks.
+    const DEMO_TAGS = 2;   // bump to regenerate demo tags (never touches teacher-entered tags)
+    function ensureMistakes() {
+        const isDemo = state.mistakesDemo !== false;   // false once a teacher has tagged anything
+        if (!isDemo || state.mistakesDemo === DEMO_TAGS) return false;
+        state.mistakes = {}; state.mistakesDemo = DEMO_TAGS;
+        const r = rng(9090);
+        state.papers.filter((p) => p.status === "published").forEach((p) => {
+            const set = FW.mistakeSet(p.hpcSubject);
+            Object.entries(state.marks[p.id] || {}).forEach(([sid, rec]) => {
+                if (!rec || rec.ab) return;
+                const n = parseInt(sid.split("-").pop(), 10) || 1;
+                const habits = [set[n % set.length], set[(n * 3 + 1) % set.length]];
+                units(p).forEach((u) => {
+                    const v = rec.m[u.id];
+                    if (v == null || v === "" || !u.max || Number(v) / u.max > 0.6 || r() > 0.4) return;
+                    const tag = r() < 0.75 ? habits[r() < 0.6 ? 0 : 1] : set[Math.floor(r() * set.length)];
+                    ((state.mistakes[p.id] = state.mistakes[p.id] || {})[sid] = state.mistakes[p.id][sid] || {})[u.id] = [tag];
+                });
+            });
+        });
+        return true;
+    }
+    const mistakesOf = (pid, sid) => ((state.mistakes || {})[pid] || {})[sid] || {};
+    function toggleMistake(pid, sid, unitId, tag) {
+        const book = ((state.mistakes[pid] = state.mistakes[pid] || {})[sid] = state.mistakes[pid][sid] || {});
+        const cur = book[unitId] || [];
+        book[unitId] = cur.includes(tag) ? cur.filter((t) => t !== tag) : cur.concat(tag);
+        state.mistakesDemo = false;   // tags are now the school's own - never regenerate
+        if (!book[unitId].length) delete book[unitId];
+        save();
+        return book[unitId] || [];
+    }
+
     // ---------------------------------------------------------------------
     // Persistence
     // ---------------------------------------------------------------------
     let state = null;
     let saveTimer = null;
+    let memo = {};   // derived class statistics; cleared whenever data changes
     function save(now) {
+        memo = {};
         clearTimeout(saveTimer);
         const write = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn("revU HPC: could not persist", e); } };
         if (now) write(); else saveTimer = setTimeout(write, 250);
@@ -294,12 +334,20 @@
         state.staff.forEach((s) => { if (s.title === "HPC Coordinator") s.title = "Coordinator"; });
         const remap = { "#318552": "#685DBC", "#3c4d87": "#0e8a7a" };
         state.students.forEach((s) => { if (remap[s.color]) s.color = remap[s.color]; });
-        if (!state.termTotal) state.termTotal = clone(FW.TERM_TOTAL);
-        Object.entries(state.termTotal).forEach(([term, parts]) => parts.forEach((p) => {
-            const def = (FW.TERM_TOTAL[term] || []).find((d) => d.key === p.key);
-            if (!p.short && def && def.short) p.short = def.short;
-        }));
+        if (!state.exams) state.exams = clone(FW.EXAMS);
+        if (!state.mistakes) state.mistakes = {};
+        if (!state.results) {
+            // Older saves kept one "term total" per term - carry any customisation over
+            state.results = clone(FW.RESULTS);
+            ["Term 1", "Term 2"].forEach((t, i) => {
+                const tt = (state.termTotal || {})[t];
+                if (tt && tt.length) state.results[i].parts = tt.map((p) => ({ key: p.key, label: p.label, short: p.short, src: p.fields ? "fields" : "exam", ref: p.fields ? "*" : p.exam, outOf: p.outOf }));
+            });
+            delete state.termTotal;
+            save();
+        }
         if (ensurePeriodicTest()) save();
+        if (ensureMistakes()) save();
         // Demo notes drafted under older rules: re-draft only the seeded ones (published on the
         // seed date, never edited by a teacher) so they follow the current insight engine.
         if ((state.notesRule || 1) < NOTES_RULE) {
@@ -311,7 +359,7 @@
         }
     }
     // Bump when the note-drafting rules change in a way that fixes wrong statements
-    const NOTES_RULE = 2;
+    const NOTES_RULE = 3;
     function load() {
         try {
             const raw = localStorage.getItem(KEY);
@@ -332,8 +380,9 @@
     const paper = (id) => state.papers.find((p) => p.id === id);
     const stageOf = (c) => FW.STAGES[FW.stageForGrade(c.grade)];
     const levelsOf = (c) => FW.LEVELS[stageOf(c).levelSet];
-    const examById = (id) => FW.EXAMS.find((e) => e.id === id);
-    const examsOfTerm = (term) => FW.EXAMS.filter((e) => e.term === term);
+    const exams = () => state.exams || FW.EXAMS;
+    const examById = (id) => exams().find((e) => e.id === id) || { id, name: id, short: id, term: null };
+    const examsOfTerm = (term) => exams().filter((e) => e.term === term);
     const libFor = (grade, subject) => (state.library[grade] || {})[subject] || [];
     function loIndex(grade) {
         const map = {};
@@ -416,47 +465,183 @@
         return (scale.find(([min]) => pct >= min) || scale[scale.length - 1])[1];
     }
 
-    // A subject's term total from the term's parts (see FW.TERM_TOTAL). Parts with no
-    // published paper are left out of the maximum; parts not yet marked are "pending".
-    function termResult(classId, term, subject, sid) {
-        const scheme = (state.termTotal || FW.TERM_TOTAL)[term] || [];
+    // ---------------------------------------------------------------------
+    // Quick scheme: build a paper from its marking scheme in plain text.
+    //   # Reading                 -> core section
+    //   # Notebook [notebook]     -> extra section feeding a report field
+    //   1a 2 EN7.1.1              -> question 1, part a, 2 marks, mapped to an outcome
+    //   2 5 EN7.2 | Rewrite...    -> a skill-area code maps all its outcomes; text after |
+    // ---------------------------------------------------------------------
+    const FIELD_ALIASES = { oral: "oral", activity: "activity", enrichment: "enrichment", asl: "enrichment", lab: "enrichment", practical: "enrichment", project: "enrichment", notebook: "notebook", nb: "notebook" };
+    function parseScheme(text, grade, subject) {
+        const idx = loIndex(grade);
+        const byCode = {};
+        Object.values(idx).forEach((lo) => { byCode[lo.code.toLowerCase()] = [lo.id]; (byCode[lo.comp.code.toLowerCase()] = byCode[lo.comp.code.toLowerCase()] || []).push(lo.id); });
+        const sections = [], errors = [], warnings = [];
+        let cur = null;
+        const labels = new Set();
+        const section = (name, field) => { cur = { id: uid("sec"), name, type: field ? "additional" : "main", component: field || null, questions: [] }; sections.push(cur); };
+        String(text || "").split(/\r?\n/).forEach((raw, i) => {
+            const line = raw.trim(); const n = i + 1;
+            if (!line) return;
+            const sec = line.match(/^#\s*(.+?)\s*(?:\[\s*([\w ]+?)\s*\])?\s*$/);
+            if (sec) {
+                let field = null;
+                if (sec[2]) { field = FIELD_ALIASES[sec[2].toLowerCase().replace(/\s+/g, "")]; if (!field) errors.push(`Line ${n}: "[${sec[2]}]" is not a report field - use oral, activity, enrichment or notebook.`); }
+                section(sec[1], field);
+                return;
+            }
+            const q = line.match(/^(?:q\s*)?(\d+)\s*[.(]?\s*([a-z]{1,2}|[ivx]{1,4})?\s*\)?\s+(\d+(?:\.\d+)?)\b\s*(.*)$/i);
+            if (!q) { errors.push(`Line ${n}: "${line.slice(0, 40)}" - expected a question number and marks, e.g. "1a 2".`); return; }
+            if (!cur) section("Section A", null);
+            const [, num, part, marks, rest] = q;
+            const label = num + (part ? part.toLowerCase() : "");
+            if (labels.has(label)) { errors.push(`Line ${n}: question ${label} appears twice.`); return; }
+            labels.add(label);
+            const [codesText, ...textParts] = rest.split("|");
+            const loIds = [];
+            codesText.split(/[\s,;]+/).filter(Boolean).forEach((code) => {
+                const hit = byCode[code.toLowerCase()];
+                if (hit) hit.forEach((id) => { if (!loIds.includes(id)) loIds.push(id); });
+                else warnings.push(`Line ${n}: outcome "${code}" is not in ${subject || "this subject"}'s outcomes for Grade ${grade}.`);
+            });
+            const qtext = textParts.join("|").trim();
+            const mk = Number(marks);
+            if (part) {
+                let parent = cur.questions.find((x) => x.label === num);
+                if (!parent) { parent = { id: uid("q"), label: num, text: "", marks: 0, qtype: "short", options: [], image: null, loIds: [], source: "own", parts: [] }; cur.questions.push(parent); }
+                parent.parts.push({ id: uid("p"), label: part.toLowerCase(), text: qtext, marks: mk, loIds });
+                parent.marks = parent.parts.reduce((s2, x) => s2 + x.marks, 0);
+            } else {
+                if (cur.questions.some((x) => x.label === num)) { errors.push(`Line ${n}: question ${num} already has parts.`); return; }
+                cur.questions.push({ id: uid("q"), label: num, text: qtext, marks: mk, qtype: mk >= 4 ? "long" : "short", options: [], image: null, loIds, source: "own", parts: [] });
+            }
+        });
+        sections.forEach((s2) => { if (!s2.questions.length) warnings.push(`Section "${s2.name}" has no questions.`); });
+        const main = sections.filter((s2) => s2.type === "main").reduce((t, s2) => t + secMax(s2), 0);
+        const comps = {};
+        sections.filter((s2) => s2.type !== "main").forEach((s2) => { comps[s2.component] = (comps[s2.component] || 0) + secMax(s2); });
+        return { sections, errors, warnings, main, comps, questions: labels.size };
+    }
+    // A starter scheme from the outcome library: one line per outcome
+    function schemeFromOutcomes(grade, subject) {
+        const lines = []; let q = 1;
+        libFor(grade, subject).forEach((c) => {
+            lines.push(`# ${c.title.replace(/\s*\(.*\)$/, "")}${c.kind !== "regular" ? ` [${c.kind}]` : ""}`);
+            if (c.los.length > 1) c.los.forEach((lo, i) => lines.push(`${q}${String.fromCharCode(97 + i)} 2 ${lo.code}`));
+            else lines.push(`${q} 2 ${c.los[0].code}`);
+            q++;
+        });
+        return lines.join("\n");
+    }
+
+    // ---------------------------------------------------------------------
+    // Results: linked, scaled totals. A part is an exam (its core sections), the pooled
+    // extra-section fields, or another result - each scaled to its own "out of".
+    // ---------------------------------------------------------------------
+    const results = () => state.results || FW.RESULTS;
+    const resultById = (id) => results().find((r) => r.id === id);
+    const reportResult = (term) => results().find((r) => r.term === term) || null;
+    // Exams reachable from a result (through linked results too)
+    function resultExams(id, seen) {
+        const r = resultById(id); seen = seen || new Set();
+        if (!r || seen.has(id)) return [];
+        seen.add(id);
+        return r.parts.flatMap((p) => (p.src === "exam" ? [p.ref] : p.src === "result" ? resultExams(p.ref, seen) : []));
+    }
+    // Problems that would make results wrong: loops, marks counted twice, two results on one report
+    function resultProblems(list) {
+        const byId = (id) => list.find((r) => r.id === id);
+        const out = [];
+        list.forEach((r) => {
+            const walk = (id, path) => {
+                const x = byId(id); if (!x) return [];
+                if (path.includes(id)) { out.push(`Results form a loop: ${path.slice(path.indexOf(id)).concat(id).map((p) => `"${(byId(p) || {}).name}"`).join(" → ")}.`); return []; }
+                return x.parts.flatMap((p) => (p.src === "exam" ? [p.ref] : p.src === "result" ? walk(p.ref, path.concat(id)) : []));
+            };
+            const ex = walk(r.id, []);
+            const dup = ex.find((e, i) => ex.indexOf(e) !== i);
+            if (dup) out.push(`"${r.name}" counts ${examById(dup).name} more than once.`);
+            if (r.parts.filter((p) => p.src === "fields").length > 1) out.push(`"${r.name}" uses the extra-section fields twice.`);
+            if (!String(r.name || "").trim()) out.push("Every result needs a name.");
+            if (!r.parts.length) out.push(`"${r.name}" has no parts.`);
+            r.parts.forEach((p) => { if (!(Number(p.outOf) > 0)) out.push(`"${r.name}": "${p.label || "a part"}" needs an "out of" above 0.`); });
+        });
+        const terms = list.filter((r) => r.term).map((r) => r.term);
+        const t2 = terms.find((t, i) => terms.indexOf(t) !== i);
+        if (t2) out.push(`Only one result can be shown on the ${t2} report.`);
+        return [...new Set(out)];
+    }
+    function resultFor(id, classId, subject, sid, depth) {
+        const r = resultById(id);
+        if (!r || (depth || 0) > 6) return { id, name: r ? r.name : "", parts: [], total: 0, max: 0, markedMax: 0, complete: false, absentExcluded: false, pct: null, grade: null };
         const grade = cls(classId).grade;
-        const examIds = examsOfTerm(term).map((e) => e.id);
-        // Absence policy: by default an absent part is shown as AB and left out of the grade;
-        // schools can choose to count it as zero (Settings -> Term total).
-        const zeroAB = !!state.absentAsZero;
-        const parts = scheme.map((part) => {
-            const out = { part, label: part.fields ? FW.fieldsLabel(grade) : part.label, short: part.fields ? FW.fieldsLabel(grade, true) : (part.short || part.label), outOf: part.outOf, score: null, status: "none" };
-            if (part.fields) {
+        const zeroAB = !!state.absentAsZero;   // default: an absent part shows AB and is left out of the grade
+        const fieldExams = () => { const ex = r.parts.filter((p) => p.src === "exam").map((p) => p.ref); return ex.length ? ex : r.term ? examsOfTerm(r.term).map((e) => e.id) : []; };
+        const parts = r.parts.map((part) => {
+            const generic = part.src === "fields" && (!part.label || part.label === "Skills");
+            const out = { part, label: generic ? FW.fieldsLabel(grade) : part.label, short: generic ? FW.fieldsLabel(grade, true) : (part.short || part.label), outOf: part.outOf, score: null, status: "none" };
+            if (part.src === "fields") {
                 let got = 0, max = 0, marked = false, missed = false;
-                examIds.forEach((ex) => {
-                    const r = subjectResult(classId, ex, subject, sid);
-                    if (!r || !Object.keys(r.comps).length) return;
-                    if (r.ab && !zeroAB) { missed = true; return; }
-                    Object.values(r.comps).forEach((c) => { max += c.max; got += r.ab ? 0 : c.got; });
-                    if (r.any) marked = true;
+                (part.ref && part.ref !== "*" ? [part.ref] : fieldExams()).forEach((ex) => {
+                    const sr = subjectResult(classId, ex, subject, sid);
+                    if (!sr || !Object.keys(sr.comps).length) return;
+                    if (sr.ab && !zeroAB) { missed = true; return; }
+                    Object.values(sr.comps).forEach((c) => { max += c.max; got += sr.ab ? 0 : c.got; });
+                    if (sr.any) marked = true;
                 });
                 if (!max) { if (missed) out.status = "ab"; return out; }
                 out.status = marked ? "ok" : "pending";
-                if (marked) out.score = round1((got / max) * part.outOf);
+                if (marked) { out.score = round1((got / max) * part.outOf); out.raw = { got, max }; }
                 return out;
             }
-            const r = subjectResult(classId, part.exam, subject, sid);
-            if (!r || !r.mainMax) return out;
-            if (!r.any) { out.status = "pending"; return out; }
-            if (r.ab) { out.status = "ab"; out.score = zeroAB ? 0 : null; return out; }
-            out.status = "ok";
-            out.score = round1((r.main / r.mainMax) * part.outOf);
+            if (part.src === "result") {
+                const sub = resultFor(part.ref, classId, subject, sid, (depth || 0) + 1);
+                if (!sub.max) return out;
+                if (sub.pct == null) { out.status = "pending"; return out; }
+                out.status = "ok"; out.score = round1((sub.pct / 100) * part.outOf);
+                out.partial = !sub.complete; out.absent = sub.absentExcluded; out.sub = sub;
+                return out;
+            }
+            const sr = subjectResult(classId, part.ref, subject, sid);
+            if (!sr || !sr.mainMax) return out;
+            if (!sr.any) { out.status = "pending"; return out; }
+            if (sr.ab) { out.status = "ab"; out.score = zeroAB ? 0 : null; return out; }
+            out.status = "ok"; out.raw = { got: sr.main, max: sr.mainMax };
+            out.score = round1((sr.main / sr.mainMax) * part.outOf);
             return out;
         });
         const counted = parts.filter((p) => p.status === "ok" || (p.status === "ab" && zeroAB));
-        const total = round1(counted.reduce((s, p) => s + p.score, 0));
-        const max = parts.filter((p) => p.status !== "none").reduce((s, p) => s + p.outOf, 0);
-        const markedMax = counted.reduce((s, p) => s + p.outOf, 0);
-        const complete = counted.length > 0 && !parts.some((p) => p.status === "pending");
-        const absentExcluded = !zeroAB && parts.some((p) => p.status === "ab");
+        const total = round1(counted.reduce((s2, p) => s2 + p.score, 0));
+        const max = parts.filter((p) => p.status !== "none").reduce((s2, p) => s2 + p.outOf, 0);
+        const markedMax = counted.reduce((s2, p) => s2 + p.outOf, 0);
+        const complete = counted.length > 0 && !parts.some((p) => p.status === "pending" || p.partial);
+        const absentExcluded = (!zeroAB && parts.some((p) => p.status === "ab")) || parts.some((p) => p.absent);
         const pctV = markedMax ? (total / markedMax) * 100 : null;
-        return { parts, total, max, markedMax, complete, absentExcluded, pct: pctV, grade: pctV == null ? null : gradeFor(pctV) };
+        return { id, name: r.name, parts, total, max, markedMax, complete, absentExcluded, pct: pctV, grade: pctV == null ? null : gradeFor(pctV) };
+    }
+    // The total shown on a term's report
+    function termResult(classId, term, subject, sid) {
+        const r = reportResult(term);
+        return r ? resultFor(r.id, classId, subject, sid) : { parts: [], total: 0, max: 0, markedMax: 0, complete: false, absentExcluded: false, pct: null, grade: null };
+    }
+
+    // Class statistics for comparison (cached until the next save)
+    function classStats(classId, term) {
+        const k = `${classId}|${term}`;
+        if (memo[k]) return memo[k];
+        const lo = {}, sub = {};
+        studentsOf(classId).forEach((s) => {
+            Object.entries(loMastery(s.id, term)).forEach(([id, v]) => { (lo[id] = lo[id] || []).push(v.pct); });
+        });
+        const papers = state.papers.filter((p) => p.classId === classId && p.status === "published");
+        papers.forEach((p) => studentsOf(classId).forEach((s) => {
+            const r = paperResult(p, s.id);
+            if (r && r.complete && !r.ab) { const b = breakdown(p); if (b.main) ((sub[p.exam] = sub[p.exam] || {})[p.hpcSubject] = sub[p.exam][p.hpcSubject] || []).push((r.main / b.main) * 100); }
+        }));
+        const avg = (o) => Object.fromEntries(Object.entries(o).map(([key, arr]) => [key, { avg: mean(arr), n: arr.length }]));
+        memo[k] = { lo: avg(lo), exam: Object.fromEntries(Object.entries(sub).map(([ex, o]) => [ex, avg(o)])) };
+        return memo[k];
     }
 
     // LO-level attainment for a term (all papers of the term's exams)
@@ -525,6 +710,94 @@
     const LEVEL_CUTS = { 3: [40, 75], 4: [35, 60, 80] };   // outcome % -> level
     const STRENGTH_COUNT = 3, NEXT_COUNT = 3, NEXT_BELOW = 75;
 
+    // Academic insights: what the marks say beyond the totals. Each insight carries the
+    // evidence behind it ("why") and, for mistakes, a practice tip.
+    //   tone "focus" = something to work on, "good" = something going well
+    const INSIGHT_RULES = {
+        mistakeMin: 2,          // a mistake type must recur in at least 2 questions
+        gapBelow: 60,           // outcome under 60% ...
+        gapVsClass: 10,         // ... and 10+ points under the class average
+        strongAbove: 85,        // outcome at 85%+ and 10+ points over the class average
+        trendPoints: 10,        // change of 10+ points between linked exams
+        answerGap: 15,          // long answers 15+ points under short answers
+        answerMinMarks: 6       // ... with at least 6 marks of each kind
+    };
+    function academicInsights(sid, term, rows) {
+        const s = student(sid); const c = cls(s.classId);
+        const rr = reportResult(term);
+        const examIds = [...new Set((rr ? resultExams(rr.id) : []).concat(examsOfTerm(term).map((e) => e.id)))];
+        const papers = state.papers.filter((p) => p.classId === c.id && examIds.includes(p.exam) && p.status === "published");
+        const out = [];
+        const subjName = (sub) => sub;
+
+        // 1. Recurring mistakes, across subjects
+        const tags = {};
+        let longGot = 0, longMax = 0, shortGot = 0, shortMax = 0;
+        papers.forEach((p) => {
+            const rec = (state.marks[p.id] || {})[sid];
+            if (!rec || rec.ab) return;
+            const tagged = mistakesOf(p.id, sid);
+            units(p).forEach((u) => {
+                const v = rec.m[u.id];
+                if (v == null || v === "") return;
+                const lost = Math.max(0, u.max - Number(v));
+                (tagged[u.id] || []).forEach((t) => {
+                    const x = (tags[t] = tags[t] || { count: 0, lost: 0, subjects: {}, exams: new Set() });
+                    x.count++; x.lost += lost; x.subjects[p.hpcSubject] = (x.subjects[p.hpcSubject] || 0) + 1; x.exams.add(examById(p.exam).name);
+                });
+                if (u.section.type !== "main") return;
+                if (u.q.qtype === "long") { longGot += Number(v); longMax += u.max; }
+                else { shortGot += Number(v); shortMax += u.max; }
+            });
+        });
+        Object.entries(tags).filter(([, x]) => x.count >= INSIGHT_RULES.mistakeMin).sort((a, b) => b[1].lost - a[1].lost).forEach(([t, x]) => {
+            const m = FW.MISTAKES[t] || { label: t, tip: "" };
+            const where = Object.entries(x.subjects).sort((a, b) => b[1] - a[1]).map(([sub, n]) => `${subjName(sub)}${n > 1 ? ` ×${n}` : ""}`).join(", ");
+            out.push({ kind: "mistake", tone: "focus", tag: t, weight: 20 + x.lost, count: x.count, where, title: `${m.label}`, text: `${m.label} cost ${round1(x.lost)} marks in ${x.count} questions (${where}).`,
+                why: `Tagged by teachers while marking ${[...x.exams].join(" and ")}.`, tip: m.tip, subjects: Object.keys(x.subjects) });
+        });
+
+        // 2. Outcomes well below / above the class
+        const stats = classStats(c.id, term);
+        const lom = loMastery(sid, term);
+        const idx = loIndex(c.grade);
+        const gaps = [], highs = [];
+        Object.entries(lom).forEach(([id, v]) => {
+            const info = idx[id]; const cs = stats.lo[id];
+            if (!info || !cs || cs.n < 3) return;
+            const d = v.pct - cs.avg;
+            if (v.pct < INSIGHT_RULES.gapBelow && -d >= INSIGHT_RULES.gapVsClass) gaps.push({ info, v, avg: cs.avg, d });
+            if (v.pct >= INSIGHT_RULES.strongAbove && d >= INSIGHT_RULES.gapVsClass) highs.push({ info, v, avg: cs.avg, d });
+        });
+        gaps.sort((a, b) => a.d - b.d).slice(0, 3).forEach((g) => out.push({ kind: "gap", tone: "focus", weight: 10 - g.d, title: `${g.info.subject}: ${g.info.comp.title.replace(/\s*\(.*\)$/, "")}`,
+            text: `Needs practice: ${g.info.text.toLowerCase()} - ${g.v.pct}% against a class average of ${Math.round(g.avg)}%.`, why: `Outcome ${g.info.code}, from every question mapped to it this term.`,
+            tip: "Revisit this outcome with a worked example, then three short practice questions.", subjects: [g.info.subject] }));
+        highs.sort((a, b) => b.d - a.d).slice(0, 2).forEach((g) => out.push({ kind: "strength", tone: "good", weight: g.d, title: `${g.info.subject}: ${g.info.comp.title.replace(/\s*\(.*\)$/, "")}`,
+            text: `Ahead of the class: ${g.info.text.toLowerCase()} - ${g.v.pct}% against ${Math.round(g.avg)}%.`, why: `Outcome ${g.info.code}.`, tip: "", subjects: [g.info.subject] }));
+
+        // 3. Change across linked exams (first vs last exam in this term's result, core sections)
+        const examParts = rr ? rr.parts.filter((p) => p.src === "exam").map((p) => p.ref) : examsOfTerm(term).map((e) => e.id);
+        (rows || []).forEach((r) => {
+            const pts = examParts.map((ex) => ({ ex, sr: subjectResult(c.id, ex, r.sub, sid) })).filter((x) => x.sr && x.sr.any && !x.sr.ab && x.sr.mainMax && x.sr.complete);
+            if (pts.length < 2) return;
+            const a = (pts[0].sr.main / pts[0].sr.mainMax) * 100, b = (pts[pts.length - 1].sr.main / pts[pts.length - 1].sr.mainMax) * 100;
+            const d = b - a;
+            if (Math.abs(d) < INSIGHT_RULES.trendPoints) return;
+            const from = examById(pts[0].ex).name, to = examById(pts[pts.length - 1].ex).name;
+            out.push(d > 0
+                ? { kind: "up", tone: "good", weight: d, title: `${r.sub} improving`, text: `${r.sub} rose from ${Math.round(a)}% (${from}) to ${Math.round(b)}% (${to}).`, why: "Core-section percentages of the linked exams.", tip: "", subjects: [r.sub] }
+                : { kind: "down", tone: "focus", weight: -d, title: `${r.sub} slipping`, text: `${r.sub} fell from ${Math.round(a)}% (${from}) to ${Math.round(b)}% (${to}).`, why: "Core-section percentages of the linked exams.", tip: "Check which chapters changed between the two exams and revise those first.", subjects: [r.sub] });
+        });
+
+        // 4. Long answers vs short answers
+        if (longMax >= INSIGHT_RULES.answerMinMarks && shortMax >= INSIGHT_RULES.answerMinMarks) {
+            const lp = (longGot / longMax) * 100, sp = (shortGot / shortMax) * 100;
+            if (sp - lp >= INSIGHT_RULES.answerGap) out.push({ kind: "answers", tone: "focus", weight: sp - lp, title: "Long answers", text: `Scores ${Math.round(lp)}% on long answers against ${Math.round(sp)}% on short ones.`,
+                why: "All core questions this term, grouped by answer type.", tip: "Plan long answers in three steps: point, explanation, example.", subjects: [] });
+        }
+        return out.sort((a, b) => (a.tone === b.tone ? b.weight - a.weight : a.tone === "focus" ? -1 : 1));
+    }
+
     function insights(sid, term) {
         const s = student(sid); const c = cls(s.classId); const L = levelsOf(c);
         const termExams = examsOfTerm(term).map((e) => e.id);
@@ -559,11 +832,12 @@
         const nexts = sorted.slice().reverse().filter((it) => it.score < NEXT_BELOW && !strengths.includes(it)).slice(0, NEXT_COUNT);
         const stretch = !nexts.length && sorted.length > STRENGTH_COUNT ? sorted[sorted.length - 1] : null;
 
-        return { student: s, cls: c, L, rows, graded, overall, ds, items, counts, strengths, nexts, stretch, remark: remarkParts(sid, term, rows, ds) };
+        const academic = academicInsights(sid, term, rows);
+        return { student: s, cls: c, L, rows, graded, overall, ds, items, counts, strengths, nexts, stretch, academic, remark: remarkParts(sid, term, rows, ds, academic) };
     }
 
     // The auto-drafted teacher's note, one sentence per rule
-    function remarkParts(sid, term, rows, ds) {
+    function remarkParts(sid, term, rows, ds, academic) {
         const s = student(sid); const c = cls(s.classId); const L = levelsOf(c);
         const first = s.name.split(" ")[0];
         const out = [];
@@ -588,6 +862,9 @@
                 rule: (support ? "Highest term total, and any subject below 60%" : "Highest term total") + " - among subjects with at least half the term total sat",
                 data: `${best.sub} ${Math.round(best.tr.pct)}%${support ? `, ${weak.sub} ${Math.round(weak.tr.pct)}%` : ""}` });
         }
+        const mk = (academic || []).find((x) => x.kind === "mistake");
+        if (mk) out.push({ text: `${first} is losing marks to ${mk.title.toLowerCase()} in ${mk.count} questions (${mk.where}). Tip: ${mk.tip}`,
+            rule: "The mistake type that cost the most marks, if it recurs in 2+ questions", data: mk.text });
         const att = (state.attendance[term] || {})[sid];
         if (att && att.total && (att.present / att.total) * 100 < 85) {
             const ap = Math.round((att.present / att.total) * 100);
@@ -632,7 +909,8 @@
         get db() { return state; },
         load, save, reset, uid, clone, round1, rng,
         cls, className, student, studentsOf, staff, paper, stageOf, levelsOf, examById, examsOfTerm, libFor, loIndex,
-        units, qMarks, secMax, breakdown, paperResult, papersFor, subjectResult, termResult, convert, gradeFor, loMastery,
+        units, qMarks, secMax, breakdown, paperResult, papersFor, subjectResult, termResult, resultFor, results, resultById, reportResult, resultExams, resultProblems,
+        exams, mistakesOf, toggleMistake, classStats, academicInsights, INSIGHT_RULES, parseScheme, schemeFromOutcomes, convert, gradeFor, loMastery,
         H, mean, domainScores, teacherRatedComplete, selfDone, parentDone, suggestion, draftRemark, pipeline,
         insights, remarkParts, LEVEL_CUTS, NEXT_BELOW
     };
