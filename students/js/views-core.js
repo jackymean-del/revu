@@ -279,6 +279,86 @@
     // ---------------------------------------------------------------------
     // Settings (admin)
     // ---------------------------------------------------------------------
+    // Term total editor: parts per term, each from one exam's core sections or from the
+    // pooled extra-section fields, scaled to its own "out of".
+    function termTotalEditor(host) {
+        const db = Store.db;
+        const draft = Store.clone(db.termTotal || FW.TERM_TOTAL);
+        let term = App.ctx.term && draft[App.ctx.term] ? App.ctx.term : Object.keys(draft)[0];
+        let dirty = false;
+
+        const problems = (parts) => {
+            const out = [];
+            if (!parts.length) out.push("Add at least one part.");
+            parts.forEach((p, i) => {
+                if (!String(p.label || "").trim()) out.push(`Part ${i + 1} needs a name.`);
+                if (!(Number(p.outOf) > 0)) out.push(`"${p.label || `Part ${i + 1}`}" needs an "out of" above 0.`);
+            });
+            if (parts.filter((p) => p.fields).length > 1) out.push("Extra-section fields can be used by only one part - they would be counted twice.");
+            const exams = parts.filter((p) => !p.fields).map((p) => p.exam);
+            const dup = exams.find((e, i) => exams.indexOf(e) !== i);
+            if (dup) out.push(`${(Store.examById(dup) || {}).name || dup} is used twice - its marks would be counted twice.`);
+            return out;
+        };
+
+        function render() {
+            const parts = draft[term];
+            const sum = parts.reduce((s, p) => s + (Number(p.outOf) || 0), 0);
+            const issues = problems(parts);
+            const termExams = Store.examsOfTerm(term);
+            const usesFields = parts.some((p) => p.fields);
+            host.innerHTML = `
+                <div class="row-between" style="margin-bottom:12px">
+                    <div class="seg" id="tt-term">${Object.keys(draft).map((t) => `<button class="${t === term ? "on" : ""}" data-t="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+                    <div class="breakdown" style="font-size:14px">${parts.map((p) => `<span class="part ${p.fields ? "add" : ""}">${esc(p.short || p.label)} ${fmt(Number(p.outOf) || 0)}</span>`).join('<span class="plus">+</span>')}<span class="plus">=</span><span class="part" style="background:var(--color-primary);color:#fff">${fmt(sum)}</span></div>
+                </div>
+                <div class="table-wrap"><table class="table">
+                    <thead><tr><th>Part (on report legend)</th><th>Column header</th><th>Marks come from</th><th class="num">Out of</th><th></th></tr></thead>
+                    <tbody>${parts.map((p, i) => `<tr data-i="${i}">
+                        <td><input class="input" data-k="label" value="${esc(p.label)}" style="width:100%;min-width:140px" aria-label="Part name"></td>
+                        <td><input class="input" data-k="short" value="${esc(p.short || "")}" maxlength="10" placeholder="${esc(p.label.slice(0, 10))}" style="width:110px" aria-label="Column header"></td>
+                        <td><select class="select" data-k="source" aria-label="Marks come from">
+                            ${termExams.map((e) => `<option value="exam:${e.id}" ${!p.fields && p.exam === e.id ? "selected" : ""}>${esc(e.name)} - core sections</option>`).join("")}
+                            <option value="fields" ${p.fields ? "selected" : ""} ${usesFields && !p.fields ? "disabled" : ""}>Extra sections (Oral, Activity, Enrichment, Notebook)</option>
+                        </select></td>
+                        <td class="num"><input class="input num" type="number" min="1" max="1000" step="0.5" data-k="outOf" value="${esc(p.outOf)}" style="width:80px;text-align:right" aria-label="Out of"></td>
+                        <td class="num"><button class="btn btn-sm btn-ghost btn-danger" data-del="${i}" aria-label="Remove part" ${parts.length === 1 ? "disabled" : ""}>${icon("trash")}</button></td>
+                    </tr>`).join("")}</tbody>
+                </table></div>
+                <div class="row mt-8"><button class="btn btn-sm" id="tt-add">${icon("plus")}Add part</button><span class="small muted">Parts with no published paper are left out of a student's total; parts not yet marked show as "pending".</span></div>
+                ${issues.length ? `<div class="alert alert-warn mt-8">${icon("alert")}<div class="body">${issues.map(esc).join("<br>")}</div></div>`
+                    : sum !== 100 ? `<div class="alert alert-info mt-8">${icon("info")}<div class="body">These parts add up to ${fmt(sum)}. Reports will show totals out of ${fmt(sum)} and grade them as a percentage.</div></div>` : ""}
+                <div class="row mt-16"><button class="btn btn-primary" id="tt-save" ${issues.length ? "disabled" : ""}>${icon("check")}Save term total</button><button class="btn" id="tt-default">Reset ${esc(term)} to default</button>${dirty ? `<span class="small muted">Unsaved changes</span>` : ""}</div>`;
+
+            $$("#tt-term button", host).forEach((b) => b.addEventListener("click", () => { term = b.dataset.t; render(); }));
+            $$("tr[data-i]", host).forEach((tr) => {
+                const p = parts[Number(tr.dataset.i)];
+                $$("[data-k]", tr).forEach((el) => el.addEventListener("change", () => {
+                    if (el.dataset.k === "source") {
+                        if (el.value === "fields") { p.fields = true; delete p.exam; }
+                        else { p.fields = false; delete p.fields; p.exam = el.value.slice(5); }
+                    } else if (el.dataset.k === "outOf") p.outOf = Number(el.value);
+                    else p[el.dataset.k] = el.value.trim();
+                    dirty = true; render();
+                }));
+            });
+            $$("[data-del]", host).forEach((b) => b.addEventListener("click", () => { parts.splice(Number(b.dataset.del), 1); dirty = true; render(); }));
+            $("#tt-add", host).addEventListener("click", () => {
+                const unused = termExams.find((e) => !parts.some((p) => !p.fields && p.exam === e.id));
+                parts.push(unused ? { key: Store.uid("tt"), label: unused.name, short: unused.name.slice(0, 10), exam: unused.id, outOf: 10 }
+                    : { key: Store.uid("tt"), label: "New part", short: "New", exam: termExams[0].id, outOf: 10 });
+                dirty = true; render();
+            });
+            $("#tt-default", host).addEventListener("click", () => { draft[term] = Store.clone(FW.TERM_TOTAL[term] || []); dirty = true; render(); });
+            $("#tt-save", host).addEventListener("click", () => {
+                const bad = Object.entries(draft).find(([, ps]) => problems(ps).length);
+                if (bad) { term = bad[0]; render(); toast(`Fix ${bad[0]} first`, "err"); return; }
+                db.termTotal = Store.clone(draft); Store.save(true); dirty = false; render(); toast("Term total saved - reports use it now");
+            });
+        }
+        render();
+    }
+
     V.settings = (root) => {
         const db = Store.db; const inst = db.institution;
         root.innerHTML = `
@@ -309,6 +389,10 @@
                 <div><button class="btn btn-primary" id="set-comp">${icon("check")}Save fields</button></div>
             </div></div>
         </div>
+        <div class="card mt-16">
+            <div class="card-head"><h3>Term total</h3><span class="hint">How each subject's total on the report is built. Every part is scaled from its own marks.</span></div>
+            <div class="card-body" id="tt-body"></div>
+        </div>
         <div class="grid grid-2 mt-16">
             <div class="card"><div class="card-head"><h3>Stages & growth ladder</h3></div><div class="card-body stack">
                 ${Object.values(FW.STAGES).map((st) => `<div><div class="row-between"><b>${esc(st.name)}</b><span class="small muted">${esc(st.grades)} - ${st.domains.length} domains</span></div><div class="row mt-8">${FW.LEVELS[st.levelSet].map((l, i, arr) => lvlChip(arr, i)).join("")}</div></div>`).join("")}
@@ -328,6 +412,7 @@
             $$("[data-cmax]", root).forEach((i) => { const v = Number(i.value); if (v > 0) db.componentMax[i.dataset.cmax] = v; });
             Store.save(); toast("Conversions saved");
         });
+        termTotalEditor($("#tt-body", root));
         $("#data-export", root).addEventListener("click", () => UI.download(`revu-hpc-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(db, null, 1), "application/json"));
         $("#data-import", root).addEventListener("click", async () => {
             const f = await UI.pickFile(".json"); if (!f) return;

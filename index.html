@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #F5F3FF; --card: #ffffff; --sunken: #F8F7FF; --line: #ECEAFB; --line-2: #C9C3EC;
+            --bg: #FAF9F5; --card: #ffffff; --sunken: #F8F7FF; --line: #ECEAFB; --line-2: #C9C3EC; --warm-line: #ECE6DC; --eyebrow: #9A8A5E; --nav-line: #F0EDFF; --accent: #7C6FE0;
             --ink: #13111E; --muted: #4B5275; --subtle: #6B7079; --head: #777489;
             --brand: #685DBC; --brand-strong: #4B41C4; --mist: #EDE9FF; --gold: #D4920E;
             --ok: #15803d; --ok-soft: #dcfce7; --warn: #b45309; --warn-soft: #fef3c7;
@@ -19,7 +19,7 @@
         body.dark {
             --bg: #0F0E17; --card: #1B1926; --sunken: #13111E; --line: rgba(255,255,255,0.08); --line-2: rgba(255,255,255,0.18);
             --ink: #EEEDF7; --muted: #B9B6CF; --subtle: #8C88A6; --head: #8C88A6;
-            --brand: #9B8EF5; --brand-strong: #C4B5FD; --mist: rgba(155,142,245,0.16);
+            --brand: #9B8EF5; --brand-strong: #C4B5FD; --mist: rgba(155,142,245,0.16); --warm-line: rgba(255,255,255,0.10); --eyebrow: #C9B98A; --nav-line: rgba(255,255,255,0.08); --accent: #9B8EF5;
             --ok: #4ade80; --ok-soft: rgba(74,222,128,0.12); --warn: #fbbf24; --warn-soft: rgba(251,191,36,0.14);
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,14 +29,14 @@
         :focus-visible { outline: 2px solid rgba(124,111,224,.65); outline-offset: 2px; border-radius: 6px; }
 
         /* top bar */
-        .top { height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 20px; background: var(--card); border-bottom: 1px solid var(--line); }
+        .top { height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 24px; background: color-mix(in srgb, var(--card) 95%, transparent); border-bottom: 1px solid var(--nav-line); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(6px); }
         .lockup { display: inline-flex; align-items: center; gap: 9px; }
         .tile { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
             background: linear-gradient(145deg, color-mix(in oklab, #685DBC 86%, white) 0%, #685DBC 55%, color-mix(in oklab, #685DBC 84%, black) 100%);
             box-shadow: 0 1px 2px rgba(19,17,30,.12), inset 0 1px 0 rgba(255,255,255,.18); }
         .knob { transform-box: fill-box; transform-origin: center; transition: transform .45s cubic-bezier(.34,1.4,.64,1); }
         .lockup:hover .knob { transform: translateY(4px); }
-        .name { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+        .name { font-size: 19px; font-weight: 800; letter-spacing: -0.4px; }
         .name span { color: var(--brand); }
         .school { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--muted); padding-left: 12px; border-left: 1px solid var(--line); min-width: 0; }
         .school span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -47,9 +47,10 @@
 
         /* page */
         main { flex: 1; width: min(1080px, 100%); margin: 0 auto; padding: 36px 20px 28px; }
-        .hello { font-size: 13px; font-weight: 700; color: var(--brand); }
-        h1 { font-size: clamp(24px, 3.4vw, 32px); font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; }
-        .lead { color: var(--subtle); margin-top: 6px; font-size: 14.5px; }
+        .hello { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 1.32px; text-transform: uppercase; color: var(--eyebrow); background: var(--card); border: 1px solid var(--warm-line); border-radius: 999px; padding: 5px 12px; }
+        h1 { font-size: clamp(28px, 4.2vw, 42px); font-weight: 800; letter-spacing: -0.015em; line-height: 1.12; margin-top: 14px; }
+        h1 em { font-style: normal; color: var(--accent); }
+        .lead { color: var(--muted); margin-top: 10px; font-size: 15px; line-height: 1.6; max-width: 560px; }
 
         .sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 26px; }
         .side { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 16px; position: relative;
@@ -76,15 +77,15 @@
         .next b { color: var(--ink); }
         .next.ok svg { color: var(--ok); }
 
-        .go { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: var(--brand); color: #fff; font-weight: 700; font-size: 14px; padding: 11px 16px; border-radius: 11px; }
+        .go { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #13111E; color: #fff; font-weight: 700; font-size: 14px; padding: 13px 24px; border-radius: 10px; }
         .go svg { width: 17px; height: 17px; transition: transform .15s; }
         .side:hover .go svg { transform: translateX(3px); }
         .side:hover .go { filter: brightness(1.06); }
-        body.dark .go { color: #0F0E17; }
+        body.dark .go { background: #EEEDF7; color: #13111E; }
 
         .empty { font-size: 13px; color: var(--subtle); background: var(--sunken); border-radius: 12px; padding: 14px; border: 1px dashed var(--line-2); }
 
-        footer { padding: 16px; text-align: center; font-size: 12px; color: var(--subtle); }
+        footer { padding: 18px 24px; text-align: center; font-size: 12px; color: #9A95BC; border-top: 1px solid var(--nav-line); background: var(--bg); }
         footer b { color: var(--ink); font-weight: 800; }
         @media (max-width: 760px) {
             .sides { grid-template-columns: minmax(0, 1fr); }
@@ -110,8 +111,8 @@
 
     <main>
         <div class="hello" id="hello">Welcome</div>
-        <h1>What would you like to review?</h1>
-        <p class="lead" id="lead">Pick a side - you can switch any time from the top bar.</p>
+        <h1>What would you like to <em>review</em> today?</h1>
+        <p class="lead" id="lead">Staff appraisals and student progress, side by side. Pick one - you can switch any time from the top bar.</p>
 
         <div class="sides">
             <a class="side" href="staff/" data-side="staff" id="card-staff">
@@ -132,7 +133,7 @@
             </a>
         </div>
     </main>
-    <footer>by <b>bhusku</b> &middot; Heavy on craft. Full of energy.</footer>
+    <footer>&copy; <span id="year">2026</span> <b>bhusku</b> &middot; Heavy on craft. Full of energy.</footer>
 
     <!-- The Students card reuses the student app's own calculations, so numbers match inside the app -->
     <script src="students/js/frameworks.js"></script>
@@ -163,6 +164,7 @@
         // ---- greeting ----
         const h = new Date().getHours();
         $("#hello").textContent = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+        $("#year").textContent = new Date().getFullYear();
 
         // ---- remember the last side ----
         const last = store.get("revu_last_side");
