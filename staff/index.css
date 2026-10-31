@@ -3140,3 +3140,14 @@ body.theme-dark .blueprint-card.custom-card:hover {
 }
 
 
+
+/* =========================================================================
+   Review switch - Staff | Students (shared with the students app)
+   ========================================================================= */
+.brand-home { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: inherit; }
+.review-switch { display: inline-flex; align-items: center; gap: 2px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-full); padding: 3px; flex-shrink: 0; }
+.review-switch .rs-label { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-subtle); padding: 0 8px 0 9px; }
+.review-switch a { font-size: 12.5px; font-weight: 700; color: var(--text-muted); text-decoration: none; padding: 5px 13px; border-radius: var(--radius-full); }
+.review-switch a:hover { color: var(--color-primary); }
+.review-switch a.on { background: var(--color-primary); color: #fff; }
+@media (max-width: 900px) { .review-switch .rs-label { display: none; } .review-switch a { padding: 5px 10px; } }

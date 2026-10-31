@@ -5,10 +5,10 @@ A bhusku product. Whole-learner progress reports for schools, colleges and unive
 ## Run
 
 ```bash
-npm run hpc
+npm run dev
 ```
 
-Open http://localhost:8090. Use **View as** in the top bar to switch between the coordinator, class teachers, a subject teacher, a student and a parent. Demo data is seeded on first load. *Settings → Reset to demo data* restores it.
+Open http://localhost:8090 and choose **Students** (or go straight to http://localhost:8090/students/). Use **View as** in the top bar to switch between the coordinator, class teachers, a subject teacher, a student and a parent. Demo data is seeded on first load. *Settings → Reset to demo data* restores it.
 
 ## Words we use
 

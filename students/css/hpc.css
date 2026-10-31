@@ -209,6 +209,14 @@ a { color: var(--color-primary); }
 .theme-pill-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; }
 .theme-pill-btn.active { background: var(--bg-card); color: var(--color-primary); box-shadow: var(--shadow-sm); }
 
+/* Review switch - Staff | Students, shared look with the staff app */
+.review-switch { display: inline-flex; align-items: center; gap: 2px; background: var(--bg-sunken); border: 1px solid var(--border-color); border-radius: var(--radius-full); padding: 3px; flex-shrink: 0; }
+.review-switch .rs-label { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--nav-head); padding: 0 8px 0 9px; }
+.review-switch a { font-size: 12.5px; font-weight: 700; color: var(--text-muted); text-decoration: none; padding: 5px 13px; border-radius: var(--radius-full); }
+.review-switch a:hover { color: var(--color-primary); }
+.review-switch a.on { background: var(--color-primary); color: #fff; }
+@media (max-width: 600px) { .review-switch .rs-label { display: none; } .review-switch a { padding: 5px 10px; } }
+
 .app-content { flex: 1; overflow-y: auto; padding: 24px 28px 48px; min-width: 0; outline: none; }
 .sidebar-scrim { display: none; }
 .mobile-only { display: none; }

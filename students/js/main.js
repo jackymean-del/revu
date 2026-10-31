@@ -150,7 +150,7 @@
         document.body.classList.remove("theme-light", "theme-dark");
         document.body.classList.add("theme-" + theme);
         $$(".theme-pill-btn").forEach((b) => b.classList.toggle("active", b.dataset.theme === theme));
-        try { localStorage.setItem("revu_hpc_theme", theme); } catch (e) { /* ignore */ }
+        try { localStorage.setItem("revu_theme", theme); } catch (e) { /* ignore */ }
     }
 
     // ---------------------------------------------------------------------
@@ -162,7 +162,7 @@
         try { saved = JSON.parse(localStorage.getItem("revu_hpc_ctx") || "null"); } catch (e) { /* ignore */ }
         App.ctx = Object.assign({ persona: "admin", classId: "c-7a", exam: Store.db.institution.activeExam, term: Store.db.institution.activeTerm }, saved || {});
         let theme = "light";
-        try { theme = localStorage.getItem("revu_hpc_theme") || "light"; } catch (e) { /* ignore */ }
+        try { theme = localStorage.getItem("revu_theme") || "light"; } catch (e) { /* ignore */ }
         applyTheme(theme);
 
         $$(".theme-pill-btn").forEach((b) => b.addEventListener("click", () => applyTheme(b.dataset.theme)));
