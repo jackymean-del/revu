@@ -245,8 +245,9 @@
         ensurePeriodicTest();
         // Term 1 remarks published
         state.students.forEach((s) => {
-            state.remarks["Term 1"][s.id] = { text: draftRemark(s.id, "Term 1"), status: "published", at: "2026-10-10" };
+            state.remarks["Term 1"][s.id] = { text: draftRemark(s.id, "Term 1"), status: "published", at: "2026-10-10", seeded: true };
         });
+        state.notesRule = NOTES_RULE;
         save(true);
     }
 
@@ -299,7 +300,18 @@
             if (!p.short && def && def.short) p.short = def.short;
         }));
         if (ensurePeriodicTest()) save();
+        // Demo notes drafted under older rules: re-draft only the seeded ones (published on the
+        // seed date, never edited by a teacher) so they follow the current insight engine.
+        if ((state.notesRule || 1) < NOTES_RULE) {
+            Object.entries(state.remarks || {}).forEach(([term, byStudent]) => Object.entries(byStudent).forEach(([sid, rem]) => {
+                if (rem && (rem.seeded || rem.at === "2026-10-10") && student(sid)) { rem.text = draftRemark(sid, term); rem.seeded = true; }
+            }));
+            state.notesRule = NOTES_RULE;
+            save(true);
+        }
     }
+    // Bump when the note-drafting rules change in a way that fixes wrong statements
+    const NOTES_RULE = 2;
     function load() {
         try {
             const raw = localStorage.getItem(KEY);
