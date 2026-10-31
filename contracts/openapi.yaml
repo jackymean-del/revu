@@ -5,7 +5,14 @@ info:
   description: >
     The revU server API. This file is the source of truth: change it first,
     then regenerate the TypeScript types (npm run gen:api in frontend/) and
-    the Go types. Never hand-edit generated code.
+    the Go types (make gen). Never hand-edit generated code.
+
+    Errors: every non-2xx response is RFC 7807 problem details
+    (application/problem+json) with a stable code, for example
+    evidence.locked. Clients branch on code, never on title or detail.
+
+    Base path: feature endpoints live under /v1. /api/health stays outside
+    it so uptime checks never change.
 servers:
   - url: https://api.revu.bhusku.com
   - url: http://localhost:8080
@@ -22,8 +29,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
+  responses:
+    Problem:
+      description: Something went wrong. The body says what, with a stable code.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   schemas:
+    Problem:
+      type: object
+      description: RFC 7807 problem details, plus revU's stable code.
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          description: A URI naming the problem kind, or about:blank.
+        title:
+          type: string
+          description: A short, human summary. Do not branch on it.
+        status:
+          type: integer
+          description: The HTTP status code.
+        detail:
+          type: string
+          description: What happened in this case, safe to show a person.
+        instance:
+          type: string
+          description: The request path.
+        code:
+          type: string
+          description: Stable machine code, for example evidence.locked or validation.failed.
+        requestId:
+          type: string
+          description: Quote this when reporting a problem; it finds the server log line.
+        errors:
+          type: array
+          description: Per-field problems when code is validation.failed.
+          items:
+            $ref: "#/components/schemas/FieldError"
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field:
+          type: string
+          description: The request field, as a JSON pointer or a dotted name.
+        code:
+          type: string
+          description: Stable code, for example required or too_long.
+        message:
+          type: string
     Health:
       type: object
       additionalProperties: false
@@ -32,6 +91,7 @@ components:
         status:
           type: string
           enum: [ok]
+          x-enum-varnames: [HealthOk]
         database:
           type: boolean
           description: True when PostgreSQL answered a ping within 2 seconds.

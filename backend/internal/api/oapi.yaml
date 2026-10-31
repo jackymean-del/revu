@@ -1,0 +1,9 @@
+# oapi-codegen settings: types only. Handlers are written by hand in each
+# module and the contract test (internal/server) proves they match the spec.
+package: api
+output: types.gen.go
+generate:
+  models: true
+output-options:
+  # optional fields are plain values with omitempty, not pointers
+  prefer-skip-optional-pointer: true

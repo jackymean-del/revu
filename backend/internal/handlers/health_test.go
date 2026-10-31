@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackymean-del/revu/internal/api"
 )
 
 type fakeDB struct{ err error }
@@ -35,11 +36,11 @@ func TestHealth(t *testing.T) {
 			if res.StatusCode != 200 {
 				t.Fatalf("status %d, want 200", res.StatusCode)
 			}
-			var body HealthResponse
+			var body api.Health
 			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			if body.Status != "ok" || body.Database != tc.wantDB || body.Version != "test-1" {
+			if body.Status != api.HealthOk || body.Database != tc.wantDB || body.Version != "test-1" {
 				t.Fatalf("body %+v, want database=%v", body, tc.wantDB)
 			}
 		})

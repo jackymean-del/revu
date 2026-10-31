@@ -58,6 +58,20 @@ A rule nothing checks comes back.
 - No marks are held as floats.
 - No missing value is ever turned into zero.
 
+## API errors and the contract
+
+- Every non-2xx answer is RFC 7807 problem details with a stable code
+  (backend/internal/problem). Handlers return problem.New(status, code,
+  detail) or problem.Invalid(fields...); any other error becomes a 500 that
+  never leaks internals. The app reads them as ApiError (src/api/problem.ts)
+  and branches on code.
+- After editing contracts/openapi.yaml run make gen (or npm run gen:api in
+  frontend/ and go generate ./internal/api/ in backend/). CI fails when the
+  generated files are stale.
+- backend/internal/server/contract_test.go fails when a route is served but
+  not in the spec, or in the spec but not served. Feature endpoints live
+  under /v1; /api/health stays where it is.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com

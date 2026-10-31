@@ -67,6 +67,11 @@ jobs:
             [ "$(docker logs pg 2>&1 | grep -c 'ready to accept connections')" -ge 2 ] && break
             sleep 2
           done
+      - name: Generated Go types match the contract
+        working-directory: backend
+        run: |
+          go generate ./internal/api/
+          git diff --exit-code -- internal/api/types.gen.go || { echo "::error::contracts/openapi.yaml changed; run make gen and commit"; exit 1; }
       - name: go.mod is tidy (no unused dependencies)
         working-directory: backend
         run: go mod tidy -diff

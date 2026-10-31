@@ -1,5 +1,5 @@
 # revU - common Docker tasks (macOS / Linux; on Windows run the docker compose lines directly)
-.PHONY: up down build logs ps reset migrate test
+.PHONY: up down build logs ps reset migrate test gen
 
 up:        ## Build + start the stack (db, minio, gotenberg, api)
 	docker compose up --build -d
@@ -28,3 +28,7 @@ migrate:   ## Apply all SQL migrations to a running db (for existing volumes)
 test:      ## Go tests against the running database, then the frontend checks
 	cd backend && TEST_DATABASE_URL="postgresql://revu:secret@localhost:5432/revu?sslmode=disable" go test ./... -count=1 -p 1
 	cd frontend && npx tsc -b && npx eslint src --max-warnings 0 && npx tsx style-verify.mts
+
+gen:       ## Regenerate the TypeScript and Go types from contracts/openapi.yaml
+	cd frontend && npm run gen:api
+	cd backend && go generate ./internal/api/

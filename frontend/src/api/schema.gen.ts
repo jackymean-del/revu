@@ -25,6 +25,32 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description RFC 7807 problem details, plus revU's stable code. */
+        Problem: {
+            /** @description A URI naming the problem kind, or about:blank. */
+            type: string;
+            /** @description A short, human summary. Do not branch on it. */
+            title: string;
+            /** @description The HTTP status code. */
+            status: number;
+            /** @description What happened in this case, safe to show a person. */
+            detail?: string;
+            /** @description The request path. */
+            instance?: string;
+            /** @description Stable machine code, for example evidence.locked or validation.failed. */
+            code: string;
+            /** @description Quote this when reporting a problem; it finds the server log line. */
+            requestId?: string;
+            /** @description Per-field problems when code is validation.failed. */
+            errors?: components["schemas"]["FieldError"][];
+        };
+        FieldError: {
+            /** @description The request field, as a JSON pointer or a dotted name. */
+            field: string;
+            /** @description Stable code, for example required or too_long. */
+            code: string;
+            message: string;
+        };
         Health: {
             /** @enum {string} */
             status: "ok";
@@ -34,7 +60,17 @@ export interface components {
             version: string;
         };
     };
-    responses: never;
+    responses: {
+        /** @description Something went wrong. The body says what, with a stable code. */
+        Problem: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -60,6 +96,7 @@ export interface operations {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+            default: components["responses"]["Problem"];
         };
     };
 }

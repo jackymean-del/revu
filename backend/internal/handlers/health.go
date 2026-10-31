@@ -7,18 +7,12 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackymean-del/revu/internal/api"
 )
 
 // Pinger is the part of the database pool the health check needs.
 type Pinger interface {
 	Ping(ctx context.Context) error
-}
-
-// HealthResponse matches components.schemas.Health in contracts/openapi.yaml.
-type HealthResponse struct {
-	Status   string `json:"status"`
-	Database bool   `json:"database"`
-	Version  string `json:"version"`
 }
 
 // Health answers whether the server is up and whether the database answers.
@@ -32,6 +26,6 @@ func Health(db Pinger, version string) fiber.Handler {
 			defer cancel()
 			ok = db.Ping(ctx) == nil
 		}
-		return c.JSON(HealthResponse{Status: "ok", Database: ok, Version: version})
+		return c.JSON(api.Health{Status: api.HealthOk, Database: ok, Version: version})
 	}
 }
