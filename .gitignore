@@ -1,0 +1,9 @@
+# School documents and working files - not for the public repo
+Formats/
+scratch/
+
+# Local tooling
+.claude/
+node_modules/
+.DS_Store
+Thumbs.db

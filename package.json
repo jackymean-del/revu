@@ -1,0 +1,11 @@
+{
+  "name": "revu",
+  "version": "1.0.0",
+  "description": "Educational Performance Intelligence Platform",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y http-server -p 8080",
+    "hpc": "node hpc/serve.js 8090"
+  },
+  "dependencies": {}
+}
