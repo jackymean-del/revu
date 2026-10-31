@@ -322,8 +322,30 @@
         { id: "postmid", name: "Post Mid-Term", term: "Term 2" }
     ];
 
+    // How a subject's term total (out of 100) is built. "exam" parts take the core-section
+    // percentage of that exam; the "fields" part pools every extra-section field in the term.
+    const TERM_TOTAL = {
+        "Term 1": [
+            { key: "pt", label: "Periodic Test", short: "PT", exam: "pt1", outOf: 10 },
+            { key: "exam", label: "Mid-Term", short: "Mid-Term", exam: "mid", outOf: 80 },
+            { key: "fields", label: "Skills", fields: true, outOf: 10 }
+        ],
+        "Term 2": [
+            { key: "pt", label: "Periodic Test", short: "PT", exam: "pt2", outOf: 10 },
+            { key: "exam", label: "Post Mid-Term", short: "Post Mid", exam: "postmid", outOf: 80 },
+            { key: "fields", label: "Skills", fields: true, outOf: 10 }
+        ]
+    };
+    // What the pooled extra-section part is called for a grade
+    function fieldsLabel(grade, short) {
+        const n = parseInt(grade, 10);
+        if (!isNaN(n) && n <= 5) return short ? "O&A" : "Oral & Activity";
+        if (!isNaN(n) && n <= 8) return short ? "E&N" : "Enrichment & Notebook";
+        return "Skills";
+    }
+
     window.HPC_FW = {
-        LEVELS, SELF_SCALES, STAGES, COMPONENTS, ENRICHMENT_NAMES, LO_LIBRARY, QUESTION_BANK, GRADE_SCALES, EXAMS, MERGE_HINTS,
-        stageForGrade, componentLabel, componentsForGrade, subjectsForGrade
+        LEVELS, SELF_SCALES, STAGES, COMPONENTS, ENRICHMENT_NAMES, LO_LIBRARY, QUESTION_BANK, GRADE_SCALES, EXAMS, MERGE_HINTS, TERM_TOTAL,
+        stageForGrade, componentLabel, componentsForGrade, subjectsForGrade, fieldsLabel
     };
 })();

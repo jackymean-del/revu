@@ -20,7 +20,7 @@ Open http://localhost:8090 and choose **Students** (or go straight to http://loc
 | **Marks** | Per-question entry: table, student by student, or Excel template + upload |
 | **Growth** | Teacher ratings on one ladder - **Emerging · Developing · Secure** (+ **Excelling** for older learners) - plus quick notes |
 | **Voices** | Self check-in, peer feedback and parent voice |
-| **Reports** | The report card, drafted from the data, published and printed in bulk. Its title is a setting (e.g. "Holistic Progress Card" for NEP schools) |
+| **Reports** | One A4 sheet per student (front and back): at-a-glance grade, strengths and next steps; subjects with term totals and every skill as a level chip; Growth 360°; voices; teacher's note. Optional outcome-detail appendix. Drafted from the data, published and printed in bulk. Its title is a setting (e.g. "Holistic Progress Card" for NEP schools) |
 
 Stages: Early Years · Primary · Middle School · High School · College & University.
 

@@ -91,6 +91,7 @@
             version: 1,
             institution: { name: "Demo Public School", short: "DPS", type: "school", session: "2026-27", city: "Bhubaneswar", activeExam: "postmid", activeTerm: "Term 2", logo: null, cardTitle: "Progress Report" },
             componentMax: { oral: 5, activity: 5, enrichment: 5, notebook: 5 },
+            termTotal: clone(FW.TERM_TOTAL),
             library: clone(FW.LO_LIBRARY),
             staff: [
                 { id: "st-admin", name: "Dr. Anita Mishra", role: "admin", title: "Coordinator" },
@@ -241,11 +242,37 @@
                 state.observations.push({ id: uid("ob"), sid: s.id, term: "Term 2", domId: d.id, lvl: null, note: obsNotes[i % obsNotes.length], date: `2026-10-${String(5 + i).padStart(2, "0")}`, by: cls.classTeacherId });
             });
         });
+        ensurePeriodicTest();
         // Term 1 remarks published
         state.students.forEach((s) => {
             state.remarks["Term 1"][s.id] = { text: draftRemark(s.id, "Term 1"), status: "published", at: "2026-10-10" };
         });
         save(true);
+    }
+
+    // Demo Periodic Test 1 papers + marks, so Term 1 shows a full term-total breakdown.
+    // Each student's level follows their Mid-Term result in that subject.
+    function ensurePeriodicTest() {
+        if (state.papers.some((p) => p.exam === "pt1")) return false;
+        const r = rng(4242);
+        state.classes.forEach((c) => {
+            const studs = studentsOf(c.id);
+            FW.subjectsForGrade(c.grade).filter((s) => s.hpc && libFor(c.grade, s.name).length).forEach((s) => {
+                const p = buildSeedPaper(r, c, "pt1", s.name, [], 20, { by: c.classTeacherId, status: "published" });
+                p.createdAt = "2026-07-15";
+                state.papers.push(p);
+                const book = {};
+                studs.forEach((st) => {
+                    const mid = subjectResult(c.id, "mid", s.name, st.id);
+                    const a = mid && mid.any && !mid.ab && mid.mainMax ? mid.main / mid.mainMax : 0.6;
+                    const m = {};
+                    units(p).forEach((u) => { m[u.id] = Math.round(clamp(a + (r() - 0.5) * 0.3, 0, 1) * u.max * 2) / 2; });
+                    book[st.id] = { ab: false, m };
+                });
+                state.marks[p.id] = book;
+            });
+        });
+        return true;
     }
 
     // ---------------------------------------------------------------------
@@ -266,6 +293,12 @@
         state.staff.forEach((s) => { if (s.title === "HPC Coordinator") s.title = "Coordinator"; });
         const remap = { "#318552": "#685DBC", "#3c4d87": "#0e8a7a" };
         state.students.forEach((s) => { if (remap[s.color]) s.color = remap[s.color]; });
+        if (!state.termTotal) state.termTotal = clone(FW.TERM_TOTAL);
+        Object.entries(state.termTotal).forEach(([term, parts]) => parts.forEach((p) => {
+            const def = (FW.TERM_TOTAL[term] || []).find((d) => d.key === p.key);
+            if (!p.short && def && def.short) p.short = def.short;
+        }));
+        if (ensurePeriodicTest()) save();
     }
     function load() {
         try {
@@ -369,6 +402,44 @@
     function gradeFor(pct) {
         const scale = state.institution.type === "higher" ? FW.GRADE_SCALES.higher : FW.GRADE_SCALES.school;
         return (scale.find(([min]) => pct >= min) || scale[scale.length - 1])[1];
+    }
+
+    // A subject's term total from the term's parts (see FW.TERM_TOTAL). Parts with no
+    // published paper are left out of the maximum; parts not yet marked are "pending".
+    function termResult(classId, term, subject, sid) {
+        const scheme = (state.termTotal || FW.TERM_TOTAL)[term] || [];
+        const grade = cls(classId).grade;
+        const examIds = examsOfTerm(term).map((e) => e.id);
+        const parts = scheme.map((part) => {
+            const out = { part, label: part.fields ? FW.fieldsLabel(grade) : part.label, short: part.fields ? FW.fieldsLabel(grade, true) : (part.short || part.label), outOf: part.outOf, score: null, status: "none" };
+            if (part.fields) {
+                let got = 0, max = 0, marked = false;
+                examIds.forEach((ex) => {
+                    const r = subjectResult(classId, ex, subject, sid);
+                    if (!r) return;
+                    Object.values(r.comps).forEach((c) => { max += c.max; got += r.ab ? 0 : c.got; });
+                    if (r.any) marked = true;
+                });
+                if (!max) return out;
+                out.status = marked ? "ok" : "pending";
+                if (marked) out.score = round1((got / max) * part.outOf);
+                return out;
+            }
+            const r = subjectResult(classId, part.exam, subject, sid);
+            if (!r || !r.mainMax) return out;
+            if (!r.any) { out.status = "pending"; return out; }
+            if (r.ab) { out.status = "ab"; out.score = 0; return out; }
+            out.status = "ok";
+            out.score = round1((r.main / r.mainMax) * part.outOf);
+            return out;
+        });
+        const counted = parts.filter((p) => p.status === "ok" || p.status === "ab");
+        const total = round1(counted.reduce((s, p) => s + p.score, 0));
+        const max = parts.filter((p) => p.status !== "none").reduce((s, p) => s + p.outOf, 0);
+        const markedMax = counted.reduce((s, p) => s + p.outOf, 0);
+        const complete = counted.length && counted.length === parts.filter((p) => p.status !== "none").length;
+        const pctV = markedMax ? (total / markedMax) * 100 : null;
+        return { parts, total, max, complete, pct: pctV, grade: pctV == null ? null : gradeFor(pctV) };
     }
 
     // LO-level attainment for a term (all papers of the term's exams)
@@ -490,7 +561,7 @@
         get db() { return state; },
         load, save, reset, uid, clone, round1, rng,
         cls, className, student, studentsOf, staff, paper, stageOf, levelsOf, examById, examsOfTerm, libFor, loIndex,
-        units, qMarks, secMax, breakdown, paperResult, papersFor, subjectResult, convert, gradeFor, loMastery,
+        units, qMarks, secMax, breakdown, paperResult, papersFor, subjectResult, termResult, convert, gradeFor, loMastery,
         H, mean, domainScores, teacherRatedComplete, selfDone, parentDone, suggestion, draftRemark, pipeline
     };
 })();
