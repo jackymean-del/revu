@@ -1462,6 +1462,82 @@ paths:
           description: Ended.
         default:
           $ref: "#/components/responses/Problem"
+  /v1/audit:
+    get:
+      operationId: listAudit
+      summary: Who changed what and when, newest first, with the record before and after.
+      tags: [audit]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: entity
+          in: query
+          description: Only changes to this kind of record, for example students.
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          description: Only changes to this record.
+          schema:
+            type: string
+            format: uuid
+        - name: actor
+          in: query
+          description: Only changes by this sign-in id.
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Only this action (create, update, delete, restore, import or sync).
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: From this day (inclusive).
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: To this day (inclusive).
+          schema:
+            type: string
+            format: date
+        - name: cursor
+          in: query
+          description: The nextCursor of the previous page.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditPage"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/audit/facets:
+    get:
+      operationId: auditFacets
+      summary: The kinds of record, actions and people that appear in the log, for filters.
+      tags: [audit]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The values in use.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditFacets"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -2233,6 +2309,71 @@ components:
         staffId:
           type: string
           format: uuid
+    AuditEntry:
+      type: object
+      required: [id, at, action, entity]
+      properties:
+        id:
+          type: string
+          format: uuid
+        at:
+          type: string
+          format: date-time
+        actorId:
+          type: string
+          description: Sign-in id; absent for changes made by the system (for example the sign-in sync).
+        actorName:
+          type: string
+          description: The staff name linked to that sign-in, when there is one.
+        action:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+        requestId:
+          type: string
+        before:
+          type: object
+          additionalProperties: true
+        after:
+          type: object
+          additionalProperties: true
+    AuditPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+        nextCursor:
+          type: string
+    AuditActor:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    AuditFacets:
+      type: object
+      required: [entities, actions, actors]
+      properties:
+        entities:
+          type: array
+          items:
+            type: string
+        actions:
+          type: array
+          items:
+            type: string
+        actors:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditActor"
     Me:
       type: object
       required: [userId, orgs]

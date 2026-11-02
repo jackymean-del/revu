@@ -306,6 +306,43 @@ func (e SubjectInputKind) Valid() bool {
 	}
 }
 
+// AuditActor defines model for AuditActor.
+type AuditActor struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// AuditEntry defines model for AuditEntry.
+type AuditEntry struct {
+	Action string `json:"action"`
+
+	// ActorId Sign-in id; absent for changes made by the system (for example the sign-in sync).
+	ActorId string `json:"actorId,omitempty"`
+
+	// ActorName The staff name linked to that sign-in, when there is one.
+	ActorName string                 `json:"actorName,omitempty"`
+	After     map[string]interface{} `json:"after,omitempty"`
+	At        string                 `json:"at"`
+	Before    map[string]interface{} `json:"before,omitempty"`
+	Entity    string                 `json:"entity"`
+	EntityId  string                 `json:"entityId,omitempty"`
+	Id        string                 `json:"id"`
+	RequestId string                 `json:"requestId,omitempty"`
+}
+
+// AuditFacets defines model for AuditFacets.
+type AuditFacets struct {
+	Actions  []string     `json:"actions"`
+	Actors   []AuditActor `json:"actors"`
+	Entities []string     `json:"entities"`
+}
+
+// AuditPage defines model for AuditPage.
+type AuditPage struct {
+	Items      []AuditEntry `json:"items"`
+	NextCursor string       `json:"nextCursor,omitempty"`
+}
+
 // Branch defines model for Branch.
 type Branch struct {
 	Address string `json:"address,omitempty"`
@@ -827,6 +864,40 @@ type IncludeRemoved = bool
 
 // OrgId defines model for OrgId.
 type OrgId = string
+
+// ListAuditParams defines parameters for ListAudit.
+type ListAuditParams struct {
+	// Entity Only changes to this kind of record, for example students.
+	Entity string `form:"entity,omitempty" json:"entity,omitempty"`
+
+	// EntityId Only changes to this record.
+	EntityId string `form:"entityId,omitempty" json:"entityId,omitempty"`
+
+	// Actor Only changes by this sign-in id.
+	Actor string `form:"actor,omitempty" json:"actor,omitempty"`
+
+	// Action Only this action (create, update, delete, restore, import or sync).
+	Action string `form:"action,omitempty" json:"action,omitempty"`
+
+	// From From this day (inclusive).
+	From string `form:"from,omitempty" json:"from,omitempty"`
+
+	// To To this day (inclusive).
+	To string `form:"to,omitempty" json:"to,omitempty"`
+
+	// Cursor The nextCursor of the previous page.
+	Cursor string `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// AuditFacetsParams defines parameters for AuditFacets.
+type AuditFacetsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
 
 // ListBranchsParams defines parameters for ListBranchs.
 type ListBranchsParams struct {

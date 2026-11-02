@@ -114,6 +114,15 @@ A rule nothing checks comes back.
   neutralised). Up to 5000 rows per file until background jobs arrive.
 - Records with the five usual operations share backend/internal/records.
 
+## History (v1.9)
+
+- Every change goes through audit.Record in the same transaction, with the
+  record before and after. GET /v1/audit lists it newest first with filters;
+  administrators and principals read it (audit.read).
+- Confidential content (papers, answer keys, marks, remarks; Part 77.4) is
+  logged by id only, never its content. Modules from v2 on pass ids, not
+  documents, for those.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com

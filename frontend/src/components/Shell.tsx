@@ -48,6 +48,9 @@ export function Shell() {
           <Link to="/settings/words" className={link} activeProps={active} inactiveProps={inactive}>
             Words
           </Link>
+          <Link to="/settings/history" className={link} activeProps={active} inactiveProps={inactive}>
+            History
+          </Link>
         </nav>
         <div className="ml-auto flex min-w-0 items-center gap-3">
           <OrgPicker />

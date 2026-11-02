@@ -816,6 +816,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who changed what and when, newest first, with the record before and after. */
+        get: operations["listAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The kinds of record, actions and people that appear in the log, for filters. */
+        get: operations["auditFacets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1240,6 +1274,40 @@ export interface components {
             branchId?: string;
             /** Format: uuid */
             staffId?: string;
+        };
+        AuditEntry: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            at: string;
+            /** @description Sign-in id; absent for changes made by the system (for example the sign-in sync). */
+            actorId?: string;
+            /** @description The staff name linked to that sign-in, when there is one. */
+            actorName?: string;
+            action: string;
+            entity: string;
+            /** Format: uuid */
+            entityId?: string;
+            requestId?: string;
+            before?: {
+                [key: string]: unknown;
+            };
+            after?: {
+                [key: string]: unknown;
+            };
+        };
+        AuditPage: {
+            items: components["schemas"]["AuditEntry"][];
+            nextCursor?: string;
+        };
+        AuditActor: {
+            id: string;
+            name: string;
+        };
+        AuditFacets: {
+            entities: string[];
+            actions: string[];
+            actors: components["schemas"]["AuditActor"][];
         };
         Me: {
             /** @description The sign-in id (Clerk user id). */
@@ -3319,6 +3387,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAudit: {
+        parameters: {
+            query?: {
+                /** @description Only changes to this kind of record, for example students. */
+                entity?: string;
+                /** @description Only changes to this record. */
+                entityId?: string;
+                /** @description Only changes by this sign-in id. */
+                actor?: string;
+                /** @description Only this action (create, update, delete, restore, import or sync). */
+                action?: string;
+                /** @description From this day (inclusive). */
+                from?: string;
+                /** @description To this day (inclusive). */
+                to?: string;
+                /** @description The nextCursor of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    auditFacets: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The values in use. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditFacets"];
+                };
             };
             default: components["responses"]["Problem"];
         };

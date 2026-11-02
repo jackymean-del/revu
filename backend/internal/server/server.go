@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/clerksync"
 	"github.com/jackymean-del/revu/internal/config"
@@ -75,6 +76,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	terminology.Routes(inOrg)
 	structure.Routes(inOrg)
 	people.Routes(inOrg)
+	audit.Routes(inOrg)
 	return app
 }
 

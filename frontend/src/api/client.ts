@@ -117,3 +117,11 @@ export function saveBlob(blob: Blob, filename: string) {
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
+
+export type AuditPage = components['schemas']['AuditPage']
+export type AuditFacets = components['schemas']['AuditFacets']
+
+export const listAudit = (orgId: string, params: Record<string, string>, signal?: AbortSignal) =>
+  call<AuditPage>(`/v1/audit?${new URLSearchParams(params)}`, { orgId, signal })
+
+export const auditFacets = (orgId: string, signal?: AbortSignal) => call<AuditFacets>('/v1/audit/facets', { orgId, signal })
