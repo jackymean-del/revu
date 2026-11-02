@@ -76,10 +76,11 @@ func TestTerminologyAPI(t *testing.T) {
 	}
 
 	t.Run("my organisations lists each with my roles there", func(t *testing.T) {
-		rec, _ := call("GET", "/v1/me/orgs", a.UserID, "", nil)
-		var orgs []api.MyOrg
-		_ = json.Unmarshal(rec.Body.Bytes(), &orgs)
-		if rec.Code != 200 || len(orgs) != 2 {
+		rec, _ := call("GET", "/v1/me", a.UserID, "", nil)
+		var me api.Me
+		_ = json.Unmarshal(rec.Body.Bytes(), &me)
+		orgs := me.Orgs
+		if rec.Code != 200 || len(orgs) != 2 || me.UserId != a.UserID {
 			t.Fatalf("status %d: %s", rec.Code, rec.Body)
 		}
 		roles := map[string][]api.MyOrgRoles{}

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getTerminology, putTerminology, type TerminologyDoc } from '../api/client'
 import { ApiError } from '../api/problem'
+import { SignInPrompt } from '../components/Account'
+import { useAuthState } from '../lib/auth-context'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 import { PRESETS, TERM_KEYS, describe, makeT, presets, type Preset, type T, type TermKey } from '../lib/terminology/terminology'
@@ -35,7 +37,8 @@ const same = (a: TerminologyDoc, b: TerminologyDoc) => a.preset === b.preset && 
 
 /** Settings: the words this organisation uses, applied to every screen, report and email. */
 export function Words() {
-  const { current, loading, error } = useOrg()
+  const { current, loading, error, userId } = useOrg()
+  const auth = useAuthState()
   const institution = useT()('org.institution', { lower: true })
   const q = useQuery({
     queryKey: ['terminology', current?.id],
@@ -44,10 +47,24 @@ export function Words() {
   })
 
   let body
-  if (loading || q.isPending) body = <p className="text-muted">Loading</p>
-  else if (error?.status === 401) body = <Notice title="Sign in to see your words">Sign-in arrives with the next release of the app.</Notice>
-  else if (!current) body = <Notice title={`No ${institution} yet`}>Once you belong to one, its words appear here.</Notice>
+  if (auth.enabled && auth.loaded && !auth.signedIn)
+    body = (
+      <Notice title="Sign in to see your words">
+        Use the account you use for other bhusku apps.
+        <SignInPrompt />
+      </Notice>
+    )
+  else if (error?.status === 401) body = <Notice title="Your sign-in was not accepted">Sign out and sign in again. If it keeps happening, quote request {error.requestId}.</Notice>
+  else if (loading || !auth.loaded) body = <p className="text-muted">Loading</p>
+  else if (!current)
+    body = (
+      <Notice title={`No ${institution} yet`}>
+        Once you belong to one, its words appear here.
+        {import.meta.env.DEV && userId && <span className="mt-2 block font-mono text-xs text-subtle">Sign-in id for the demo data: {userId}</span>}
+      </Notice>
+    )
   else if (q.isError) body = <Notice title="These words could not be loaded">{q.error.message}</Notice>
+  else if (!q.data) body = <p className="text-muted">Loading</p>
   else body = <Editor key={`${current.id}:${q.dataUpdatedAt}`} orgId={current.id} saved={q.data} canEdit={current.roles.includes('admin')} />
 
   return (
@@ -66,7 +83,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   return (
     <div className="rounded-xl border border-line bg-white p-6">
       <p className="font-semibold">{title}</p>
-      <p className="mt-1 text-sm text-muted">{children}</p>
+      <div className="mt-1 text-sm text-muted">{children}</div>
     </div>
   )
 }

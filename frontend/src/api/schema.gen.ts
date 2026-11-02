@@ -4,17 +4,37 @@
  */
 
 export interface paths {
-    "/v1/me/orgs": {
+    "/v1/me": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** The organisations the signed-in person belongs to, with their roles in each. */
-        get: operations["listMyOrgs"];
+        /** Who is signed in, and the organisations they belong to with their roles in each. */
+        get: operations["getMe"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/clerk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clerk membership and user events, signed with Svix. Keeps memberships in step.
+         * @description Accepted only with a valid svix-id, svix-timestamp and svix-signature. Used events: organizationMembership.created, .updated and .deleted, and user.deleted. Other events are acknowledged and ignored.
+         */
+        post: operations["clerkWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -60,6 +80,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Me: {
+            /** @description The sign-in id (Clerk user id). */
+            userId: string;
+            orgs: components["schemas"]["MyOrg"][];
+        };
         MyOrg: {
             /** Format: uuid */
             id: string;
@@ -140,7 +165,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listMyOrgs: {
+    getMe: {
         parameters: {
             query?: never;
             header?: never;
@@ -149,14 +174,37 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Every organisation with a membership for this person. */
+            /** @description The signed-in person. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MyOrg"][];
+                    "application/json": components["schemas"]["Me"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    clerkWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description Applied, or not needed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

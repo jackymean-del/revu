@@ -19,20 +19,39 @@ servers:
 security:
   - session: []
 paths:
-  /v1/me/orgs:
+  /v1/me:
     get:
-      operationId: listMyOrgs
-      summary: The organisations the signed-in person belongs to, with their roles in each.
+      operationId: getMe
+      summary: Who is signed in, and the organisations they belong to with their roles in each.
       tags: [identity]
       responses:
         "200":
-          description: Every organisation with a membership for this person.
+          description: The signed-in person.
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/MyOrg"
+                $ref: "#/components/schemas/Me"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/webhooks/clerk:
+    post:
+      operationId: clerkWebhook
+      summary: Clerk membership and user events, signed with Svix. Keeps memberships in step.
+      description: >
+        Accepted only with a valid svix-id, svix-timestamp and svix-signature.
+        Used events: organizationMembership.created, .updated and .deleted,
+        and user.deleted. Other events are acknowledged and ignored.
+      tags: [identity]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "204":
+          description: Applied, or not needed.
         default:
           $ref: "#/components/responses/Problem"
   /v1/terminology:
@@ -112,6 +131,17 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    Me:
+      type: object
+      required: [userId, orgs]
+      properties:
+        userId:
+          type: string
+          description: The sign-in id (Clerk user id).
+        orgs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyOrg"
     MyOrg:
       type: object
       required: [id, name, preset, roles]

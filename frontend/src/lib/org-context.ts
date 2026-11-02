@@ -10,8 +10,10 @@ export type OrgState = {
   choose: (id: string) => void
   loading: boolean
   error: ApiError | null
+  /** The signed-in person's sign-in id, once known. */
+  userId: string | null
 }
 
-export const OrgContext = createContext<OrgState>({ orgs: [], current: null, choose: () => {}, loading: true, error: null })
+export const OrgContext = createContext<OrgState>({ orgs: [], current: null, choose: () => {}, loading: true, error: null, userId: null })
 
 export const useOrg = () => useContext(OrgContext)

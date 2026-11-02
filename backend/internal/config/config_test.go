@@ -22,7 +22,7 @@ func TestLoad(t *testing.T) {
 		{name: "bad port", env: map[string]string{"PORT": "eighty"}, wantErr: true},
 		{name: "port out of range", env: map[string]string{"PORT": "70000"}, wantErr: true},
 		{name: "production needs a database", env: map[string]string{"APP_ENV": "production"}, wantErr: true},
-		{name: "production with a database", env: map[string]string{"APP_ENV": "production", "DATABASE_URL": "postgres://x"}, check: func(t *testing.T, c Config) {
+		{name: "production with a database", env: map[string]string{"APP_ENV": "production", "DATABASE_URL": "postgres://x", "CLERK_SECRET_KEY": "sk_live_x"}, check: func(t *testing.T, c Config) {
 			if !c.Production {
 				t.Fatal("expected production")
 			}
@@ -35,7 +35,8 @@ func TestLoad(t *testing.T) {
 		{name: "app and owner must differ", env: map[string]string{"DATABASE_URL": "postgres://o", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "long-enough-pw"}, wantErr: true},
 		{name: "migrating needs an app password", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o"}, wantErr: true},
 		{name: "a short app password is refused", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "short"}, wantErr: true},
-		{name: "development sign-in is refused in production", env: map[string]string{"APP_ENV": "production", "DATABASE_URL": "postgres://a", "DEV_USER_ID": "user_dev"}, wantErr: true},
+		{name: "development sign-in is refused in production", env: map[string]string{"APP_ENV": "production", "DATABASE_URL": "postgres://a", "CLERK_SECRET_KEY": "sk_live_x", "DEV_USER_ID": "user_dev"}, wantErr: true},
+		{name: "production needs sign-in", env: map[string]string{"APP_ENV": "production", "DATABASE_URL": "postgres://a"}, wantErr: true},
 		{name: "owner and app roles", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "long-enough-pw"}, check: func(t *testing.T, c Config) {
 			if c.MigrateURL != "postgres://o" || c.AppDBPassword != "long-enough-pw" {
 				t.Fatalf("%+v", c)

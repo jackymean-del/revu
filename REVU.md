@@ -120,7 +120,17 @@ A rule nothing checks comes back.
 - Two database roles: MIGRATE_DATABASE_URL connects as the owner and runs migrations; DATABASE_URL connects as revu_app (no owner, no BYPASSRLS), whose password the server sets from APP_DB_PASSWORD. In production the server refuses to start if DATABASE_URL could bypass row-level security.
 - New tenant tables: give them org_id, reference parents by (org_id, parent_id), and register them with `SELECT revu_tenant_table('name');` in the migration. internal/db/rls_test.go fails on a table that is not fenced, and asks for seed rows in internal/db/dbtest so the table is proven.
 - Clerk keys for local work: the development instance shared with schedU (pk_test_ and sk_test_ keys). The secret goes in .env at the repo root (docker compose) and in the CLERK_SECRET_KEY entry of your local launch configuration; the publishable key goes in frontend/.env.local. See .env.example and frontend/.env.example. Live keys are set only in Railway and Cloudflare.
-- Signing in locally until Clerk lands (v1.4): set DEV_USER_ID (refused when APP_ENV=production) and run `go run ./cmd/server seed` from backend/ with MIGRATE_DATABASE_URL set; it creates two demo organisations (school and university presets) with that user as administrator.
+- Sign-in (v1.4): the server checks the Clerk session token on every call
+  (backend/internal/auth/clerk.go) and takes only the user id from it;
+  organisation and role come from revU's memberships. The token must have
+  been issued for one of ALLOWED_ORIGINS. The Clerk webhook
+  (POST /v1/webhooks/clerk, Svix-signed, CLERK_WEBHOOK_SECRET) keeps
+  memberships of organisations linked by orgs.clerk_org_id in step: org:admin
+  becomes admin, org:<revU role> that role, anything else view-only. Rows
+  marked source 'revu' are never changed by it.
+- Without CLERK_SECRET_KEY, local work can still sign in as DEV_USER_ID
+  (refused in production; ignored when the Clerk key is set).
+- Signing in locally before Clerk (until v1.4): set DEV_USER_ID (refused when APP_ENV=production) and run `go run ./cmd/server seed` from backend/ with MIGRATE_DATABASE_URL set; it creates two demo organisations (school and university presets) with that user as administrator.
 - Institution words: the key list and presets live in frontend/src/lib/terminology/presets.json. After editing it run make gen (npm run gen:terms) so the server's embedded copy matches; a Go test fails when it does not. The lint rule frontend/eslint-rules/institution-words.js fails on any preset word written literally in a component.
 - Backend tests that need the database: TEST_DATABASE_URL (owner) builds it from database/migrations and tests as revu_app.
 - `cd frontend && npm install && npm run dev` starts the app on :5173, proxying /api to :8080.

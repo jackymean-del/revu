@@ -10,9 +10,9 @@ import (
 	"github.com/jackymean-del/revu/internal/auth"
 )
 
-// MyOrgs lists the signed-in person's organisations through revu_my_orgs,
-// which returns only their own memberships.
-func MyOrgs(pool *pgxpool.Pool, a auth.Authenticator) fiber.Handler {
+// Me answers who is signed in and lists their organisations through
+// revu_my_orgs, which returns only their own memberships.
+func Me(pool *pgxpool.Pool, a auth.Authenticator) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		user, err := a.UserID(c)
 		if err != nil {
@@ -37,6 +37,6 @@ func MyOrgs(pool *pgxpool.Pool, a auth.Authenticator) fiber.Handler {
 		if orgs == nil {
 			orgs = []api.MyOrg{}
 		}
-		return c.JSON(orgs)
+		return c.JSON(api.Me{UserId: user, Orgs: orgs})
 	}
 }

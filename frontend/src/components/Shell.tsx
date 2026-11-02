@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { useOrg } from '../lib/org-context'
+import { Account } from './Account'
 import { BrandLockup } from './BrandLockup'
 
 const link = 'rounded-lg px-3 py-1.5 text-sm font-semibold'
@@ -42,8 +43,9 @@ export function Shell() {
             Words
           </Link>
         </nav>
-        <div className="ml-auto min-w-0">
+        <div className="ml-auto flex min-w-0 items-center gap-3">
           <OrgPicker />
+          <Account />
         </div>
       </header>
       <main className="flex-1">

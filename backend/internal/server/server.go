@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackymean-del/revu/internal/auth"
+	"github.com/jackymean-del/revu/internal/clerksync"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/org"
@@ -26,6 +27,7 @@ import (
 type Deps struct {
 	DB   *pgxpool.Pool      // nil when no database is configured
 	Auth auth.Authenticator // who is signed in; nil means nobody
+	Now  func() time.Time   // nil means time.Now; tests set a fixed clock
 }
 
 // New returns the app with every route registered. Without a database,
@@ -33,6 +35,9 @@ type Deps struct {
 func New(cfg config.Config, d Deps) *fiber.App {
 	if d.Auth == nil {
 		d.Auth = auth.SignedOut()
+	}
+	if d.Now == nil {
+		d.Now = time.Now
 	}
 	var pinger handlers.Pinger
 	if d.DB != nil {
@@ -59,7 +64,10 @@ func New(cfg config.Config, d Deps) *fiber.App {
 			return problem.New(http.StatusServiceUnavailable, "db.unavailable", "The database is not connected.")
 		})
 	}
-	v1.Get("/me/orgs", org.MyOrgs(d.DB, d.Auth))
+	// Routes outside any one organisation come first: the tenant middleware
+	// below applies to every /v1 route registered after it.
+	v1.Get("/me", org.Me(d.DB, d.Auth))
+	v1.Post("/webhooks/clerk", clerksync.Handler(d.DB, cfg.ClerkWebhook, d.Now))
 	// Everything below acts inside one organisation.
 	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))
 	terminology.Routes(inOrg)

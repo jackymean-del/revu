@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { listMyOrgs } from '../api/client'
+import { getMe } from '../api/client'
 import { ApiError } from '../api/problem'
+import { useAuthState } from './auth-context'
 import { OrgContext } from './org-context'
 
 const KEY = 'revu.org'
@@ -17,11 +18,17 @@ const remembered = (): string | null => {
 }
 
 export function OrgProvider({ children }: { children: ReactNode }) {
-  const mine = useQuery({ queryKey: ['me', 'orgs'], queryFn: ({ signal }) => listMyOrgs(signal), retry: false })
+  const auth = useAuthState()
+  const mine = useQuery({
+    queryKey: ['me', auth.userKey],
+    queryFn: ({ signal }) => getMe(signal),
+    enabled: auth.loaded && auth.signedIn,
+    retry: false,
+  })
   const [chosen, setChosen] = useState<string | null>(remembered)
 
   const value = useMemo(() => {
-    const orgs = mine.data ?? []
+    const orgs = mine.data?.orgs ?? []
     const current = orgs.find((o) => o.id === chosen) ?? orgs[0] ?? null
     const choose = (id: string) => {
       setChosen(id)
@@ -32,8 +39,8 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       }
     }
     const error = mine.error instanceof ApiError ? mine.error : null
-    return { orgs, current, choose, loading: mine.isPending, error }
-  }, [mine.data, mine.error, mine.isPending, chosen])
+    return { orgs, current, choose, loading: auth.signedIn && mine.isPending, error, userId: mine.data?.userId ?? null }
+  }, [mine.data, mine.error, mine.isPending, chosen, auth.signedIn])
 
   return <OrgContext value={value}>{children}</OrgContext>
 }

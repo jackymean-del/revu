@@ -14,6 +14,8 @@ export default defineConfig({
     cwd: '../frontend',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
+    // Sign-in is mocked at the API: build without Clerk even if a local key is set.
+    env: { VITE_CLERK_PUBLISHABLE_KEY: '' },
     timeout: 120_000,
   },
 })

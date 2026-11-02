@@ -92,6 +92,14 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// Me defines model for Me.
+type Me struct {
+	Orgs []MyOrg `json:"orgs"`
+
+	// UserId The sign-in id (Clerk user id).
+	UserId string `json:"userId"`
+}
+
 // MyOrg defines model for MyOrg.
 type MyOrg struct {
 	Id     string       `json:"id"`
@@ -165,5 +173,11 @@ type PutTerminologyParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// ClerkWebhookJSONBody defines parameters for ClerkWebhook.
+type ClerkWebhookJSONBody = map[string]interface{}
+
 // PutTerminologyJSONRequestBody defines body for PutTerminology for application/json ContentType.
 type PutTerminologyJSONRequestBody = Terminology
+
+// ClerkWebhookJSONRequestBody defines body for ClerkWebhook for application/json ContentType.
+type ClerkWebhookJSONRequestBody = ClerkWebhookJSONBody

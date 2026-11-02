@@ -59,9 +59,17 @@ func main() {
 	}
 
 	deps := server.Deps{}
-	if cfg.DevUserID != "" {
+	switch {
+	case cfg.ClerkSecretKey != "":
+		deps.Auth = auth.NewClerk(cfg.ClerkSecretKey, cfg.AllowedOrigins)
+		if cfg.DevUserID != "" {
+			slog.Warn("DEV_USER_ID is ignored: Clerk sign-in is on")
+		}
+	case cfg.DevUserID != "":
 		slog.Warn("development sign-in: every request is signed in as DEV_USER_ID", "user", cfg.DevUserID)
 		deps.Auth = auth.Dev(cfg.DevUserID)
+	default:
+		slog.Warn("no CLERK_SECRET_KEY: nobody can sign in")
 	}
 	if cfg.DatabaseURL == "" {
 		slog.Warn("DATABASE_URL not set; running without a database")

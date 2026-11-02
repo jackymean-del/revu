@@ -19,18 +19,22 @@ type Config struct {
 	Version        string
 	Production     bool
 	DevUserID      string // local only: signs every request in as this user
+	ClerkSecretKey string // verifies sign-in tokens; required in production
+	ClerkWebhook   string // signing secret of the Clerk webhook endpoint (whsec_...)
 }
 
 // Load reads the environment through getenv (os.Getenv in production, a map in tests).
 func Load(getenv func(string) string) (Config, error) {
 	c := Config{
-		DatabaseURL:   strings.TrimSpace(getenv("DATABASE_URL")),
-		MigrateURL:    strings.TrimSpace(getenv("MIGRATE_DATABASE_URL")),
-		AppDBPassword: getenv("APP_DB_PASSWORD"),
-		MigrationsDir: strings.TrimSpace(getenv("MIGRATIONS_DIR")),
-		Version:       strings.TrimSpace(getenv("APP_VERSION")),
-		Production:    getenv("APP_ENV") == "production",
-		DevUserID:     strings.TrimSpace(getenv("DEV_USER_ID")),
+		DatabaseURL:    strings.TrimSpace(getenv("DATABASE_URL")),
+		MigrateURL:     strings.TrimSpace(getenv("MIGRATE_DATABASE_URL")),
+		AppDBPassword:  getenv("APP_DB_PASSWORD"),
+		MigrationsDir:  strings.TrimSpace(getenv("MIGRATIONS_DIR")),
+		Version:        strings.TrimSpace(getenv("APP_VERSION")),
+		Production:     getenv("APP_ENV") == "production",
+		DevUserID:      strings.TrimSpace(getenv("DEV_USER_ID")),
+		ClerkSecretKey: strings.TrimSpace(getenv("CLERK_SECRET_KEY")),
+		ClerkWebhook:   strings.TrimSpace(getenv("CLERK_WEBHOOK_SECRET")),
 	}
 	if c.MigrationsDir == "" {
 		c.MigrationsDir = "../database/migrations" // go run from backend/
@@ -60,6 +64,9 @@ func Load(getenv func(string) string) (Config, error) {
 
 	if c.Production && c.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required when APP_ENV=production")
+	}
+	if c.Production && c.ClerkSecretKey == "" {
+		return Config{}, fmt.Errorf("CLERK_SECRET_KEY is required when APP_ENV=production: nobody could sign in")
 	}
 	if c.Production && c.DevUserID != "" {
 		return Config{}, fmt.Errorf("DEV_USER_ID signs everyone in as one person and is refused when APP_ENV=production")
