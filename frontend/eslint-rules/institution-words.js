@@ -5,9 +5,11 @@
  * and server resolve from, so a new preset word is guarded with no change
  * here. Show such words with t(key) instead.
  *
- * Checked: JSX text, and strings or template text inside JSX expressions and
- * attributes. Not checked: arguments to calls (t('person.student')), class
- * names and styles.
+ * Checked: JSX text, strings and template text inside JSX expressions, and
+ * attributes people read (title, placeholder, aria-label, label, and display
+ * props such as empty or noun). Not checked: arguments to calls
+ * (t('person.student')), comparisons ({tab === 'years'}), and attributes that
+ * are code rather than copy (path, key, className, value, ...).
  */
 import presets from '../src/lib/terminology/presets.json' with { type: 'json' }
 
@@ -26,7 +28,12 @@ const VOCABULARY = (() => {
     .map((v) => ({ ...v, re: new RegExp(`(?<![\\p{L}\\p{N}])${escape(v.word)}(?![\\p{L}\\p{N}])`, 'iu') }))
 })()
 
-const SKIP_ATTRIBUTES = new Set(['className', 'style', 'key'])
+/** Attributes whose text is shown or read aloud. */
+const SHOWN_ATTRIBUTES = new Set([
+  'title', 'alt', 'placeholder', 'label', 'aria-label', 'aria-description', 'aria-placeholder', 'aria-valuetext',
+  'empty', 'noun', 'caption', 'heading', 'message', 'description', 'text', 'hint', 'summary',
+])
+const shownAttribute = (attr) => attr.name.type === 'JSXIdentifier' && SHOWN_ATTRIBUTES.has(attr.name.name)
 
 /** A key such as group.section names a word; it is not one. */
 const KEYS = new Set(Object.keys(presets.keys))
@@ -35,10 +42,11 @@ const KEYS = new Set(Object.keys(presets.keys))
 function shownInJsx(node) {
   for (let p = node.parent; p; p = p.parent) {
     if (p.type === 'CallExpression' || p.type === 'NewExpression') return false
-    if (p.type === 'JSXAttribute') return !SKIP_ATTRIBUTES.has(p.name.name)
+    if (p.type === 'BinaryExpression' || p.type === 'SwitchCase' || p.type === 'MemberExpression') return false
+    if (p.type === 'JSXAttribute') return shownAttribute(p)
     if (p.type === 'JSXExpressionContainer') {
       const attr = p.parent?.type === 'JSXAttribute' ? p.parent : null
-      return !attr || !SKIP_ATTRIBUTES.has(attr.name.name)
+      return !attr || shownAttribute(attr)
     }
     if (p.type === 'Program' || p.type.endsWith('FunctionExpression') || p.type === 'FunctionDeclaration') return false
   }

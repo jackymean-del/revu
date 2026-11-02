@@ -63,3 +63,23 @@ func replace(ctx context.Context, tx pgx.Tx, orgID string, t api.Terminology) er
 	}
 	return nil
 }
+
+// Words loads the organisation's words for server-side text, such as a
+// problem detail that names what still uses something.
+func Words(ctx context.Context, tx pgx.Tx) (func(key string, count int) string, error) {
+	t, err := load(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	overrides := make([]Override, 0, len(t.Overrides))
+	for _, o := range t.Overrides {
+		overrides = append(overrides, Override{Key: o.Key, BranchID: o.BranchId, Forms: Forms{One: o.One, Other: o.Other}})
+	}
+	return func(key string, count int) string {
+		w, err := Word(string(t.Preset), overrides, "", key, count)
+		if err != nil {
+			return key
+		}
+		return w
+	}, nil
+}

@@ -13,7 +13,13 @@ const words = createRoute({
   component: lazyRouteComponent(() => import('./pages/Words'), 'Words'),
 })
 
-export const router = createRouter({ routeTree: root.addChildren([home, words]) })
+const structure = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/structure',
+  component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
+})
+
+export const router = createRouter({ routeTree: root.addChildren([home, words, structure]) })
 
 declare module '@tanstack/react-router' {
   interface Register {

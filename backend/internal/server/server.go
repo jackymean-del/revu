@@ -19,6 +19,7 @@ import (
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/org"
 	"github.com/jackymean-del/revu/internal/problem"
+	"github.com/jackymean-del/revu/internal/structure"
 	"github.com/jackymean-del/revu/internal/tenant"
 	"github.com/jackymean-del/revu/internal/terminology"
 )
@@ -71,6 +72,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	// Everything below acts inside one organisation.
 	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))
 	terminology.Routes(inOrg)
+	structure.Routes(inOrg)
 	return app
 }
 

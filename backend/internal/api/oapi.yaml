@@ -13,3 +13,7 @@ output-options:
       formats:
         uuid:
           type: string
+        date:
+          type: string
+        date-time:
+          type: string

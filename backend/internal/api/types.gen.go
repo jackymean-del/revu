@@ -69,6 +69,58 @@ func (e Preset) Valid() bool {
 	}
 }
 
+// Defines values for SubjectKind.
+const (
+	SubjectKindSubjectKindAcademic     SubjectKind = "academic"
+	SubjectKindSubjectKindCoCurricular SubjectKind = "co_curricular"
+)
+
+// Valid indicates whether the value is a known member of the SubjectKind enum.
+func (e SubjectKind) Valid() bool {
+	switch e {
+	case SubjectKindSubjectKindAcademic:
+		return true
+	case SubjectKindSubjectKindCoCurricular:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SubjectInputKind.
+const (
+	SubjectInputKindSubjectKindAcademic     SubjectInputKind = "academic"
+	SubjectInputKindSubjectKindCoCurricular SubjectInputKind = "co_curricular"
+)
+
+// Valid indicates whether the value is a known member of the SubjectInputKind enum.
+func (e SubjectInputKind) Valid() bool {
+	switch e {
+	case SubjectInputKindSubjectKindAcademic:
+		return true
+	case SubjectInputKindSubjectKindCoCurricular:
+		return true
+	default:
+		return false
+	}
+}
+
+// Branch defines model for Branch.
+type Branch struct {
+	Address string `json:"address,omitempty"`
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+}
+
+// BranchInput defines model for BranchInput.
+type BranchInput struct {
+	Address string `json:"address,omitempty"`
+	Name    string `json:"name"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	// Code Stable code, for example required or too_long.
@@ -92,6 +144,54 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// Level defines model for Level.
+type Level struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+
+	// Seq Order, lowest first.
+	Seq int `json:"seq"`
+
+	// Stage Optional band such as foundational or secondary.
+	Stage string `json:"stage,omitempty"`
+}
+
+// LevelInput defines model for LevelInput.
+type LevelInput struct {
+	Name string `json:"name"`
+
+	// Seq Order, lowest first.
+	Seq int `json:"seq"`
+
+	// Stage Optional band such as foundational or secondary.
+	Stage string `json:"stage,omitempty"`
+}
+
+// LevelSubject defines model for LevelSubject.
+type LevelSubject struct {
+	Id      string `json:"id"`
+	LevelId string `json:"levelId"`
+
+	// Optional An elective, chosen by some students only.
+	Optional bool `json:"optional"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+	SubjectId string `json:"subjectId"`
+}
+
+// LevelSubjectInput defines model for LevelSubjectInput.
+type LevelSubjectInput struct {
+	LevelId string `json:"levelId"`
+
+	// Optional An elective, chosen by some students only.
+	Optional  bool   `json:"optional"`
+	SubjectId string `json:"subjectId"`
+}
+
 // Me defines model for Me.
 type Me struct {
 	Orgs []MyOrg `json:"orgs"`
@@ -110,6 +210,38 @@ type MyOrg struct {
 
 // MyOrgRoles defines model for MyOrg.Roles.
 type MyOrgRoles string
+
+// Period defines model for Period.
+type Period struct {
+	EndsOn string `json:"endsOn"`
+	Id     string `json:"id"`
+
+	// Kind For example term or semester. Defaults to term.
+	Kind string `json:"kind,omitempty"`
+	Name string `json:"name"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+
+	// Seq Order within the year.
+	Seq      int    `json:"seq"`
+	StartsOn string `json:"startsOn"`
+	YearId   string `json:"yearId"`
+}
+
+// PeriodInput defines model for PeriodInput.
+type PeriodInput struct {
+	EndsOn string `json:"endsOn"`
+
+	// Kind For example term or semester. Defaults to term.
+	Kind string `json:"kind,omitempty"`
+	Name string `json:"name"`
+
+	// Seq Order within the year.
+	Seq      int    `json:"seq"`
+	StartsOn string `json:"startsOn"`
+	YearId   string `json:"yearId"`
+}
 
 // Preset defines model for Preset.
 type Preset string
@@ -141,6 +273,79 @@ type Problem struct {
 	Type string `json:"type"`
 }
 
+// Section defines model for Section.
+type Section struct {
+	BranchId string `json:"branchId"`
+	Id       string `json:"id"`
+	LevelId  string `json:"levelId"`
+	Name     string `json:"name"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+	YearId    string `json:"yearId"`
+}
+
+// SectionInput defines model for SectionInput.
+type SectionInput struct {
+	BranchId string `json:"branchId"`
+	LevelId  string `json:"levelId"`
+	Name     string `json:"name"`
+	YearId   string `json:"yearId"`
+}
+
+// StaffSummary defines model for StaffSummary.
+type StaffSummary struct {
+	Email string `json:"email,omitempty"`
+	Id    string `json:"id"`
+	Name  string `json:"name"`
+}
+
+// Subject defines model for Subject.
+type Subject struct {
+	Code string      `json:"code,omitempty"`
+	Id   string      `json:"id"`
+	Kind SubjectKind `json:"kind"`
+	Name string      `json:"name"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+}
+
+// SubjectKind defines model for Subject.Kind.
+type SubjectKind string
+
+// SubjectInput defines model for SubjectInput.
+type SubjectInput struct {
+	Code string           `json:"code,omitempty"`
+	Kind SubjectInputKind `json:"kind"`
+	Name string           `json:"name"`
+}
+
+// SubjectInputKind defines model for SubjectInput.Kind.
+type SubjectInputKind string
+
+// TeachingAssignment defines model for TeachingAssignment.
+type TeachingAssignment struct {
+	Id string `json:"id"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+	SectionId string `json:"sectionId"`
+	StaffId   string `json:"staffId"`
+
+	// SubjectId Absent means class teacher of the section.
+	SubjectId string `json:"subjectId,omitempty"`
+}
+
+// TeachingAssignmentInput defines model for TeachingAssignmentInput.
+type TeachingAssignmentInput struct {
+	SectionId string `json:"sectionId"`
+	StaffId   string `json:"staffId"`
+
+	// SubjectId Absent means class teacher of the section.
+	SubjectId string `json:"subjectId,omitempty"`
+}
+
 // TermOverride defines model for TermOverride.
 type TermOverride struct {
 	// BranchId Limits the word to one branch. Absent means the whole organisation.
@@ -158,8 +363,294 @@ type Terminology struct {
 	Preset    Preset         `json:"preset"`
 }
 
+// Year defines model for Year.
+type Year struct {
+	EndsOn string `json:"endsOn"`
+	Id     string `json:"id"`
+
+	// Label For example 2026-27.
+	Label string `json:"label"`
+
+	// RemovedAt Set when removed; absent while in use.
+	RemovedAt string `json:"removedAt,omitempty"`
+	StartsOn  string `json:"startsOn"`
+}
+
+// YearInput defines model for YearInput.
+type YearInput struct {
+	EndsOn string `json:"endsOn"`
+
+	// Label For example 2026-27.
+	Label    string `json:"label"`
+	StartsOn string `json:"startsOn"`
+}
+
+// Id defines model for Id.
+type Id = string
+
+// IncludeRemoved defines model for IncludeRemoved.
+type IncludeRemoved = bool
+
 // OrgId defines model for OrgId.
 type OrgId = string
+
+// ListBranchsParams defines parameters for ListBranchs.
+type ListBranchsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateBranchParams defines parameters for CreateBranch.
+type CreateBranchParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveBranchParams defines parameters for RemoveBranch.
+type RemoveBranchParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateBranchParams defines parameters for UpdateBranch.
+type UpdateBranchParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreBranchParams defines parameters for RestoreBranch.
+type RestoreBranchParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListLevelSubjectsParams defines parameters for ListLevelSubjects.
+type ListLevelSubjectsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// LevelId Only subjects of this level.
+	LevelId string `form:"levelId,omitempty" json:"levelId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateLevelSubjectParams defines parameters for CreateLevelSubject.
+type CreateLevelSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveLevelSubjectParams defines parameters for RemoveLevelSubject.
+type RemoveLevelSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateLevelSubjectParams defines parameters for UpdateLevelSubject.
+type UpdateLevelSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreLevelSubjectParams defines parameters for RestoreLevelSubject.
+type RestoreLevelSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListLevelsParams defines parameters for ListLevels.
+type ListLevelsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateLevelParams defines parameters for CreateLevel.
+type CreateLevelParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveLevelParams defines parameters for RemoveLevel.
+type RemoveLevelParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateLevelParams defines parameters for UpdateLevel.
+type UpdateLevelParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreLevelParams defines parameters for RestoreLevel.
+type RestoreLevelParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListPeriodsParams defines parameters for ListPeriods.
+type ListPeriodsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// YearId Only periods of this year.
+	YearId string `form:"yearId,omitempty" json:"yearId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreatePeriodParams defines parameters for CreatePeriod.
+type CreatePeriodParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemovePeriodParams defines parameters for RemovePeriod.
+type RemovePeriodParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdatePeriodParams defines parameters for UpdatePeriod.
+type UpdatePeriodParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestorePeriodParams defines parameters for RestorePeriod.
+type RestorePeriodParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListSectionsParams defines parameters for ListSections.
+type ListSectionsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// YearId Only sections of this year.
+	YearId string `form:"yearId,omitempty" json:"yearId,omitempty"`
+
+	// LevelId Only sections of this level.
+	LevelId string `form:"levelId,omitempty" json:"levelId,omitempty"`
+
+	// BranchId Only sections of this branch.
+	BranchId string `form:"branchId,omitempty" json:"branchId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateSectionParams defines parameters for CreateSection.
+type CreateSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveSectionParams defines parameters for RemoveSection.
+type RemoveSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateSectionParams defines parameters for UpdateSection.
+type UpdateSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreSectionParams defines parameters for RestoreSection.
+type RestoreSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListStaffParams defines parameters for ListStaff.
+type ListStaffParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListSubjectsParams defines parameters for ListSubjects.
+type ListSubjectsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateSubjectParams defines parameters for CreateSubject.
+type CreateSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveSubjectParams defines parameters for RemoveSubject.
+type RemoveSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateSubjectParams defines parameters for UpdateSubject.
+type UpdateSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreSubjectParams defines parameters for RestoreSubject.
+type RestoreSubjectParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListTeachingAssignmentsParams defines parameters for ListTeachingAssignments.
+type ListTeachingAssignmentsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// SectionId Only assignments in this section.
+	SectionId string `form:"sectionId,omitempty" json:"sectionId,omitempty"`
+
+	// StaffId Only assignments of this person.
+	StaffId string `form:"staffId,omitempty" json:"staffId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateTeachingAssignmentParams defines parameters for CreateTeachingAssignment.
+type CreateTeachingAssignmentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveTeachingAssignmentParams defines parameters for RemoveTeachingAssignment.
+type RemoveTeachingAssignmentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateTeachingAssignmentParams defines parameters for UpdateTeachingAssignment.
+type UpdateTeachingAssignmentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreTeachingAssignmentParams defines parameters for RestoreTeachingAssignment.
+type RestoreTeachingAssignmentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
 
 // GetTerminologyParams defines parameters for GetTerminology.
 type GetTerminologyParams struct {
@@ -176,8 +667,89 @@ type PutTerminologyParams struct {
 // ClerkWebhookJSONBody defines parameters for ClerkWebhook.
 type ClerkWebhookJSONBody = map[string]interface{}
 
+// ListYearsParams defines parameters for ListYears.
+type ListYearsParams struct {
+	// IncludeRemoved Also list removed items, so they can be restored.
+	IncludeRemoved IncludeRemoved `form:"includeRemoved,omitempty" json:"includeRemoved,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateYearParams defines parameters for CreateYear.
+type CreateYearParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RemoveYearParams defines parameters for RemoveYear.
+type RemoveYearParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateYearParams defines parameters for UpdateYear.
+type UpdateYearParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RestoreYearParams defines parameters for RestoreYear.
+type RestoreYearParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateBranchJSONRequestBody defines body for CreateBranch for application/json ContentType.
+type CreateBranchJSONRequestBody = BranchInput
+
+// UpdateBranchJSONRequestBody defines body for UpdateBranch for application/json ContentType.
+type UpdateBranchJSONRequestBody = BranchInput
+
+// CreateLevelSubjectJSONRequestBody defines body for CreateLevelSubject for application/json ContentType.
+type CreateLevelSubjectJSONRequestBody = LevelSubjectInput
+
+// UpdateLevelSubjectJSONRequestBody defines body for UpdateLevelSubject for application/json ContentType.
+type UpdateLevelSubjectJSONRequestBody = LevelSubjectInput
+
+// CreateLevelJSONRequestBody defines body for CreateLevel for application/json ContentType.
+type CreateLevelJSONRequestBody = LevelInput
+
+// UpdateLevelJSONRequestBody defines body for UpdateLevel for application/json ContentType.
+type UpdateLevelJSONRequestBody = LevelInput
+
+// CreatePeriodJSONRequestBody defines body for CreatePeriod for application/json ContentType.
+type CreatePeriodJSONRequestBody = PeriodInput
+
+// UpdatePeriodJSONRequestBody defines body for UpdatePeriod for application/json ContentType.
+type UpdatePeriodJSONRequestBody = PeriodInput
+
+// CreateSectionJSONRequestBody defines body for CreateSection for application/json ContentType.
+type CreateSectionJSONRequestBody = SectionInput
+
+// UpdateSectionJSONRequestBody defines body for UpdateSection for application/json ContentType.
+type UpdateSectionJSONRequestBody = SectionInput
+
+// CreateSubjectJSONRequestBody defines body for CreateSubject for application/json ContentType.
+type CreateSubjectJSONRequestBody = SubjectInput
+
+// UpdateSubjectJSONRequestBody defines body for UpdateSubject for application/json ContentType.
+type UpdateSubjectJSONRequestBody = SubjectInput
+
+// CreateTeachingAssignmentJSONRequestBody defines body for CreateTeachingAssignment for application/json ContentType.
+type CreateTeachingAssignmentJSONRequestBody = TeachingAssignmentInput
+
+// UpdateTeachingAssignmentJSONRequestBody defines body for UpdateTeachingAssignment for application/json ContentType.
+type UpdateTeachingAssignmentJSONRequestBody = TeachingAssignmentInput
+
 // PutTerminologyJSONRequestBody defines body for PutTerminology for application/json ContentType.
 type PutTerminologyJSONRequestBody = Terminology
 
 // ClerkWebhookJSONRequestBody defines body for ClerkWebhook for application/json ContentType.
 type ClerkWebhookJSONRequestBody = ClerkWebhookJSONBody
+
+// CreateYearJSONRequestBody defines body for CreateYear for application/json ContentType.
+type CreateYearJSONRequestBody = YearInput
+
+// UpdateYearJSONRequestBody defines body for UpdateYear for application/json ContentType.
+type UpdateYearJSONRequestBody = YearInput

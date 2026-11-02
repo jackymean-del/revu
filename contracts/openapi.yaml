@@ -91,6 +91,802 @@ paths:
                 $ref: "#/components/schemas/Terminology"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/branches:
+    get:
+      operationId: listBranchs
+      summary: Every campus or branch site, in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createBranch
+      summary: Add a campus or branch site.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/branches/{id}:
+    put:
+      operationId: updateBranch
+      summary: Change a campus or branch site.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeBranch
+      summary: Remove a campus or branch site. It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/branches/{id}/restore:
+    post:
+      operationId: restoreBranch
+      summary: Bring back a removed campus or branch site.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/years:
+    get:
+      operationId: listYears
+      summary: Every academic year, in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Year"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createYear
+      summary: Add a academic year.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YearInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Year"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/years/{id}:
+    put:
+      operationId: updateYear
+      summary: Change a academic year.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/YearInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Year"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeYear
+      summary: Remove a academic year. It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/years/{id}/restore:
+    post:
+      operationId: restoreYear
+      summary: Bring back a removed academic year.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Year"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/periods:
+    get:
+      operationId: listPeriods
+      summary: Every reporting period of a year (term, semester, ...), in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: yearId
+          in: query
+          description: Only periods of this year.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Period"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createPeriod
+      summary: Add a reporting period of a year (term, semester, ...).
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Period"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/periods/{id}:
+    put:
+      operationId: updatePeriod
+      summary: Change a reporting period of a year (term, semester, ...).
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Period"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removePeriod
+      summary: Remove a reporting period of a year (term, semester, ...). It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/periods/{id}/restore:
+    post:
+      operationId: restorePeriod
+      summary: Bring back a removed reporting period of a year (term, semester, ...).
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Period"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/levels:
+    get:
+      operationId: listLevels
+      summary: Every stage of study (grade, year, ...), in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Level"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createLevel
+      summary: Add a stage of study (grade, year, ...).
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LevelInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Level"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/levels/{id}:
+    put:
+      operationId: updateLevel
+      summary: Change a stage of study (grade, year, ...).
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LevelInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Level"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeLevel
+      summary: Remove a stage of study (grade, year, ...). It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/levels/{id}/restore:
+    post:
+      operationId: restoreLevel
+      summary: Bring back a removed stage of study (grade, year, ...).
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Level"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/sections:
+    get:
+      operationId: listSections
+      summary: Every teaching group of a level in a year, in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: yearId
+          in: query
+          description: Only sections of this year.
+          schema:
+            type: string
+            format: uuid
+        - name: levelId
+          in: query
+          description: Only sections of this level.
+          schema:
+            type: string
+            format: uuid
+        - name: branchId
+          in: query
+          description: Only sections of this branch.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Section"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createSection
+      summary: Add a teaching group of a level in a year.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectionInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Section"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/sections/{id}:
+    put:
+      operationId: updateSection
+      summary: Change a teaching group of a level in a year.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectionInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Section"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeSection
+      summary: Remove a teaching group of a level in a year. It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/sections/{id}/restore:
+    post:
+      operationId: restoreSection
+      summary: Bring back a removed teaching group of a level in a year.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Section"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subjects:
+    get:
+      operationId: listSubjects
+      summary: Every subject or course, in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createSubject
+      summary: Add a subject or course.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subjects/{id}:
+    put:
+      operationId: updateSubject
+      summary: Change a subject or course.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeSubject
+      summary: Remove a subject or course. It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subjects/{id}/restore:
+    post:
+      operationId: restoreSubject
+      summary: Bring back a removed subject or course.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subject"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/level-subjects:
+    get:
+      operationId: listLevelSubjects
+      summary: Every subject taught at a level, in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: levelId
+          in: query
+          description: Only subjects of this level.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LevelSubject"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createLevelSubject
+      summary: Add a subject taught at a level.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LevelSubjectInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LevelSubject"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/level-subjects/{id}:
+    put:
+      operationId: updateLevelSubject
+      summary: Change a subject taught at a level.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LevelSubjectInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LevelSubject"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeLevelSubject
+      summary: Remove a subject taught at a level. It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/level-subjects/{id}/restore:
+    post:
+      operationId: restoreLevelSubject
+      summary: Bring back a removed subject taught at a level.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LevelSubject"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/teaching-assignments:
+    get:
+      operationId: listTeachingAssignments
+      summary: Every who teaches what in a section, in order. Removed ones only when asked for.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: sectionId
+          in: query
+          description: Only assignments in this section.
+          schema:
+            type: string
+            format: uuid
+        - name: staffId
+          in: query
+          description: Only assignments of this person.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeachingAssignment"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createTeachingAssignment
+      summary: Add a who teaches what in a section.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeachingAssignmentInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeachingAssignment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/teaching-assignments/{id}:
+    put:
+      operationId: updateTeachingAssignment
+      summary: Change a who teaches what in a section.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeachingAssignmentInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeachingAssignment"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeTeachingAssignment
+      summary: Remove a who teaches what in a section. It can be restored; refused while anything still uses it.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/teaching-assignments/{id}/restore:
+    post:
+      operationId: restoreTeachingAssignment
+      summary: Bring back a removed who teaches what in a section.
+      tags: [structure]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeachingAssignment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/staff:
+    get:
+      operationId: listStaff
+      summary: Staff of the organisation, for choosing who teaches what. The rest of people arrives in v1.8.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Every current staff member, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaffSummary"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -113,6 +909,19 @@ components:
       scheme: bearer
       description: The signed-in session token (shared bhusku sign-in).
   parameters:
+    IncludeRemoved:
+      name: includeRemoved
+      in: query
+      description: Also list removed items, so they can be restored.
+      schema:
+        type: boolean
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     OrgId:
       name: X-Org-Id
       in: header
@@ -131,6 +940,333 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    Branch:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        address:
+          type: string
+          maxLength: 300
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    BranchInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        address:
+          type: string
+          maxLength: 300
+    Year:
+      type: object
+      required: [id, label, startsOn, endsOn]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: For example 2026-27.
+        startsOn:
+          type: string
+          format: date
+        endsOn:
+          type: string
+          format: date
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    YearInput:
+      type: object
+      additionalProperties: false
+      required: [label, startsOn, endsOn]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 40
+          description: For example 2026-27.
+        startsOn:
+          type: string
+          format: date
+        endsOn:
+          type: string
+          format: date
+    Period:
+      type: object
+      required: [id, yearId, name, seq, startsOn, endsOn]
+      properties:
+        id:
+          type: string
+          format: uuid
+        yearId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        seq:
+          type: integer
+          minimum: 1
+          description: Order within the year.
+        kind:
+          type: string
+          maxLength: 40
+          description: For example term or semester. Defaults to term.
+        startsOn:
+          type: string
+          format: date
+        endsOn:
+          type: string
+          format: date
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    PeriodInput:
+      type: object
+      additionalProperties: false
+      required: [yearId, name, seq, startsOn, endsOn]
+      properties:
+        yearId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        seq:
+          type: integer
+          minimum: 1
+          description: Order within the year.
+        kind:
+          type: string
+          maxLength: 40
+          description: For example term or semester. Defaults to term.
+        startsOn:
+          type: string
+          format: date
+        endsOn:
+          type: string
+          format: date
+    Level:
+      type: object
+      required: [id, name, seq]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        seq:
+          type: integer
+          minimum: 0
+          description: Order, lowest first.
+        stage:
+          type: string
+          maxLength: 60
+          description: Optional band such as foundational or secondary.
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    LevelInput:
+      type: object
+      additionalProperties: false
+      required: [name, seq]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        seq:
+          type: integer
+          minimum: 0
+          description: Order, lowest first.
+        stage:
+          type: string
+          maxLength: 60
+          description: Optional band such as foundational or secondary.
+    Section:
+      type: object
+      required: [id, branchId, levelId, yearId, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        branchId:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        yearId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    SectionInput:
+      type: object
+      additionalProperties: false
+      required: [branchId, levelId, yearId, name]
+      properties:
+        branchId:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        yearId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+    Subject:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        code:
+          type: string
+          maxLength: 20
+        kind:
+          type: string
+          enum: [academic, co_curricular]
+          x-enum-varnames: [SubjectKindAcademic, SubjectKindCoCurricular]
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    SubjectInput:
+      type: object
+      additionalProperties: false
+      required: [name, kind]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        code:
+          type: string
+          maxLength: 20
+        kind:
+          type: string
+          enum: [academic, co_curricular]
+          x-enum-varnames: [SubjectKindAcademic, SubjectKindCoCurricular]
+    LevelSubject:
+      type: object
+      required: [id, levelId, subjectId, optional]
+      properties:
+        id:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        optional:
+          type: boolean
+          description: An elective, chosen by some students only.
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    LevelSubjectInput:
+      type: object
+      additionalProperties: false
+      required: [levelId, subjectId, optional]
+      properties:
+        levelId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        optional:
+          type: boolean
+          description: An elective, chosen by some students only.
+    TeachingAssignment:
+      type: object
+      required: [id, staffId, sectionId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        staffId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+          description: Absent means class teacher of the section.
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    TeachingAssignmentInput:
+      type: object
+      additionalProperties: false
+      required: [staffId, sectionId]
+      properties:
+        staffId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+          description: Absent means class teacher of the section.
+    StaffSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
     Me:
       type: object
       required: [userId, orgs]

@@ -58,3 +58,6 @@ export function makeT(src: Terminology, branchId: string | null = null): T {
     return opts.lower ? lowerWords(word) : word
   }
 }
+
+/** "a section", "an academic year": the article for a word inside a sentence. */
+export const withArticle = (word: string) => (/^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`)

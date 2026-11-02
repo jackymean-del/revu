@@ -26,6 +26,7 @@ async function call<T>(path: string, { signal, orgId, method = 'GET', body }: Op
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const res = await fetch(BASE + path, { signal, method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   if (!res.ok) throw await toApiError(res)
+  if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }
 
@@ -37,3 +38,28 @@ export const getTerminology = (orgId: string, signal?: AbortSignal) => call<Term
 
 export const putTerminology = (orgId: string, body: TerminologyDoc) =>
   call<TerminologyDoc>('/v1/terminology', { orgId, method: 'PUT', body })
+
+export type Branch = components['schemas']['Branch']
+export type Year = components['schemas']['Year']
+export type Level = components['schemas']['Level']
+export type Section = components['schemas']['Section']
+export type Subject = components['schemas']['Subject']
+export type StaffSummary = components['schemas']['StaffSummary']
+
+/** Structure resources share five operations (contracts/openapi.yaml, tag structure). */
+export type StructurePath = 'branches' | 'years' | 'periods' | 'levels' | 'sections' | 'subjects' | 'level-subjects' | 'teaching-assignments'
+
+export const listStructure = <T>(orgId: string, path: StructurePath, params: Record<string, string>, signal?: AbortSignal) =>
+  call<T[]>(`/v1/${path}?${new URLSearchParams(params)}`, { orgId, signal })
+
+export const createStructure = (orgId: string, path: StructurePath, body: unknown) => call<unknown>(`/v1/${path}`, { orgId, method: 'POST', body })
+
+export const updateStructure = (orgId: string, path: StructurePath, id: string, body: unknown) =>
+  call<unknown>(`/v1/${path}/${id}`, { orgId, method: 'PUT', body })
+
+export const removeStructure = (orgId: string, path: StructurePath, id: string) => call<void>(`/v1/${path}/${id}`, { orgId, method: 'DELETE' })
+
+export const restoreStructure = (orgId: string, path: StructurePath, id: string) =>
+  call<unknown>(`/v1/${path}/${id}/restore`, { orgId, method: 'POST' })
+
+export const listStaff = (orgId: string, signal?: AbortSignal) => call<StaffSummary[]>('/v1/staff', { orgId, signal })
