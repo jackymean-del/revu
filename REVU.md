@@ -84,6 +84,11 @@ A rule nothing checks comes back.
   React Router, goose, Vitest or AG Grid Enterprise appears in a dependency
   file, or a screen imports a grid library outside src/components/DataGrid
   (AT-D-01).
+- D20, marks-entry grid (spike of Part 59.8, docs/decisions/D20-marks-grid.md):
+  a thin custom grid on TanStack Table and Virtual behind
+  frontend/src/components/DataGrid. react-data-grid and AG Grid Community
+  were measured and not chosen. The cell rules and upload or paste planning
+  in that folder are proven by datagrid-verify.mts.
 - Libraries named in Part 38 (Zustand, Zod, OpenTelemetry, Sentry) are added
   with the first feature that uses them: knip and go mod tidy fail on unused
   dependencies.

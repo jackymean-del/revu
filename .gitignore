@@ -30,3 +30,6 @@ backend/*.exe
 .env
 .env.*
 !.env.example
+
+# Throwaway spikes (blueprint 59.8: only the result and the wrapper interface are kept)
+spikes/
