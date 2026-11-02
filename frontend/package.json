@@ -8,11 +8,13 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
-    "lint": "eslint src --max-warnings 0",
-    "gen:api": "openapi-typescript ../contracts/openapi.yaml -o src/api/schema.gen.ts"
+    "lint": "eslint src *.mts --max-warnings 0",
+    "gen:api": "openapi-typescript ../contracts/openapi.yaml -o src/api/schema.gen.ts",
+    "gen:terms": "node -e \"require('fs').copyFileSync('src/lib/terminology/presets.json','../backend/internal/terminology/presets.gen.json')\""
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
+    "@tanstack/react-router": "^1.170.46",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

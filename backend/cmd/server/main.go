@@ -6,15 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
+	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/db"
-	"github.com/jackymean-del/revu/internal/handlers"
+	"github.com/jackymean-del/revu/internal/seed"
 	"github.com/jackymean-del/revu/internal/server"
 )
 
@@ -31,8 +32,13 @@ func main() {
 	defer stop()
 
 	// "server migrate" applies migrations and exits (make migrate, deploy
-	// hooks); plain "server" applies them too when MIGRATE_DATABASE_URL is set.
-	migrateOnly := len(os.Args) > 1 && os.Args[1] == "migrate"
+	// hooks); "server seed" also creates the demo organisations for
+	// DEV_USER_ID; plain "server" migrates too when MIGRATE_DATABASE_URL is set.
+	command := ""
+	if len(os.Args) > 1 {
+		command = os.Args[1]
+	}
+	migrateOnly := command == "migrate" || command == "seed"
 	if cfg.MigrateURL != "" {
 		if err := migrate(ctx, cfg); err != nil {
 			slog.Error("migrations failed", "err", err)
@@ -42,11 +48,21 @@ func main() {
 		slog.Error("MIGRATE_DATABASE_URL is not set")
 		os.Exit(1)
 	}
+	if command == "seed" {
+		if err := seedDemo(ctx, cfg); err != nil {
+			slog.Error("seed failed", "err", err)
+			os.Exit(1)
+		}
+	}
 	if migrateOnly {
 		return
 	}
 
-	var pinger handlers.Pinger
+	deps := server.Deps{}
+	if cfg.DevUserID != "" {
+		slog.Warn("development sign-in: every request is signed in as DEV_USER_ID", "user", cfg.DevUserID)
+		deps.Auth = auth.Dev(cfg.DevUserID)
+	}
 	if cfg.DatabaseURL == "" {
 		slog.Warn("DATABASE_URL not set; running without a database")
 	} else {
@@ -56,7 +72,7 @@ func main() {
 			os.Exit(1)
 		}
 		defer pool.Close()
-		pinger = pool
+		deps.DB = pool
 		// Row-level security only protects tenants if the server's role is
 		// fenced in. In production that is a hard stop.
 		if err := db.CheckAppRole(ctx, pool); err != nil {
@@ -68,22 +84,14 @@ func main() {
 		}
 	}
 
-	srv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           server.New(cfg, pinger),
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      120 * time.Second,
-		IdleTimeout:       120 * time.Second,
-	}
+	app := server.New(cfg, deps)
 	go func() {
 		<-ctx.Done()
-		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdown)
+		_ = app.ShutdownWithTimeout(10 * time.Second)
 	}()
-	slog.Info("revu api listening", "addr", srv.Addr, "version", cfg.Version)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	addr := fmt.Sprintf(":%d", cfg.Port)
+	slog.Info("revu api listening", "addr", addr, "version", cfg.Version)
+	if err := app.Listen(addr, fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
 		slog.Error("server stopped", "err", err)
 		os.Exit(1)
 	}
@@ -103,4 +111,19 @@ func migrate(ctx context.Context, cfg config.Config) error {
 	}
 	slog.Info("migrations", "applied", applied)
 	return db.SetAppPassword(ctx, owner, cfg.AppDBPassword)
+}
+
+// seedDemo creates the demo organisations with DEV_USER_ID as administrator.
+func seedDemo(ctx context.Context, cfg config.Config) error {
+	if cfg.DevUserID == "" {
+		return errors.New("set DEV_USER_ID to the user who should administer the demo organisations")
+	}
+	owner, err := db.Connect(ctx, cfg.MigrateURL)
+	if err != nil {
+		return err
+	}
+	defer owner.Close()
+	ids, err := seed.Run(ctx, owner, cfg.DevUserID)
+	slog.Info("demo organisations", "ids", ids)
+	return err
 }

@@ -4,10 +4,9 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/jackymean-del/revu/internal/api"
 )
 
@@ -19,20 +18,14 @@ type Pinger interface {
 // Health answers whether the server is up and whether the database answers.
 // The server being up is enough for a 200; the database state is reported in
 // the body so the uptime check and the app can tell the two apart.
-func Health(db Pinger, version string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func Health(db Pinger, version string) fiber.Handler {
+	return func(c fiber.Ctx) error {
 		ok := false
 		if db != nil {
-			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
 			defer cancel()
 			ok = db.Ping(ctx) == nil
 		}
-		writeJSON(w, http.StatusOK, api.Health{Status: api.HealthOk, Database: ok, Version: version})
+		return c.JSON(api.Health{Status: api.HealthOk, Database: ok, Version: version})
 	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }

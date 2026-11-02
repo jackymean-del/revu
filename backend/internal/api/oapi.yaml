@@ -7,3 +7,9 @@ generate:
 output-options:
   # optional fields are plain values with omitempty, not pointers
   prefer-skip-optional-pointer: true
+  # ids are plain strings in Go; PostgreSQL checks they are uuids
+  type-mapping:
+    string:
+      formats:
+        uuid:
+          type: string

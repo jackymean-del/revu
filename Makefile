@@ -29,6 +29,6 @@ test:      ## Go tests against the running database, then the frontend checks
 	cd backend && TEST_DATABASE_URL="postgresql://revu:secret@localhost:5432/revu?sslmode=disable" go test ./... -count=1 -p 1
 	cd frontend && npx tsc -b && npx eslint src --max-warnings 0 && npx tsx style-verify.mts
 
-gen:       ## Regenerate the TypeScript and Go types from contracts/openapi.yaml
-	cd frontend && npm run gen:api
+gen:       ## Regenerate the API types (TypeScript, Go) and the server's copy of the word list
+	cd frontend && npm run gen:api && npm run gen:terms
 	cd backend && go generate ./internal/api/

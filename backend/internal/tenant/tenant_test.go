@@ -1,13 +1,15 @@
 package tenant_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"net/http"
+	"io"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/db/dbtest"
@@ -17,23 +19,29 @@ import (
 
 // In these tests the user and organisation come from headers; in the server
 // they come from the verified sign-in.
-func fromHeaders(r *http.Request) (string, string, error) {
-	return r.Header.Get("X-Test-User"), r.Header.Get("X-Org-Id"), nil
+func fromHeaders(c fiber.Ctx) (string, string, error) {
+	return c.Get("X-Test-User"), c.Get("X-Org-Id"), nil
+}
+
+type response struct {
+	Code int
+	Body *bytes.Buffer
 }
 
 func TestMiddleware(t *testing.T) {
-	owner, app := dbtest.Open(t)
+	owner, appPool := dbtest.Open(t)
 	a := dbtest.SeedOrg(t, owner, "Org A")
 	b := dbtest.SeedOrg(t, owner, "Org B")
 	ctx := context.Background()
 
-	mux := http.NewServeMux()
-	mux.Handle("GET /branches", problem.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		tx, err := tenant.Tx(r.Context())
+	app := fiber.New(fiber.Config{ErrorHandler: problem.Handler})
+	in := app.Group("", tenant.Middleware(appPool, fromHeaders))
+	in.Get("/branches", func(c fiber.Ctx) error {
+		tx, err := tenant.Tx(c)
 		if err != nil {
 			return err
 		}
-		rows, err := tx.Query(r.Context(), `SELECT name FROM branches ORDER BY name`)
+		rows, err := tx.Query(c.Context(), `SELECT name FROM branches ORDER BY name`)
 		if err != nil {
 			return err
 		}
@@ -41,35 +49,36 @@ func TestMiddleware(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		m, _ := tenant.MemberFrom(r.Context())
-		return json.NewEncoder(w).Encode(map[string]any{"names": names, "role": m.Roles[0].Name})
-	}))
+		m, _ := tenant.MemberFrom(c)
+		return c.JSON(map[string]any{"names": names, "role": m.Roles[0].Name})
+	})
 	// Adds a branch, then answers with the status asked for, to show what is
 	// kept and what is rolled back.
-	mux.Handle("POST /branches", problem.Handler(func(w http.ResponseWriter, r *http.Request) error {
-		tx, err := tenant.Tx(r.Context())
+	in.Post("/branches", func(c fiber.Ctx) error {
+		tx, err := tenant.Tx(c)
 		if err != nil {
 			return err
 		}
-		m, _ := tenant.MemberFrom(r.Context())
-		if _, err := tx.Exec(r.Context(), `INSERT INTO branches (org_id, name) VALUES ($1, $2)`, m.OrgID, r.URL.Query().Get("name")); err != nil {
+		m, _ := tenant.MemberFrom(c)
+		if _, err := tx.Exec(c.Context(), `INSERT INTO branches (org_id, name) VALUES ($1, $2)`, m.OrgID, c.Query("name")); err != nil {
 			return err
 		}
-		if r.URL.Query().Get("fail") != "" {
+		if c.Query("fail") != "" {
 			return problem.New(409, "branch.conflict", "Changed by someone else.")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return nil
-	}))
-	h := tenant.Middleware(app, fromHeaders)(mux)
+		return c.SendStatus(fiber.StatusCreated)
+	})
 
-	call := func(method, path, user, org string) *httptest.ResponseRecorder {
+	call := func(method, path, user, org string) *response {
 		req := httptest.NewRequest(method, path, nil)
 		req.Header.Set("X-Test-User", user)
 		req.Header.Set("X-Org-Id", org)
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, req)
-		return rec
+		res, err := app.Test(req, fiber.TestConfig{Timeout: 0}) // database work can exceed the 1s default under load
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(res.Body)
+		return &response{Code: res.StatusCode, Body: bytes.NewBuffer(body)}
 	}
 	branchExists := func(name string) bool {
 		var n int
@@ -140,7 +149,14 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestTxOutsideMiddleware(t *testing.T) {
-	if _, err := tenant.Tx(context.Background()); err == nil {
-		t.Fatal("a query outside a tenant transaction must fail, not run unscoped")
+	app := fiber.New()
+	app.Get("/", func(c fiber.Ctx) error {
+		if _, err := tenant.Tx(c); err == nil {
+			t.Error("a query outside a tenant transaction must fail, not run unscoped")
+		}
+		return nil
+	})
+	if _, err := app.Test(httptest.NewRequest("GET", "/", nil)); err != nil {
+		t.Fatal(err)
 	}
 }

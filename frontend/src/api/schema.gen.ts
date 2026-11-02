@@ -4,6 +4,41 @@
  */
 
 export interface paths {
+    "/v1/me/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organisations the signed-in person belongs to, with their roles in each. */
+        get: operations["listMyOrgs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/terminology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The organisation's preset and its own words, for t() in the app. */
+        get: operations["getTerminology"];
+        /** Replace the preset and every override. Administrators only. */
+        put: operations["putTerminology"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -25,6 +60,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        MyOrg: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            preset: components["schemas"]["Preset"];
+            roles: ("admin" | "principal" | "coordinator" | "teacher" | "class_teacher" | "viewer")[];
+        };
+        /** @enum {string} */
+        Preset: "school" | "college" | "university";
+        Terminology: {
+            preset: components["schemas"]["Preset"];
+            overrides: components["schemas"]["TermOverride"][];
+        };
+        TermOverride: {
+            /** @description A key from the terminology list, for example group.section. */
+            key: string;
+            /**
+             * Format: uuid
+             * @description Limits the word to one branch. Absent means the whole organisation.
+             */
+            branchId?: string;
+            one: string;
+            other: string;
+        };
         /** @description RFC 7807 problem details, plus revU's stable code. */
         Problem: {
             /** @description A URI naming the problem kind, or about:blank. */
@@ -71,13 +130,89 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+        OrgId: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listMyOrgs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every organisation with a membership for this person. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyOrg"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getTerminology: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preset and every override. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Terminology"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putTerminology: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Terminology"];
+            };
+        };
+        responses: {
+            /** @description The terminology as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Terminology"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;

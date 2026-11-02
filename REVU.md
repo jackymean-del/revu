@@ -1,12 +1,17 @@
 # revU engineering rules
 
 - Product: revU by Bhusku. Assessment, results and holistic progress platform. Read docs/blueprint before any task.
-- Stack (blueprint v6, Part 38): React 19 with Vite 8, TypeScript strict, Tailwind 4, TanStack Query, React Router, Zustand and Zod in frontend. Go 1.26 with Chi on net/http and pgx in backend, a separate worker on a PostgreSQL-backed queue. PostgreSQL 18. Clerk for sign-in, revU's own tables for permissions. Cloudflare R2 storage. Chromium (Gotenberg) for PDFs. Cloudflare Pages for the sites, Railway for the server, worker and database. Go test, harnesses, Vitest and Playwright. OpenTelemetry and Sentry for monitoring.
+- Stack: React 19 with Vite, TanStack Router and Query, TypeScript strict and Tailwind 4 in frontend. Go 1.26 with Fiber v3 and pgx in backend. PostgreSQL 18. Clerk auth. Cloudflare R2 storage. Cloudflare Pages for the sites, Railway for the server and database.
+- Grid: screens import only the Bhusku DataGrid wrapper, never a grid library directly. The editable grid is chosen by the spike in Part 59.8 (react-data-grid is the leading candidate). AG Grid Enterprise is never used.
+- Order: subject, column, row and section order is configuration held in layout profiles, never code. Order never changes a calculation (Part 73).
+- Tenant: org_id is the institution tenant, one institution or branch location per org. A group is a virtual container with its own group_id and is never a tenant (Part 65, D2).
+- Privacy: this is data about children. No student names, marks or remark text in logs, analytics or AI prompts beyond the minimum facts (Part 70).
+- Names: v1 to v10 are product releases. Part 65 is the decisions register and wins where parts disagree. Build the pilot slice P0 first (Part 66).
 - Spec-first API: edit contracts/openapi.yaml first, then regenerate the TypeScript client and Go types. Never hand-edit generated code.
-- Database: every change is a numbered SQL file in database/migrations. Queries are plain SQL through pgx, kept in each module's repository file. Every tenant table has org_id and row-level security.
+- Database: every change is a numbered SQL file in database/migrations, applied by the server at start under an advisory lock, forward-only in production. Queries are plain SQL through pgx, kept in each module's repository file. Every table that holds tenant data, including join, history and computed tables, has org_id and row-level security.
 - No hard-coded institution words in the UI, PDFs, emails or generated text. Use the terminology resolver t().
 - Marks are exact decimals: numeric(8,2) in the database and a decimal type in Go. Never float.
-- Missing is never zero. Evidence has a state: scored, absent, exempt, pending, not_assessed.
+- Missing is never zero. Evidence has a state: scored, absent, exempt, not_applicable, pending, not_assessed.
 - All operational state lives in PostgreSQL. Browser storage is only an offline cache that syncs.
 - AI output is always a draft, carries its evidence, passes the verifier, and is approved by a person.
 - Budget: initial JavaScript per route under 200 KB gzip. CI fails above it.
@@ -72,27 +77,31 @@ A rule nothing checks comes back.
   not in the spec, or in the spec but not served. Feature endpoints live
   under /v1; /api/health stays where it is.
 
-## Stack decisions (blueprint v6)
+## Decisions in force (blueprint v22, Part 65)
 
-- Chi on net/http, not Fiber: Part 38 picks Chi for greenfield work, and the
-  backend had only its health check when v6 arrived. Part 12 still says
-  Fiber; Part 38 is newer and wins.
-- Libraries named in Part 38 (React Router, Zustand, Zod, Vitest,
-  OpenTelemetry, Sentry) are added with the first feature that uses them,
-  never ahead of it: knip and go mod tidy fail on unused dependencies.
-- Vitest is for component and unit tests; the *-verify.mts harnesses stay
-  for repo-wide guards (style, licences, bundle, API errors).
-- Tenant scope always comes from the signed-in identity and revU's own
-  membership rows, never from a client-sent id alone. RLS is the second
-  line, set per transaction so pooled connections never leak a tenant.
-- Long work (report batches, imports, exports, scans) is queued and returns
-  a job id; the request never stays open for it.
-- One template and one renderer for preview and final PDF.
+- Fiber v3 and TanStack Router (D3), matching schedU. Chi and React Router
+  were tried and removed. frontend/deps-verify.mts fails the build if Chi,
+  React Router, goose, Vitest or AG Grid Enterprise appears in a dependency
+  file, or a screen imports a grid library outside src/components/DataGrid
+  (AT-D-01).
+- Libraries named in Part 38 (Zustand, Zod, OpenTelemetry, Sentry) are added
+  with the first feature that uses them: knip and go mod tidy fail on unused
+  dependencies.
+- Confidential by default (D19, Part 77): the permission matrix in
+  backend/internal/auth/policy is the most a role can receive; coordinators,
+  principals and view-only roles get counts and status unless an
+  administrator grants more.
+- Guardians are rows (D14). Value states are six (D16); TC is a student
+  status, not a cell value.
+- style-verify also scans REVU.md and docs/blueprint where present (D11).
+- Tenant scope comes from the signed-in identity and revU's membership rows,
+  never from a client-sent id alone. RLS is the second line, set per
+  transaction so pooled connections never leak a tenant.
 
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com
-- backend/ - the server (Go 1.26 + Chi + pgx): cmd/server, cmd/worker, internal/
+- backend/ - the server (Go 1.26 + Fiber v3 + pgx): cmd/server, cmd/worker, internal/
 - database/migrations/ - numbered SQL files, applied in order
 - contracts/openapi.yaml - the API contract, source of truth
 - marketing/ - the public site (Next.js static export), built in v6.10
@@ -105,6 +114,8 @@ A rule nothing checks comes back.
 - `make up` (or `docker compose up --build -d`) starts PostgreSQL 18, MinIO, Gotenberg and the server on :8080. The server applies database/migrations at start.
 - Two database roles: MIGRATE_DATABASE_URL connects as the owner and runs migrations; DATABASE_URL connects as revu_app (no owner, no BYPASSRLS), whose password the server sets from APP_DB_PASSWORD. In production the server refuses to start if DATABASE_URL could bypass row-level security.
 - New tenant tables: give them org_id, reference parents by (org_id, parent_id), and register them with `SELECT revu_tenant_table('name');` in the migration. internal/db/rls_test.go fails on a table that is not fenced, and asks for seed rows in internal/db/dbtest so the table is proven.
+- Signing in locally until Clerk lands (v1.4): set DEV_USER_ID (refused when APP_ENV=production) and run `go run ./cmd/server seed` from backend/ with MIGRATE_DATABASE_URL set; it creates two demo organisations (school and university presets) with that user as administrator.
+- Institution words: the key list and presets live in frontend/src/lib/terminology/presets.json. After editing it run make gen (npm run gen:terms) so the server's embedded copy matches; a Go test fails when it does not. The lint rule frontend/eslint-rules/institution-words.js fails on any preset word written literally in a component.
 - Backend tests that need the database: TEST_DATABASE_URL (owner) builds it from database/migrations and tests as revu_app.
 - `cd frontend && npm install && npm run dev` starts the app on :5173, proxying /api to :8080.
 - Windows without make: run the docker compose commands in the Makefile directly.

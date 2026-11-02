@@ -4,21 +4,33 @@
  *
  * Rule: no em dashes, in copy, code, comments, markdown or config.
  * It scans every file git would commit (tracked plus new, minus .gitignore),
- * so local-only folders such as docs/blueprint are left alone.
+ * plus the blueprint in docs/blueprint (kept out of the public repo, so only
+ * scanned where it is present) and REVU.md: the rule covers the
+ * specification too (decision D11, AT-D-03).
  *
  * The forbidden character is held by code point so this file can look for it
  * without containing one.
  */
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const EM_DASH = String.fromCharCode(8212)
 const ROOT = resolve('..')
 const TEXT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|go|md|mdx|css|html|sql|svg|py|yml|yaml|json|toml|txt|xml|webmanifest|sh|ps1|example|mod)$|(^|\/)(Makefile|Dockerfile|_redirects|\.gitignore)$/
 
-const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' })
-  .split('\n').map((f) => f.trim()).filter((f) => f && TEXT.test(f))
+const BLUEPRINT = 'docs/blueprint'
+const blueprint = existsSync(join(ROOT, BLUEPRINT))
+  ? readdirSync(join(ROOT, BLUEPRINT)).filter((n) => n.endsWith('.md')).map((n) => `${BLUEPRINT}/${n}`)
+  : []
+const files = [
+  ...new Set([
+    ...execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' })
+      .split('\n').map((f) => f.trim()).filter((f) => f && TEXT.test(f)),
+    'REVU.md',
+    ...blueprint,
+  ]),
+]
 
 let fail = 0
 const ok = (cond: boolean, label: string, extra = '') => {
@@ -26,7 +38,7 @@ const ok = (cond: boolean, label: string, extra = '') => {
   if (!cond) fail++
 }
 
-console.log(`house style: no em dashes (${files.length} files)`)
+console.log(`house style: no em dashes (${files.length} files, ${blueprint.length} of them blueprint)`)
 const offenders: string[] = []
 for (const f of files) {
   let src: string

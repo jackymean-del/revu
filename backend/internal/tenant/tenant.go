@@ -1,19 +1,21 @@
 // Package tenant runs each request inside one database transaction scoped to
-// one organisation. The organisation the client asks for is only a request:
-// access is granted when the signed-in user holds a membership there, read
-// through row-level security with app.org_id set for this transaction only,
-// so a pooled connection never carries a tenant into the next request.
+// one organisation (one institution or campus, decision D2). The
+// organisation the client asks for is only a request: access is granted
+// when the signed-in user holds a membership there, read through row-level
+// security with app.org_id set for this transaction only, so a pooled
+// connection never carries a tenant into the next request.
 package tenant
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"net/http"
 	"regexp"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/problem"
 )
 
@@ -31,67 +33,69 @@ type Member struct {
 	Roles  []Role
 }
 
+// Actor is the member as the permission policy sees them. Modules that act
+// on sections add the person's teaching assignments.
+func (m Member) Actor() policy.Actor {
+	var a policy.Actor
+	for _, r := range m.Roles {
+		a.Roles = append(a.Roles, policy.RoleIn{Role: policy.Role(r.Name), BranchID: r.BranchID})
+	}
+	return a
+}
+
 // Identify returns the signed-in user and the organisation the request asks
-// for. Sign-in (v1.4) provides it; an error is written as the response.
-type Identify func(r *http.Request) (userID, orgID string, err error)
+// for. Sign-in provides it; an error is written as the response.
+type Identify func(c fiber.Ctx) (userID, orgID string, err error)
 
 var errNoOrg = problem.New(http.StatusNotFound, "org.not_found", "No organisation found for you at this address.")
 
 var uuidShape = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-type ctxKey int
+type localKey int
 
 const (
-	txKey ctxKey = iota
+	txKey localKey = iota
 	memberKey
 )
 
 // Middleware opens the transaction, sets app.org_id, checks membership and
-// commits only when the handler answered below 400. The response is held
-// until the commit succeeds, so a client never sees success for work that
+// commits only when the handler succeeded with a status below 400. Fiber
+// sends the response after this returns, so a failed commit replaces the
+// handler's answer with a 500: a client never sees success for work that
 // was rolled back.
-func Middleware(pool *pgxpool.Pool, identify Identify) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			userID, orgID, err := identify(r)
-			if err != nil {
-				problem.Write(w, r, err)
-				return
-			}
-			// Not found rather than forbidden: an outsider learns nothing
-			// about which organisations exist.
-			if userID == "" || !uuidShape.MatchString(orgID) {
-				problem.Write(w, r, errNoOrg)
-				return
-			}
+func Middleware(pool *pgxpool.Pool, identify Identify) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		userID, orgID, err := identify(c)
+		if err != nil {
+			return err
+		}
+		// Not found rather than forbidden: an outsider learns nothing about
+		// which organisations exist.
+		if userID == "" || !uuidShape.MatchString(orgID) {
+			return errNoOrg
+		}
 
-			ctx := r.Context()
-			tx, err := pool.Begin(ctx)
-			if err != nil {
-				problem.Write(w, r, err)
-				return
-			}
-			defer func() { _ = tx.Rollback(context.Background()) }()
+		ctx := c.Context()
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback(context.Background()) }()
 
-			m, err := enter(ctx, tx, userID, orgID)
-			if err != nil {
-				problem.Write(w, r, err)
-				return
-			}
+		m, err := enter(ctx, tx, userID, orgID)
+		if err != nil {
+			return err
+		}
+		c.Locals(txKey, tx)
+		c.Locals(memberKey, m)
 
-			buf := &heldWriter{ResponseWriter: w, status: http.StatusOK}
-			ctx = context.WithValue(context.WithValue(ctx, txKey, tx), memberKey, m)
-			next.ServeHTTP(buf, r.WithContext(ctx))
-
-			if buf.status < 400 {
-				if err := tx.Commit(ctx); err != nil {
-					problem.Write(w, r, err)
-					return
-				}
-			}
-			w.WriteHeader(buf.status)
-			_, _ = w.Write(buf.body.Bytes())
-		})
+		if err := c.Next(); err != nil {
+			return err
+		}
+		if c.Response().StatusCode() >= 400 {
+			return nil
+		}
+		return tx.Commit(ctx)
 	}
 }
 
@@ -119,8 +123,8 @@ func enter(ctx context.Context, tx pgx.Tx, userID, orgID string) (Member, error)
 
 // Tx is the request's organisation-scoped transaction. Repositories run every
 // query through it.
-func Tx(ctx context.Context) (pgx.Tx, error) {
-	tx, ok := ctx.Value(txKey).(pgx.Tx)
+func Tx(c fiber.Ctx) (pgx.Tx, error) {
+	tx, ok := c.Locals(txKey).(pgx.Tx)
 	if !ok {
 		return nil, errors.New("tenant: no transaction; is the route behind tenant.Middleware?")
 	}
@@ -128,26 +132,7 @@ func Tx(ctx context.Context) (pgx.Tx, error) {
 }
 
 // MemberFrom is who is acting in this request.
-func MemberFrom(ctx context.Context) (Member, bool) {
-	m, ok := ctx.Value(memberKey).(Member)
+func MemberFrom(c fiber.Ctx) (Member, bool) {
+	m, ok := c.Locals(memberKey).(Member)
 	return m, ok
-}
-
-// heldWriter keeps the status and body until the transaction is settled.
-type heldWriter struct {
-	http.ResponseWriter
-	status int
-	wrote  bool
-	body   bytes.Buffer
-}
-
-func (h *heldWriter) WriteHeader(code int) {
-	if !h.wrote {
-		h.status, h.wrote = code, true
-	}
-}
-
-func (h *heldWriter) Write(b []byte) (int, error) {
-	h.wrote = true
-	return h.body.Write(b)
 }

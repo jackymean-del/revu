@@ -35,6 +35,7 @@ func TestLoad(t *testing.T) {
 		{name: "app and owner must differ", env: map[string]string{"DATABASE_URL": "postgres://o", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "long-enough-pw"}, wantErr: true},
 		{name: "migrating needs an app password", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o"}, wantErr: true},
 		{name: "a short app password is refused", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "short"}, wantErr: true},
+		{name: "development sign-in is refused in production", env: map[string]string{"APP_ENV": "production", "DATABASE_URL": "postgres://a", "DEV_USER_ID": "user_dev"}, wantErr: true},
 		{name: "owner and app roles", env: map[string]string{"DATABASE_URL": "postgres://a", "MIGRATE_DATABASE_URL": "postgres://o", "APP_DB_PASSWORD": "long-enough-pw"}, check: func(t *testing.T, c Config) {
 			if c.MigrateURL != "postgres://o" || c.AppDBPassword != "long-enough-pw" {
 				t.Fatalf("%+v", c)

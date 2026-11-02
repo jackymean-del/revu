@@ -18,6 +18,57 @@ func (e HealthStatus) Valid() bool {
 	}
 }
 
+// Defines values for MyOrgRoles.
+const (
+	Admin        MyOrgRoles = "admin"
+	ClassTeacher MyOrgRoles = "class_teacher"
+	Coordinator  MyOrgRoles = "coordinator"
+	Principal    MyOrgRoles = "principal"
+	Teacher      MyOrgRoles = "teacher"
+	Viewer       MyOrgRoles = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the MyOrgRoles enum.
+func (e MyOrgRoles) Valid() bool {
+	switch e {
+	case Admin:
+		return true
+	case ClassTeacher:
+		return true
+	case Coordinator:
+		return true
+	case Principal:
+		return true
+	case Teacher:
+		return true
+	case Viewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Preset.
+const (
+	PresetCollege    Preset = "college"
+	PresetSchool     Preset = "school"
+	PresetUniversity Preset = "university"
+)
+
+// Valid indicates whether the value is a known member of the Preset enum.
+func (e Preset) Valid() bool {
+	switch e {
+	case PresetCollege:
+		return true
+	case PresetSchool:
+		return true
+	case PresetUniversity:
+		return true
+	default:
+		return false
+	}
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	// Code Stable code, for example required or too_long.
@@ -40,6 +91,20 @@ type Health struct {
 
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
+
+// MyOrg defines model for MyOrg.
+type MyOrg struct {
+	Id     string       `json:"id"`
+	Name   string       `json:"name"`
+	Preset Preset       `json:"preset"`
+	Roles  []MyOrgRoles `json:"roles"`
+}
+
+// MyOrgRoles defines model for MyOrg.Roles.
+type MyOrgRoles string
+
+// Preset defines model for Preset.
+type Preset string
 
 // Problem RFC 7807 problem details, plus revU's stable code.
 type Problem struct {
@@ -67,3 +132,38 @@ type Problem struct {
 	// Type A URI naming the problem kind, or about:blank.
 	Type string `json:"type"`
 }
+
+// TermOverride defines model for TermOverride.
+type TermOverride struct {
+	// BranchId Limits the word to one branch. Absent means the whole organisation.
+	BranchId string `json:"branchId,omitempty"`
+
+	// Key A key from the terminology list, for example group.section.
+	Key   string `json:"key"`
+	One   string `json:"one"`
+	Other string `json:"other"`
+}
+
+// Terminology defines model for Terminology.
+type Terminology struct {
+	Overrides []TermOverride `json:"overrides"`
+	Preset    Preset         `json:"preset"`
+}
+
+// OrgId defines model for OrgId.
+type OrgId = string
+
+// GetTerminologyParams defines parameters for GetTerminology.
+type GetTerminologyParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutTerminologyParams defines parameters for PutTerminology.
+type PutTerminologyParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutTerminologyJSONRequestBody defines body for PutTerminology for application/json ContentType.
+type PutTerminologyJSONRequestBody = Terminology

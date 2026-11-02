@@ -16,12 +16,68 @@ info:
 servers:
   - url: https://api.revu.bhusku.com
   - url: http://localhost:8080
+security:
+  - session: []
 paths:
+  /v1/me/orgs:
+    get:
+      operationId: listMyOrgs
+      summary: The organisations the signed-in person belongs to, with their roles in each.
+      tags: [identity]
+      responses:
+        "200":
+          description: Every organisation with a membership for this person.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyOrg"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/terminology:
+    get:
+      operationId: getTerminology
+      summary: The organisation's preset and its own words, for t() in the app.
+      tags: [terminology]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The preset and every override.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Terminology"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putTerminology
+      summary: Replace the preset and every override. Administrators only.
+      tags: [terminology]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Terminology"
+      responses:
+        "200":
+          description: The terminology as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Terminology"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
       summary: Is the server up, and does its database answer?
       tags: [system]
+      security: []
       responses:
         "200":
           description: The server is up. The body says whether the database answers.
@@ -32,6 +88,22 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
 components:
+  securitySchemes:
+    session:
+      type: http
+      scheme: bearer
+      description: The signed-in session token (shared bhusku sign-in).
+  parameters:
+    OrgId:
+      name: X-Org-Id
+      in: header
+      required: true
+      description: >
+        The organisation to act in. It is a request, not proof: the server
+        checks the person's membership there and answers 404 when there is none.
+      schema:
+        type: string
+        format: uuid
   responses:
     Problem:
       description: Something went wrong. The body says what, with a stable code.
@@ -40,6 +112,55 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
   schemas:
+    MyOrg:
+      type: object
+      required: [id, name, preset, roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        preset:
+          $ref: "#/components/schemas/Preset"
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, principal, coordinator, teacher, class_teacher, viewer]
+    Preset:
+      type: string
+      enum: [school, college, university]
+      x-enum-varnames: [PresetSchool, PresetCollege, PresetUniversity]
+    Terminology:
+      type: object
+      required: [preset, overrides]
+      properties:
+        preset:
+          $ref: "#/components/schemas/Preset"
+        overrides:
+          type: array
+          items:
+            $ref: "#/components/schemas/TermOverride"
+    TermOverride:
+      type: object
+      required: [key, one, other]
+      properties:
+        key:
+          type: string
+          description: A key from the terminology list, for example group.section.
+        branchId:
+          type: string
+          format: uuid
+          description: Limits the word to one branch. Absent means the whole organisation.
+        one:
+          type: string
+          minLength: 1
+          maxLength: 60
+        other:
+          type: string
+          minLength: 1
+          maxLength: 60
     Problem:
       type: object
       description: RFC 7807 problem details, plus revU's stable code.

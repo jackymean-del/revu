@@ -1,82 +1,81 @@
-// Package server builds the HTTP router: middleware, error handling and every
-// route. main serves it; tests (including the contract test) use the same
-// router without a network listener.
+// Package server builds the Fiber app: middleware, error handling and every
+// route. main starts it; tests (including the contract test) build the same
+// app without a network listener.
 package server
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/cors"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
+	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/handlers"
+	"github.com/jackymean-del/revu/internal/org"
 	"github.com/jackymean-del/revu/internal/problem"
-	"github.com/jackymean-del/revu/internal/reqid"
+	"github.com/jackymean-del/revu/internal/tenant"
+	"github.com/jackymean-del/revu/internal/terminology"
 )
 
-// New returns the router with every route registered. db may be nil when no
-// database is configured; health then reports it as not connected.
-func New(cfg config.Config, db handlers.Pinger) chi.Router {
-	r := chi.NewRouter()
-	r.Use(reqid.Middleware, logRequests, recoverProblem)
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins: cfg.AllowedOrigins,
-		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
-		AllowedHeaders: []string{"Authorization", "Content-Type", "If-Match", "Idempotency-Key", "X-Org-Id"},
-		ExposedHeaders: []string{reqid.Header},
-		MaxAge:         300,
-	}))
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) { problem.Write(w, r, problem.NotFound) })
-	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) { problem.Write(w, r, problem.MethodNotAllowed) })
-
-	r.Get("/api/health", handlers.Health(db, cfg.Version))
-	return r
+// Deps are what the routes need from outside.
+type Deps struct {
+	DB   *pgxpool.Pool      // nil when no database is configured
+	Auth auth.Authenticator // who is signed in; nil means nobody
 }
 
-// statusWriter remembers the status a handler wrote, for the log line.
-type statusWriter struct {
-	http.ResponseWriter
-	status int
-}
-
-func (s *statusWriter) WriteHeader(code int) {
-	if s.status == 0 {
-		s.status = code
+// New returns the app with every route registered. Without a database,
+// health reports it as not connected and /v1 answers 503.
+func New(cfg config.Config, d Deps) *fiber.App {
+	if d.Auth == nil {
+		d.Auth = auth.SignedOut()
 	}
-	s.ResponseWriter.WriteHeader(code)
+	var pinger handlers.Pinger
+	if d.DB != nil {
+		pinger = d.DB
+	}
+
+	app := fiber.New(fiber.Config{AppName: "revu " + cfg.Version, ErrorHandler: problem.Handler, BodyLimit: 1 << 20})
+	app.Use(requestid.New())
+	app.Use(logRequests)
+	app.Use(recover.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:  cfg.AllowedOrigins,
+		AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+		AllowHeaders:  []string{"Authorization", "Content-Type", "If-Match", "Idempotency-Key", auth.OrgHeader},
+		ExposeHeaders: []string{fiber.HeaderXRequestID},
+		MaxAge:        300,
+	}))
+
+	app.Get("/api/health", handlers.Health(pinger, cfg.Version))
+
+	v1 := app.Group("/v1")
+	if d.DB == nil {
+		v1.Use(func(fiber.Ctx) error {
+			return problem.New(http.StatusServiceUnavailable, "db.unavailable", "The database is not connected.")
+		})
+	}
+	v1.Get("/me/orgs", org.MyOrgs(d.DB, d.Auth))
+	// Everything below acts inside one organisation.
+	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))
+	terminology.Routes(inOrg)
+	return app
 }
 
-func (s *statusWriter) Unwrap() http.ResponseWriter { return s.ResponseWriter }
-
-// logRequests writes one structured line per request.
-func logRequests(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		sw := &statusWriter{ResponseWriter: w}
-		next.ServeHTTP(sw, r)
-		if sw.status == 0 {
-			sw.status = http.StatusOK
-		}
-		slog.Info("request", "method", r.Method, "path", r.URL.Path, "status", sw.status,
-			"ms", time.Since(start).Milliseconds(), "request_id", reqid.From(r.Context()))
-	})
-}
-
-// recoverProblem turns a panic into a 500 problem body; the panic value is
-// logged, never sent.
-func recoverProblem(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if v := recover(); v != nil {
-				if v == http.ErrAbortHandler {
-					panic(v)
-				}
-				problem.Write(w, r, fmt.Errorf("panic: %v", v))
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
+// logRequests writes one structured line per request. An error is turned
+// into its response after this returns, so the status comes from the error.
+func logRequests(c fiber.Ctx) error {
+	start := time.Now()
+	err := c.Next()
+	status := c.Response().StatusCode()
+	if err != nil {
+		status = problem.StatusOf(err)
+	}
+	slog.Info("request", "method", c.Method(), "path", c.Path(), "status", status,
+		"ms", time.Since(start).Milliseconds(), "request_id", requestid.FromContext(c))
+	return err
 }

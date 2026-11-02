@@ -71,7 +71,7 @@ type Org struct {
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
 	"audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
-	"enrolments", "students", "staff", "level_subjects", "subjects", "sections",
+	"enrolments", "guardians", "students", "staff", "level_subjects", "subjects", "sections",
 	"levels", "periods", "academic_years", "branches",
 }
 
@@ -105,11 +105,12 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO level_subjects (org_id, level_id, subject_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.LevelID, o.SubjectID)
 	o.StaffID = one(`INSERT INTO staff (org_id, name, email, clerk_user_id) VALUES ($1, 'Asha Rao', 'asha@example.test', $2) RETURNING id`, o.ID, o.UserID)
 	o.StudentID = one(`INSERT INTO students (org_id, admission_no, name) VALUES ($1, 'A-001', 'Ravi Kumar') RETURNING id`, o.ID)
+	one(`INSERT INTO guardians (org_id, student_id, name, relation, phone, is_primary) VALUES ($1, $2, 'Meena Kumar', 'mother', '+910000000000', true) RETURNING id`, o.ID, o.StudentID)
 	one(`INSERT INTO enrolments (org_id, student_id, section_id, year_id, roll_no) VALUES ($1, $2, $3, $4, '1') RETURNING id`, o.ID, o.StudentID, o.SectionID, o.YearID)
 	one(`INSERT INTO teaching_assignments (org_id, staff_id, section_id, subject_id) VALUES ($1, $2, $3, $4) RETURNING id`, o.ID, o.StaffID, o.SectionID, o.SubjectID)
 	one(`INSERT INTO memberships (org_id, clerk_user_id, role, staff_id) VALUES ($1, $2, 'admin', $3) RETURNING id`, o.ID, o.UserID, o.StaffID)
 	one(`INSERT INTO audit_log (org_id, actor_id, action, entity, entity_id) VALUES ($1, $2, 'create', 'students', $3) RETURNING id`, o.ID, o.UserID, o.StudentID)
-	one(`INSERT INTO terminology (org_id, key, singular, plural) VALUES ($1, 'section', 'Section', 'Sections') RETURNING id`, o.ID)
+	one(`INSERT INTO terminology (org_id, key, singular, plural) VALUES ($1, 'group.section', 'Section', 'Sections') RETURNING id`, o.ID)
 	one(`INSERT INTO feature_flags (org_id, key, enabled) VALUES ($1, 'scan_grading', true) RETURNING id`, o.ID)
 	return o
 }

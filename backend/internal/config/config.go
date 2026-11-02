@@ -18,6 +18,7 @@ type Config struct {
 	AllowedOrigins []string
 	Version        string
 	Production     bool
+	DevUserID      string // local only: signs every request in as this user
 }
 
 // Load reads the environment through getenv (os.Getenv in production, a map in tests).
@@ -29,6 +30,7 @@ func Load(getenv func(string) string) (Config, error) {
 		MigrationsDir: strings.TrimSpace(getenv("MIGRATIONS_DIR")),
 		Version:       strings.TrimSpace(getenv("APP_VERSION")),
 		Production:    getenv("APP_ENV") == "production",
+		DevUserID:     strings.TrimSpace(getenv("DEV_USER_ID")),
 	}
 	if c.MigrationsDir == "" {
 		c.MigrationsDir = "../database/migrations" // go run from backend/
@@ -58,6 +60,9 @@ func Load(getenv func(string) string) (Config, error) {
 
 	if c.Production && c.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required when APP_ENV=production")
+	}
+	if c.Production && c.DevUserID != "" {
+		return Config{}, fmt.Errorf("DEV_USER_ID signs everyone in as one person and is refused when APP_ENV=production")
 	}
 	if c.MigrateURL != "" && c.MigrateURL == c.DatabaseURL {
 		return Config{}, fmt.Errorf("DATABASE_URL must connect as revu_app, not as the owner in MIGRATE_DATABASE_URL")
