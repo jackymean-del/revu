@@ -21,6 +21,7 @@ import (
 	"github.com/jackymean-del/revu/internal/org"
 	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/problem"
+	"github.com/jackymean-del/revu/internal/setup"
 	"github.com/jackymean-del/revu/internal/structure"
 	"github.com/jackymean-del/revu/internal/tenant"
 	"github.com/jackymean-del/revu/internal/terminology"
@@ -31,6 +32,9 @@ type Deps struct {
 	DB   *pgxpool.Pool      // nil when no database is configured
 	Auth auth.Authenticator // who is signed in; nil means nobody
 	Now  func() time.Time   // nil means time.Now; tests set a fixed clock
+	// Directory asks the sign-in service for verified emails and sends
+	// invitation links; nil when sign-in is not configured.
+	Directory auth.Directory
 }
 
 // New returns the app with every route registered. Without a database,
@@ -69,13 +73,14 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	}
 	// Routes outside any one organisation come first: the tenant middleware
 	// below applies to every /v1 route registered after it.
-	v1.Get("/me", org.Me(d.DB, d.Auth))
+	v1.Get("/me", org.Me(d.DB, d.Auth, d.Directory))
 	v1.Post("/webhooks/clerk", clerksync.Handler(d.DB, cfg.ClerkWebhook, d.Now))
 	// Everything below acts inside one organisation.
 	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))
 	terminology.Routes(inOrg)
 	structure.Routes(inOrg)
-	people.Routes(inOrg)
+	people.Routes(inOrg, people.Options{Directory: d.Directory, AppURL: cfg.AppURL})
+	setup.Routes(inOrg)
 	audit.Routes(inOrg)
 	return app
 }

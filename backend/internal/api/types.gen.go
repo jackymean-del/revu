@@ -78,6 +78,87 @@ func (e ImportJobStatus) Valid() bool {
 	}
 }
 
+// Defines values for InvitationRole.
+const (
+	InvitationRoleAdmin        InvitationRole = "admin"
+	InvitationRoleClassTeacher InvitationRole = "class_teacher"
+	InvitationRoleCoordinator  InvitationRole = "coordinator"
+	InvitationRolePrincipal    InvitationRole = "principal"
+	InvitationRoleTeacher      InvitationRole = "teacher"
+	InvitationRoleViewer       InvitationRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the InvitationRole enum.
+func (e InvitationRole) Valid() bool {
+	switch e {
+	case InvitationRoleAdmin:
+		return true
+	case InvitationRoleClassTeacher:
+		return true
+	case InvitationRoleCoordinator:
+		return true
+	case InvitationRolePrincipal:
+		return true
+	case InvitationRoleTeacher:
+		return true
+	case InvitationRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitationStatus.
+const (
+	Accepted InvitationStatus = "accepted"
+	Pending  InvitationStatus = "pending"
+	Revoked  InvitationStatus = "revoked"
+)
+
+// Valid indicates whether the value is a known member of the InvitationStatus enum.
+func (e InvitationStatus) Valid() bool {
+	switch e {
+	case Accepted:
+		return true
+	case Pending:
+		return true
+	case Revoked:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitationInputRole.
+const (
+	InvitationInputRoleAdmin        InvitationInputRole = "admin"
+	InvitationInputRoleClassTeacher InvitationInputRole = "class_teacher"
+	InvitationInputRoleCoordinator  InvitationInputRole = "coordinator"
+	InvitationInputRolePrincipal    InvitationInputRole = "principal"
+	InvitationInputRoleTeacher      InvitationInputRole = "teacher"
+	InvitationInputRoleViewer       InvitationInputRole = "viewer"
+)
+
+// Valid indicates whether the value is a known member of the InvitationInputRole enum.
+func (e InvitationInputRole) Valid() bool {
+	switch e {
+	case InvitationInputRoleAdmin:
+		return true
+	case InvitationInputRoleClassTeacher:
+		return true
+	case InvitationInputRoleCoordinator:
+		return true
+	case InvitationInputRolePrincipal:
+		return true
+	case InvitationInputRoleTeacher:
+		return true
+	case InvitationInputRoleViewer:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MembershipRole.
 const (
 	MembershipRoleAdmin        MembershipRole = "admin"
@@ -494,6 +575,35 @@ type ImportProblem struct {
 	Row int `json:"row"`
 }
 
+// Invitation defines model for Invitation.
+type Invitation struct {
+	BranchId  string           `json:"branchId,omitempty"`
+	CreatedAt string           `json:"createdAt"`
+	Email     string           `json:"email"`
+	Id        string           `json:"id"`
+	Role      InvitationRole   `json:"role"`
+	Sent      bool             `json:"sent"`
+	StaffId   string           `json:"staffId,omitempty"`
+	Status    InvitationStatus `json:"status"`
+}
+
+// InvitationRole defines model for Invitation.Role.
+type InvitationRole string
+
+// InvitationStatus defines model for Invitation.Status.
+type InvitationStatus string
+
+// InvitationInput defines model for InvitationInput.
+type InvitationInput struct {
+	BranchId string              `json:"branchId,omitempty"`
+	Email    string              `json:"email"`
+	Role     InvitationInputRole `json:"role"`
+	StaffId  string              `json:"staffId,omitempty"`
+}
+
+// InvitationInputRole defines model for InvitationInput.Role.
+type InvitationInputRole string
+
 // Level defines model for Level.
 type Level struct {
 	Id   string `json:"id"`
@@ -582,10 +692,14 @@ type MembershipInputRole string
 
 // MyOrg defines model for MyOrg.
 type MyOrg struct {
-	Id     string       `json:"id"`
-	Name   string       `json:"name"`
-	Preset Preset       `json:"preset"`
-	Roles  []MyOrgRoles `json:"roles"`
+	Id        string       `json:"id"`
+	Name      string       `json:"name"`
+	Preset    Preset       `json:"preset"`
+	Roles     []MyOrgRoles `json:"roles"`
+	SetupDone bool         `json:"setupDone"`
+
+	// StaffId This person's staff record here, when one is linked.
+	StaffId string `json:"staffId,omitempty"`
 }
 
 // MyOrgRoles defines model for MyOrg.Roles.
@@ -708,6 +822,23 @@ type SectionInput struct {
 	LevelId  string `json:"levelId"`
 	Name     string `json:"name"`
 	YearId   string `json:"yearId"`
+}
+
+// SetupStatus defines model for SetupStatus.
+type SetupStatus struct {
+	// Done An administrator has finished the setup steps.
+	Done bool `json:"done"`
+
+	// Invitations Open invitations.
+	Invitations   int `json:"invitations"`
+	LevelSubjects int `json:"levelSubjects"`
+	Levels        int `json:"levels"`
+	Periods       int `json:"periods"`
+	Sections      int `json:"sections"`
+	Staff         int `json:"staff"`
+	Students      int `json:"students"`
+	Subjects      int `json:"subjects"`
+	Years         int `json:"years"`
 }
 
 // Staff defines model for Staff.
@@ -1034,6 +1165,24 @@ type ImportJobErrorsParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// ListInvitationsParams defines parameters for ListInvitations.
+type ListInvitationsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateInvitationParams defines parameters for CreateInvitation.
+type CreateInvitationParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RevokeInvitationParams defines parameters for RevokeInvitation.
+type RevokeInvitationParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListLevelSubjectsParams defines parameters for ListLevelSubjects.
 type ListLevelSubjectsParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -1201,6 +1350,18 @@ type UpdateSectionParams struct {
 
 // RestoreSectionParams defines parameters for RestoreSection.
 type RestoreSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetSetupParams defines parameters for GetSetup.
+type GetSetupParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CompleteSetupParams defines parameters for CompleteSetup.
+type CompleteSetupParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -1436,6 +1597,9 @@ type CreateGuardianJSONRequestBody = GuardianInput
 
 // UpdateGuardianJSONRequestBody defines body for UpdateGuardian for application/json ContentType.
 type UpdateGuardianJSONRequestBody = GuardianInput
+
+// CreateInvitationJSONRequestBody defines body for CreateInvitation for application/json ContentType.
+type CreateInvitationJSONRequestBody = InvitationInput
 
 // CreateLevelSubjectJSONRequestBody defines body for CreateLevelSubject for application/json ContentType.
 type CreateLevelSubjectJSONRequestBody = LevelSubjectInput

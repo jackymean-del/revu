@@ -1538,6 +1538,90 @@ paths:
                 $ref: "#/components/schemas/AuditFacets"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/invitations:
+    get:
+      operationId: listInvitations
+      summary: Open invitations, and those answered in the last 30 days.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The invitations, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createInvitation
+      summary: Invite someone by email. They get the role when they sign in with that address.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationInput"
+      responses:
+        "201":
+          description: Invited. sent says whether the sign-in service emailed the link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/invitations/{id}:
+    delete:
+      operationId: revokeInvitation
+      summary: Withdraw an open invitation.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Withdrawn.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/setup:
+    get:
+      operationId: getSetup
+      summary: How far the organisation's setup has come, for the setup steps and the home page.
+      tags: [setup]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Counts of what exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/setup/complete:
+    post:
+      operationId: completeSetup
+      summary: Mark setup as finished. Administrators only.
+      tags: [setup]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Marked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -2374,6 +2458,75 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AuditActor"
+    Invitation:
+      type: object
+      required: [id, email, role, status, sent, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, principal, coordinator, teacher, class_teacher, viewer]
+        branchId:
+          type: string
+          format: uuid
+        staffId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, accepted, revoked]
+        sent:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    InvitationInput:
+      type: object
+      additionalProperties: false
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          maxLength: 200
+        role:
+          type: string
+          enum: [admin, principal, coordinator, teacher, class_teacher, viewer]
+        branchId:
+          type: string
+          format: uuid
+        staffId:
+          type: string
+          format: uuid
+    SetupStatus:
+      type: object
+      required: [years, periods, levels, sections, subjects, levelSubjects, staff, students, invitations, done]
+      properties:
+        years:
+          type: integer
+        periods:
+          type: integer
+        levels:
+          type: integer
+        sections:
+          type: integer
+        subjects:
+          type: integer
+        levelSubjects:
+          type: integer
+        staff:
+          type: integer
+        students:
+          type: integer
+        invitations:
+          type: integer
+          description: Open invitations.
+        done:
+          type: boolean
+          description: An administrator has finished the setup steps.
     Me:
       type: object
       required: [userId, orgs]
@@ -2387,7 +2540,7 @@ components:
             $ref: "#/components/schemas/MyOrg"
     MyOrg:
       type: object
-      required: [id, name, preset, roles]
+      required: [id, name, preset, roles, setupDone]
       properties:
         id:
           type: string
@@ -2396,6 +2549,12 @@ components:
           type: string
         preset:
           $ref: "#/components/schemas/Preset"
+        staffId:
+          type: string
+          format: uuid
+          description: This person's staff record here, when one is linked.
+        setupDone:
+          type: boolean
         roles:
           type: array
           items:

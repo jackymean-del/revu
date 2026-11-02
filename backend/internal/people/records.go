@@ -15,12 +15,23 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackymean-del/revu/internal/api"
+	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/records"
 )
 
+// Options are what this package needs from outside.
+type Options struct {
+	Directory auth.Directory // emails invitation links; nil when sign-in is not configured
+	AppURL    string         // where an invitation link lands
+}
+
 // Routes serves everything in this package inside a tenant-scoped router.
 // Paths with a fixed last part come before /:id, so they are not read as ids.
-func Routes(g fiber.Router) {
+func Routes(g fiber.Router, o Options) {
+	inv := invitations{dir: o.Directory, redirect: o.AppURL}
+	g.Get("/invitations", inv.list)
+	g.Post("/invitations", inv.create)
+	g.Delete("/invitations/:id", inv.revoke)
 	g.Get("/students", listStudents)
 	g.Post("/students/import", previewImport)
 	g.Get("/import-jobs", listImportJobs)

@@ -5,6 +5,7 @@ import { EditableList } from '../components/EditableList'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 import { Import } from './people/Import'
+import { Invitations } from './people/Invitations'
 import { Promotion } from './people/Promotion'
 import { Students } from './people/Students'
 
@@ -77,9 +78,11 @@ export function People() {
         {tab === 'members' && (
           <div className="space-y-3">
             <p className="max-w-2xl text-sm text-muted">
-              Each row is one role for one signed-up person. Roles marked From sign-in follow the bhusku sign-in organisation and change there; inviting people by email
-              arrives with the setup steps.
+              Each row is one role for one signed-up person. Roles marked From sign-in follow the bhusku sign-in organisation and change there. To add someone, invite their email
+              address; they get the role when they sign in with it.
             </p>
+            {canEdit && <Invitations orgId={orgId} roles={roles} />}
+            {canEdit && <h2 className="pt-2 font-extrabold">Roles</h2>}
             {canEdit ? (
               <EditableList
                 orgId={orgId}

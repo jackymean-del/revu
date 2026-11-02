@@ -125,3 +125,17 @@ export const listAudit = (orgId: string, params: Record<string, string>, signal?
   call<AuditPage>(`/v1/audit?${new URLSearchParams(params)}`, { orgId, signal })
 
 export const auditFacets = (orgId: string, signal?: AbortSignal) => call<AuditFacets>('/v1/audit/facets', { orgId, signal })
+
+export type SetupStatus = components['schemas']['SetupStatus']
+export type Invitation = components['schemas']['Invitation']
+export type InvitationInput = components['schemas']['InvitationInput']
+
+export const getSetup = (orgId: string, signal?: AbortSignal) => call<SetupStatus>('/v1/setup', { orgId, signal })
+
+export const completeSetup = (orgId: string) => call<SetupStatus>('/v1/setup/complete', { orgId, method: 'POST' })
+
+export const listInvitations = (orgId: string, signal?: AbortSignal) => call<Invitation[]>('/v1/invitations', { orgId, signal })
+
+export const createInvitation = (orgId: string, body: InvitationInput) => call<Invitation>('/v1/invitations', { orgId, method: 'POST', body })
+
+export const revokeInvitation = (orgId: string, id: string) => call<void>(`/v1/invitations/${id}`, { orgId, method: 'DELETE' })

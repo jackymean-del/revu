@@ -29,39 +29,47 @@ function OrgPicker() {
   )
 }
 
-/** The frame every screen sits in: brand, navigation and the organisation picker. */
+/** Which areas a person sees, by role. The server decides what they may do; this only keeps the menu short. */
+function useNav() {
+  const { current } = useOrg()
+  const roles = current?.roles ?? []
+  const admin = roles.includes('admin')
+  const items: { to: string; label: string; exact?: boolean }[] = [{ to: '/', label: 'Home', exact: true }]
+  if (admin) items.push({ to: '/people', label: 'People' }, { to: '/settings/structure', label: 'Structure' }, { to: '/settings/words', label: 'Words' })
+  if (admin || roles.includes('principal')) items.push({ to: '/settings/history', label: 'History' })
+  return items
+}
+
+/** The frame every screen sits in: brand, navigation by role, the organisation picker and the account. */
 export function Shell() {
+  const nav = useNav()
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex h-14 items-center gap-4 border-b border-line bg-white px-4 sm:px-6">
+      <a href="#main" className="sr-only z-50 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
+        Skip to content
+      </a>
+      <header className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-white px-4 py-2 sm:px-6">
         <BrandLockup />
-        <nav aria-label="Main" className="flex items-center gap-1">
-          <Link to="/" activeOptions={{ exact: true }} className={link} activeProps={active} inactiveProps={inactive}>
-            System
-          </Link>
-          <Link to="/people" className={link} activeProps={active} inactiveProps={inactive}>
-            People
-          </Link>
-          <Link to="/settings/structure" className={link} activeProps={active} inactiveProps={inactive}>
-            Structure
-          </Link>
-          <Link to="/settings/words" className={link} activeProps={active} inactiveProps={inactive}>
-            Words
-          </Link>
-          <Link to="/settings/history" className={link} activeProps={active} inactiveProps={inactive}>
-            History
-          </Link>
+        <nav aria-label="Main" className="flex flex-wrap items-center gap-1">
+          {nav.map((n) => (
+            <Link key={n.to} to={n.to} activeOptions={{ exact: !!n.exact }} className={link} activeProps={active} inactiveProps={inactive}>
+              {n.label}
+            </Link>
+          ))}
         </nav>
         <div className="ml-auto flex min-w-0 items-center gap-3">
           <OrgPicker />
           <Account />
         </div>
       </header>
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>
       <footer className="px-6 py-4 text-center text-xs text-subtle">
-        by <b className="font-extrabold text-ink">bhusku</b> &middot; Heavy on craft. Full of energy.
+        by <b className="font-extrabold text-ink">bhusku</b> &middot; Heavy on craft. Full of energy. &middot;{' '}
+        <Link to="/system" className="underline hover:text-ink">
+          System status
+        </Link>
       </footer>
     </div>
   )

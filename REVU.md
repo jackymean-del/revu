@@ -123,6 +123,17 @@ A rule nothing checks comes back.
   logged by id only, never its content. Modules from v2 on pass ids, not
   documents, for those.
 
+## Setup and invitations (v1.10)
+
+- A new client: the platform owner runs `server create-org "<name>" <school|college|university> <admin email>`
+  (with MIGRATE_DATABASE_URL); it creates the organisation, a main branch and an
+  invitation for its administrator, emailed by Clerk when CLERK_SECRET_KEY is set.
+- Invitations are claimed on sign-in: GET /v1/me asks Clerk for the person's
+  verified addresses and turns matching open invitations into roles
+  (revu_claim_invitations). No password is ever created or sent by revU.
+- The setup steps use the ordinary endpoints; GET /v1/setup reports progress and
+  POST /v1/setup/complete marks it done. Home and the menu follow the person's roles.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com

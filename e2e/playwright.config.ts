@@ -6,6 +6,8 @@ export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
+  // One preview server serves every page; more workers starve it on a laptop.
+  workers: process.env.CI ? 1 : 2,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: { baseURL: 'http://localhost:4173', trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

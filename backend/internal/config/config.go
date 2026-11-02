@@ -21,6 +21,7 @@ type Config struct {
 	DevUserID      string // local only: signs every request in as this user
 	ClerkSecretKey string // verifies sign-in tokens; required in production
 	ClerkWebhook   string // signing secret of the Clerk webhook endpoint (whsec_...)
+	AppURL         string // where invitation links land; defaults to the first allowed origin
 }
 
 // Load reads the environment through getenv (os.Getenv in production, a map in tests).
@@ -60,6 +61,11 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if len(c.AllowedOrigins) == 0 {
 		c.AllowedOrigins = []string{"http://localhost:5173"}
+	}
+
+	c.AppURL = strings.TrimRight(strings.TrimSpace(getenv("APP_URL")), "/")
+	if c.AppURL == "" {
+		c.AppURL = c.AllowedOrigins[0]
 	}
 
 	if c.Production && c.DatabaseURL == "" {

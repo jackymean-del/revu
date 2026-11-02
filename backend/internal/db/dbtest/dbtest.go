@@ -70,7 +70,7 @@ type Org struct {
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
-	"import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
+	"invitations", "import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
 	"enrolments", "guardians", "students", "staff", "level_subjects", "subjects", "sections",
 	"levels", "periods", "academic_years", "branches",
 }
@@ -111,6 +111,7 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO memberships (org_id, clerk_user_id, role, staff_id) VALUES ($1, $2, 'admin', $3) RETURNING id`, o.ID, o.UserID, o.StaffID)
 	one(`INSERT INTO audit_log (org_id, actor_id, action, entity, entity_id) VALUES ($1, $2, 'create', 'students', $3) RETURNING id`, o.ID, o.UserID, o.StudentID)
 	one(`INSERT INTO terminology (org_id, key, singular, plural) VALUES ($1, 'group.section', 'Section', 'Sections') RETURNING id`, o.ID)
+	one(`INSERT INTO invitations (org_id, email, role) VALUES ($1, $2, 'teacher') RETURNING id`, o.ID, "invitee-"+o.UserID+"@example.test")
 	one(`INSERT INTO import_jobs (org_id, kind, file_name, total_rows) VALUES ($1, 'students', 'class.csv', 0) RETURNING id`, o.ID)
 	one(`INSERT INTO feature_flags (org_id, key, enabled) VALUES ($1, 'scan_grading', true) RETURNING id`, o.ID)
 	return o

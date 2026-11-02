@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,7 +39,7 @@ func main() {
 	if len(os.Args) > 1 {
 		command = os.Args[1]
 	}
-	migrateOnly := command == "migrate" || command == "seed"
+	migrateOnly := command == "migrate" || command == "seed" || command == "create-org"
 	if cfg.MigrateURL != "" {
 		if err := migrate(ctx, cfg); err != nil {
 			slog.Error("migrations failed", "err", err)
@@ -47,6 +48,12 @@ func main() {
 	} else if migrateOnly {
 		slog.Error("MIGRATE_DATABASE_URL is not set")
 		os.Exit(1)
+	}
+	if command == "create-org" {
+		if err := createOrg(ctx, cfg, os.Args[2:]); err != nil {
+			slog.Error("create-org failed", "err", err)
+			os.Exit(1)
+		}
 	}
 	if command == "seed" {
 		if err := seedDemo(ctx, cfg); err != nil {
@@ -62,6 +69,7 @@ func main() {
 	switch {
 	case cfg.ClerkSecretKey != "":
 		deps.Auth = auth.NewClerk(cfg.ClerkSecretKey, cfg.AllowedOrigins)
+		deps.Directory = auth.NewClerkDirectory(cfg.ClerkSecretKey)
 		if cfg.DevUserID != "" {
 			slog.Warn("DEV_USER_ID is ignored: Clerk sign-in is on")
 		}
@@ -134,4 +142,38 @@ func seedDemo(ctx context.Context, cfg config.Config) error {
 	ids, err := seed.Run(ctx, owner, cfg.DevUserID)
 	slog.Info("demo organisations", "ids", ids)
 	return err
+}
+
+// createOrg is the platform owner's command for a new client:
+//
+//	server create-org "<name>" <school|college|university> <admin email>
+func createOrg(ctx context.Context, cfg config.Config, args []string) error {
+	if len(args) != 3 {
+		return errors.New(`use: server create-org "<name>" <school|college|university> <admin email>`)
+	}
+	name, kind, email := strings.TrimSpace(args[0]), args[1], strings.TrimSpace(args[2])
+	if kind != "school" && kind != "college" && kind != "university" {
+		return errors.New("the type is school, college or university")
+	}
+	owner, err := db.Connect(ctx, cfg.MigrateURL)
+	if err != nil {
+		return err
+	}
+	defer owner.Close()
+	orgID, invID, err := seed.CreateOrg(ctx, owner, name, kind, email)
+	if err != nil {
+		return err
+	}
+	sent := false
+	if cfg.ClerkSecretKey != "" {
+		if err := auth.NewClerkDirectory(cfg.ClerkSecretKey).Invite(ctx, strings.ToLower(email), cfg.AppURL); err != nil {
+			slog.Warn("invitation email not sent; the administrator can still sign in with this address", "err", err)
+		} else if err := seed.MarkSent(ctx, owner, invID); err != nil {
+			return err
+		} else {
+			sent = true
+		}
+	}
+	slog.Info("organisation created", "org", orgID, "invitation", invID, "emailed", sent)
+	return nil
 }

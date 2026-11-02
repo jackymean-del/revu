@@ -53,3 +53,31 @@ func Run(ctx context.Context, owner *pgxpool.Pool, userID string) ([]string, err
 	})
 	return ids, err
 }
+
+// CreateOrg is the platform owner's step for a new client (blueprint Part
+// 56.5): the organisation with its preset and a main branch, and an
+// invitation for its first administrator, who signs in with that address.
+// It returns the organisation and invitation ids.
+func CreateOrg(ctx context.Context, owner *pgxpool.Pool, name, kind, adminEmail string) (string, string, error) {
+	var orgID, invID string
+	err := pgx.BeginFunc(ctx, owner, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `INSERT INTO orgs (name, institution_type, preset) VALUES ($1, $2, $3) RETURNING id::text`, name, kind, kind).Scan(&orgID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO branches (org_id, name) VALUES ($1, $2)`, orgID, name); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `INSERT INTO invitations (org_id, email, role, invited_by) VALUES ($1, lower(btrim($2)), 'admin', 'platform') RETURNING id::text`, orgID, adminEmail).Scan(&invID); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO audit_log (org_id, action, entity, entity_id, after) VALUES ($1, 'create', 'orgs', $1, jsonb_build_object('name', $2::text, 'type', $3::text))`, orgID, name, kind)
+		return err
+	})
+	return orgID, invID, err
+}
+
+// MarkSent records that the sign-in service emailed the invitation link.
+func MarkSent(ctx context.Context, owner *pgxpool.Pool, invitationID string) error {
+	_, err := owner.Exec(ctx, `UPDATE invitations SET sent = true WHERE id = $1::uuid`, invitationID)
+	return err
+}

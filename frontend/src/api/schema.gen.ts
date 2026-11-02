@@ -850,6 +850,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open invitations, and those answered in the last 30 days. */
+        get: operations["listInvitations"];
+        put?: never;
+        /** Invite someone by email. They get the role when they sign in with that address. */
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invitations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Withdraw an open invitation. */
+        delete: operations["revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How far the organisation's setup has come, for the setup steps and the home page. */
+        get: operations["getSetup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark setup as finished. Administrators only. */
+        post: operations["completeSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1309,6 +1378,45 @@ export interface components {
             actions: string[];
             actors: components["schemas"]["AuditActor"][];
         };
+        Invitation: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            /** @enum {string} */
+            role: "admin" | "principal" | "coordinator" | "teacher" | "class_teacher" | "viewer";
+            /** Format: uuid */
+            branchId?: string;
+            /** Format: uuid */
+            staffId?: string;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "revoked";
+            sent: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        InvitationInput: {
+            email: string;
+            /** @enum {string} */
+            role: "admin" | "principal" | "coordinator" | "teacher" | "class_teacher" | "viewer";
+            /** Format: uuid */
+            branchId?: string;
+            /** Format: uuid */
+            staffId?: string;
+        };
+        SetupStatus: {
+            years: number;
+            periods: number;
+            levels: number;
+            sections: number;
+            subjects: number;
+            levelSubjects: number;
+            staff: number;
+            students: number;
+            /** @description Open invitations. */
+            invitations: number;
+            /** @description An administrator has finished the setup steps. */
+            done: boolean;
+        };
         Me: {
             /** @description The sign-in id (Clerk user id). */
             userId: string;
@@ -1319,6 +1427,12 @@ export interface components {
             id: string;
             name: string;
             preset: components["schemas"]["Preset"];
+            /**
+             * Format: uuid
+             * @description This person's staff record here, when one is linked.
+             */
+            staffId?: string;
+            setupDone: boolean;
             roles: ("admin" | "principal" | "coordinator" | "teacher" | "class_teacher" | "viewer")[];
         };
         /** @enum {string} */
@@ -3450,6 +3564,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditFacets"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invitations, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationInput"];
+            };
+        };
+        responses: {
+            /** @description Invited. sent says whether the sign-in service emailed the link. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getSetup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts of what exists. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    completeSetup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
                 };
             };
             default: components["responses"]["Problem"];
