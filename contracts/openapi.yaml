@@ -872,19 +872,594 @@ paths:
   /v1/staff:
     get:
       operationId: listStaff
-      summary: Staff of the organisation, for choosing who teaches what. The rest of people arrives in v1.8.
+      summary: Every staff member. Removed ones only when asked for.
       tags: [people]
       parameters:
         - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
       responses:
         "200":
-          description: Every current staff member, by name.
+          description: The list.
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/StaffSummary"
+                  $ref: "#/components/schemas/Staff"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createStaff
+      summary: Add a staff member.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Staff"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/staff/{id}:
+    put:
+      operationId: updateStaff
+      summary: Change a staff member.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Staff"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeStaff
+      summary: Remove a staff member. It can be restored; refused while anything still uses it.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/staff/{id}/restore:
+    post:
+      operationId: restoreStaff
+      summary: Bring back a removed staff member.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Staff"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/guardians:
+    get:
+      operationId: listGuardians
+      summary: Every family contact of a student. Removed ones only when asked for.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: studentId
+          in: query
+          description: Only contacts of this student.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Guardian"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createGuardian
+      summary: Add a family contact of a student.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuardianInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guardian"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/guardians/{id}:
+    put:
+      operationId: updateGuardian
+      summary: Change a family contact of a student.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuardianInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guardian"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeGuardian
+      summary: Remove a family contact of a student. It can be restored; refused while anything still uses it.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/guardians/{id}/restore:
+    post:
+      operationId: restoreGuardian
+      summary: Bring back a removed family contact of a student.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guardian"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/enrolments:
+    get:
+      operationId: listEnrolments
+      summary: Every placement of a student in a section for a year. Removed ones only when asked for.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: studentId
+          in: query
+          description: Only placements of this student.
+          schema:
+            type: string
+            format: uuid
+        - name: sectionId
+          in: query
+          description: Only students of this section.
+          schema:
+            type: string
+            format: uuid
+        - name: yearId
+          in: query
+          description: Only placements in this year.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Enrolment"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createEnrolment
+      summary: Add a placement of a student in a section for a year.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrolmentInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enrolment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/enrolments/{id}:
+    put:
+      operationId: updateEnrolment
+      summary: Change a placement of a student in a section for a year.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnrolmentInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enrolment"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeEnrolment
+      summary: Remove a placement of a student in a section for a year. It can be restored; refused while anything still uses it.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/enrolments/{id}/restore:
+    post:
+      operationId: restoreEnrolment
+      summary: Bring back a removed placement of a student in a section for a year.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enrolment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/students:
+    get:
+      operationId: listStudents
+      summary: Students, by name, a page at a time. Search and filters narrow the list.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: q
+          in: query
+          description: Part of a name or admission number.
+          schema:
+            type: string
+        - name: sectionId
+          in: query
+          description: Only students placed in this section.
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          in: query
+          description: The nextCursor of the previous page.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: One page.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentPage"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createStudent
+      summary: Add a student.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/students/{id}:
+    put:
+      operationId: updateStudent
+      summary: Change a student.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeStudent
+      summary: Remove a student. It can be restored; refused while anything still uses it.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/students/{id}/restore:
+    post:
+      operationId: restoreStudent
+      summary: Bring back a removed student.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/students/import:
+    post:
+      operationId: previewStudentImport
+      summary: Check a CSV or Excel class list and show what importing it would do. Nothing changes yet.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  x-go-type: string
+                  description: .csv or .xlsx, first row headings.
+                sectionId:
+                  type: string
+                  format: uuid
+                  description: Place every student without a section column here.
+      responses:
+        "201":
+          description: The preview, kept as an import job until applied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportPreview"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/import-jobs:
+    get:
+      operationId: listImportJobs
+      summary: Recent imports, newest first.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The imports.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ImportJob"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/import-jobs/{id}/apply:
+    post:
+      operationId: applyImportJob
+      summary: Apply a previewed import. Repeatable; students are matched by admission number.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: What was done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/import-jobs/{id}/errors.csv:
+    get:
+      operationId: importJobErrors
+      summary: The rejected rows with their reasons, to fix and import again.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: CSV with the original row number and reasons.
+          content:
+            text/csv:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/enrolments/promote:
+    post:
+      operationId: previewPromotion
+      summary: Show where each section of one year would move in the next. A preview; nothing changes.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromotionRequest"
+      responses:
+        "200":
+          description: The plan, section by section.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromotionPreview"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/memberships:
+    get:
+      operationId: listMemberships
+      summary: Who can sign in to this organisation, and with which roles.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Every membership.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Membership"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createMembership
+      summary: Give a signed-up person a role here.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/memberships/{id}:
+    put:
+      operationId: updateMembership
+      summary: Change a role, its branch, or the staff record it belongs to.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembershipInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Membership"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeMembership
+      summary: End a role. The last organisation-wide administrator cannot be removed.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Ended.
         default:
           $ref: "#/components/responses/Problem"
   /api/health:
@@ -1256,7 +1831,7 @@ components:
           type: string
           format: uuid
           description: Absent means class teacher of the section.
-    StaffSummary:
+    Staff:
       type: object
       required: [id, name]
       properties:
@@ -1265,8 +1840,399 @@ components:
           format: uuid
         name:
           type: string
+          minLength: 1
+          maxLength: 120
         email:
           type: string
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 30
+        employeeNo:
+          type: string
+          maxLength: 40
+        designation:
+          type: string
+          maxLength: 80
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    StaffInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        email:
+          type: string
+          maxLength: 200
+        phone:
+          type: string
+          maxLength: 30
+        employeeNo:
+          type: string
+          maxLength: 40
+        designation:
+          type: string
+          maxLength: 80
+    Guardian:
+      type: object
+      required: [id, studentId, name, isPrimary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        relation:
+          type: string
+          maxLength: 40
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          type: string
+          maxLength: 200
+        language:
+          type: string
+          maxLength: 10
+          description: Language for messages, for example en or hi.
+        channel:
+          type: string
+          enum: [whatsapp, sms, email]
+          x-enum-varnames: [ChannelWhatsapp, ChannelSms, ChannelEmail]
+        isPrimary:
+          type: boolean
+          description: The first contact; at most one per student.
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    GuardianInput:
+      type: object
+      additionalProperties: false
+      required: [studentId, name, isPrimary]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        relation:
+          type: string
+          maxLength: 40
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          type: string
+          maxLength: 200
+        language:
+          type: string
+          maxLength: 10
+          description: Language for messages, for example en or hi.
+        channel:
+          type: string
+          enum: [whatsapp, sms, email]
+          x-enum-varnames: [InputChannelWhatsapp, InputChannelSms, InputChannelEmail]
+        isPrimary:
+          type: boolean
+          description: The first contact; at most one per student.
+    Enrolment:
+      type: object
+      required: [id, studentId, sectionId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        rollNo:
+          type: string
+          maxLength: 20
+        yearId:
+          type: string
+          format: uuid
+          description: The year of the section, set by the server.
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    EnrolmentInput:
+      type: object
+      additionalProperties: false
+      required: [studentId, sectionId]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        rollNo:
+          type: string
+          maxLength: 20
+    Student:
+      type: object
+      required: [id, admissionNo, name, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        admissionNo:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        preferredName:
+          type: string
+          maxLength: 80
+        dob:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, left, graduated]
+          x-enum-varnames: [StudentActive, StudentLeft, StudentGraduated]
+        placement:
+          $ref: "#/components/schemas/Placement"
+          x-go-type-skip-optional-pointer: false
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    StudentInput:
+      type: object
+      additionalProperties: false
+      required: [admissionNo, name]
+      properties:
+        admissionNo:
+          type: string
+          minLength: 1
+          maxLength: 40
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        preferredName:
+          type: string
+          maxLength: 80
+        dob:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, left, graduated]
+          x-enum-varnames: [StudentActive, StudentLeft, StudentGraduated]
+    Placement:
+      type: object
+      description: Where the student is placed in the latest year they are enrolled.
+      required: [enrolmentId, sectionId, yearId]
+      properties:
+        enrolmentId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        yearId:
+          type: string
+          format: uuid
+        rollNo:
+          type: string
+    StudentPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Student"
+        nextCursor:
+          type: string
+          description: Absent on the last page.
+    ImportProblem:
+      type: object
+      required: [row, reasons]
+      properties:
+        row:
+          type: integer
+          description: Row number in the file, counting the heading row as 1.
+        admissionNo:
+          type: string
+        name:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+    ImportPreview:
+      type: object
+      required: [id, fileName, rows, create, update, unchanged, rejected, problems, columns, unknownColumns]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        rows:
+          type: integer
+        create:
+          type: integer
+          description: New students that would be added.
+        update:
+          type: integer
+          description: Students already here whose details would change.
+        unchanged:
+          type: integer
+        rejected:
+          type: integer
+        problems:
+          type: array
+          description: The first rejected rows; the full list is the errors.csv download.
+          items:
+            $ref: "#/components/schemas/ImportProblem"
+        columns:
+          type: array
+          description: Headings understood, as the field each fills.
+          items:
+            type: string
+        unknownColumns:
+          type: array
+          description: Headings ignored.
+          items:
+            type: string
+    ImportJob:
+      type: object
+      required: [id, fileName, status, rows, createdAt, summary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        status:
+          type: string
+          enum: [previewed, applied]
+        rows:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        appliedAt:
+          type: string
+          format: date-time
+        summary:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Counts, for example create, update, rejected, created, updated.
+    PromotionRequest:
+      type: object
+      additionalProperties: false
+      required: [fromYearId, toYearId]
+      properties:
+        fromYearId:
+          type: string
+          format: uuid
+        toYearId:
+          type: string
+          format: uuid
+    PromotionMove:
+      type: object
+      required: [fromSectionId, fromName, students, outcome]
+      properties:
+        fromSectionId:
+          type: string
+          format: uuid
+        fromName:
+          type: string
+        students:
+          type: integer
+        toSectionId:
+          type: string
+          format: uuid
+        toName:
+          type: string
+        outcome:
+          type: string
+          enum: [promote, leaving, no_match]
+          description: >
+            promote, to the section of the same name in the next level;
+            leaving, from the last level; no_match, when the next year has no
+            such section yet.
+        alreadyPlaced:
+          type: integer
+          description: Students already placed in the next year, left as they are.
+    PromotionPreview:
+      type: object
+      required: [moves, students]
+      properties:
+        moves:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromotionMove"
+        students:
+          type: integer
+    Membership:
+      type: object
+      required: [id, clerkUserId, role, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clerkUserId:
+          type: string
+        role:
+          type: string
+          enum: [admin, principal, coordinator, teacher, class_teacher, viewer]
+        branchId:
+          type: string
+          format: uuid
+        staffId:
+          type: string
+          format: uuid
+        staffName:
+          type: string
+        source:
+          type: string
+          enum: [revu, clerk]
+          description: clerk rows follow the sign-in organisation and are changed there.
+    MembershipInput:
+      type: object
+      additionalProperties: false
+      required: [clerkUserId, role]
+      properties:
+        clerkUserId:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum: [admin, principal, coordinator, teacher, class_teacher, viewer]
+        branchId:
+          type: string
+          format: uuid
+        staffId:
+          type: string
+          format: uuid
     Me:
       type: object
       required: [userId, orgs]

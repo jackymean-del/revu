@@ -13,6 +13,8 @@ export type Col = FieldSpec & {
   /** How a stored value reads in the list; defaults to the value or option label. */
   show?: (item: Item) => ReactNode
   width?: string
+  /** Shown but never edited or sent. */
+  readOnly?: boolean
 }
 
 type Item = Record<string, unknown> & { id: string; removedAt?: string }
@@ -27,6 +29,10 @@ type Props = {
   /** Names the list for screen readers, and in the add button. */
   noun: string
   empty: string
+  /** Removed items can be shown and restored; false for records that are deleted outright. */
+  restorable?: boolean
+  /** Whether an item may be changed or removed here (for example, roles that follow sign-in). */
+  editable?: (item: Item) => boolean
 }
 
 const input = 'w-full rounded-md border border-line bg-white px-2 py-1.5 text-sm focus:border-brand focus:outline-none'
@@ -72,7 +78,8 @@ function FieldInput({ col, value, onChange, error, label }: { col: Col; value: s
 const blank = (cols: Col[]): Draft => Object.fromEntries(cols.map((c) => [c.key, c.kind === 'checkbox' ? false : '']))
 
 /** A list of one structure resource that administrators can add to, change, remove and restore. */
-export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, empty }: Props) {
+export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, empty, restorable = true, editable = () => true }: Props) {
+  const inputs = cols.filter((c) => !c.readOnly)
   const qc = useQueryClient()
   const [showRemoved, setShowRemoved] = useState(false)
   const params = { ...scope, ...(showRemoved ? { includeRemoved: 'true' } : {}) }
@@ -82,7 +89,7 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
   })
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft>({})
-  const [fresh, setFresh] = useState<Draft>(() => blank(cols))
+  const [fresh, setFresh] = useState<Draft>(() => blank(inputs))
   const [problem, setProblem] = useState<{ where: string; message?: string; fields: Record<string, string> } | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -104,7 +111,7 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
   }
 
   const save = (where: string, d: Draft, send: (body: unknown) => Promise<unknown>, after: () => void) => {
-    const conv = toBody(cols, d)
+    const conv = toBody(inputs, d)
     if (!conv.ok) return setProblem({ where, fields: conv.errors })
     void run(where, () => send({ ...scope, ...conv.body }), after)
   }
@@ -157,7 +164,7 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
                 <tr key={item.id} className={`border-b border-line align-top last:border-b-0 ${removed ? 'bg-canvas text-subtle' : ''}`}>
                   {cols.map((c) => (
                     <td key={c.key} className="px-3 py-2">
-                      {isEditing ? (
+                      {isEditing && !c.readOnly ? (
                         <FieldInput col={c} label={c.label} value={draft[c.key]} error={err?.fields[c.key]} onChange={(v) => setDraft((d) => ({ ...d, [c.key]: v }))} />
                       ) : (
                         <span className={removed ? 'line-through' : ''}>{shown(item, c)}</span>
@@ -165,9 +172,9 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
                     </td>
                   ))}
                   <td className="whitespace-nowrap px-3 py-2 text-right">
-                    {canEdit && !removed && !isEditing && (
+                    {canEdit && !removed && !isEditing && editable(item) && (
                       <>
-                        <button type="button" disabled={busy} className={`${small} text-brand hover:bg-mist`} onClick={() => (setEditing(item.id), setDraft(toDraft(cols, item)), setProblem(null))}>
+                        <button type="button" disabled={busy} className={`${small} text-brand hover:bg-mist`} onClick={() => (setEditing(item.id), setDraft(toDraft(inputs, item)), setProblem(null))}>
                           Edit
                         </button>
                         <button type="button" disabled={busy} className={`${small} text-red-700 hover:bg-red-50`} onClick={() => void run(item.id, () => removeStructure(orgId, path, item.id))}>
@@ -206,11 +213,11 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
               <tr className="align-top">
                 {cols.map((c) => (
                   <td key={c.key} className="px-3 py-2">
-                    <FieldInput col={c} label={`New ${noun}: ${c.label}`} value={fresh[c.key]} error={problem?.where === 'new' ? problem.fields[c.key] : undefined} onChange={(v) => setFresh((d) => ({ ...d, [c.key]: v }))} />
+                    {!c.readOnly && <FieldInput col={c} label={`New ${noun}: ${c.label}`} value={fresh[c.key]} error={problem?.where === 'new' ? problem.fields[c.key] : undefined} onChange={(v) => setFresh((d) => ({ ...d, [c.key]: v }))} />}
                   </td>
                 ))}
                 <td className="px-3 py-2 text-right">
-                  <button type="button" disabled={busy} className={`${small} bg-brand px-3 py-1.5 text-white hover:bg-brand-600`} onClick={() => save('new', fresh, (b) => createStructure(orgId, path, b), () => setFresh(blank(cols)))}>
+                  <button type="button" disabled={busy} className={`${small} bg-brand px-3 py-1.5 text-white hover:bg-brand-600`} onClick={() => save('new', fresh, (b) => createStructure(orgId, path, b), () => setFresh(blank(inputs)))}>
                     Add
                   </button>
                   {problem?.where === 'new' && problem.message && <p role="alert" className="mt-1 text-left text-xs font-semibold text-red-700">{problem.message}</p>}
@@ -220,10 +227,12 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
           )}
         </table>
       </div>
-      <label className="flex items-center gap-2 border-t border-line px-3 py-2 text-xs text-muted">
-        <input type="checkbox" checked={showRemoved} onChange={(e) => setShowRemoved(e.target.checked)} className="accent-brand" />
-        Show removed
-      </label>
+      {restorable && (
+        <label className="flex items-center gap-2 border-t border-line px-3 py-2 text-xs text-muted">
+          <input type="checkbox" checked={showRemoved} onChange={(e) => setShowRemoved(e.target.checked)} className="accent-brand" />
+          Show removed
+        </label>
+      )}
     </div>
   )
 }

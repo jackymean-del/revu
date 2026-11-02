@@ -18,6 +18,7 @@ import (
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/org"
+	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/structure"
 	"github.com/jackymean-del/revu/internal/tenant"
@@ -45,7 +46,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 		pinger = d.DB
 	}
 
-	app := fiber.New(fiber.Config{AppName: "revu " + cfg.Version, ErrorHandler: problem.Handler, BodyLimit: 1 << 20})
+	app := fiber.New(fiber.Config{AppName: "revu " + cfg.Version, ErrorHandler: problem.Handler, BodyLimit: 6 << 20})
 	app.Use(requestid.New())
 	app.Use(logRequests)
 	app.Use(recover.New())
@@ -73,6 +74,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))
 	terminology.Routes(inOrg)
 	structure.Routes(inOrg)
+	people.Routes(inOrg)
 	return app
 }
 

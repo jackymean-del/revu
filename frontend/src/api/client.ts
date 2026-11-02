@@ -15,16 +15,16 @@ export const setTokenGetter = (get: (() => Promise<string | null>) | null) => {
   tokenGetter = get
 }
 
-type Options = { signal?: AbortSignal; orgId?: string; method?: string; body?: unknown }
+type Options = { signal?: AbortSignal; orgId?: string; method?: string; body?: unknown; form?: FormData }
 
 /** Calls the API; a non-2xx answer throws an ApiError. */
-async function call<T>(path: string, { signal, orgId, method = 'GET', body }: Options = {}): Promise<T> {
+async function call<T>(path: string, { signal, orgId, method = 'GET', body, form }: Options = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = tokenGetter ? await tokenGetter() : null
   if (token) headers.Authorization = `Bearer ${token}`
   if (orgId) headers['X-Org-Id'] = orgId
   if (body !== undefined) headers['Content-Type'] = 'application/json'
-  const res = await fetch(BASE + path, { signal, method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+  const res = await fetch(BASE + path, { signal, method, headers, body: form ?? (body === undefined ? undefined : JSON.stringify(body)) })
   if (!res.ok) throw await toApiError(res)
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
@@ -44,10 +44,28 @@ export type Year = components['schemas']['Year']
 export type Level = components['schemas']['Level']
 export type Section = components['schemas']['Section']
 export type Subject = components['schemas']['Subject']
-export type StaffSummary = components['schemas']['StaffSummary']
+export type Staff = components['schemas']['Staff']
+export type Student = components['schemas']['Student']
+export type StudentPage = components['schemas']['StudentPage']
+export type ImportPreview = components['schemas']['ImportPreview']
+export type ImportJob = components['schemas']['ImportJob']
+export type PromotionPreview = components['schemas']['PromotionPreview']
 
-/** Structure resources share five operations (contracts/openapi.yaml, tag structure). */
-export type StructurePath = 'branches' | 'years' | 'periods' | 'levels' | 'sections' | 'subjects' | 'level-subjects' | 'teaching-assignments'
+/** Records with the shared operations: list, create, change, remove, restore (memberships: no restore). */
+export type StructurePath =
+  | 'branches'
+  | 'years'
+  | 'periods'
+  | 'levels'
+  | 'sections'
+  | 'subjects'
+  | 'level-subjects'
+  | 'teaching-assignments'
+  | 'staff'
+  | 'guardians'
+  | 'enrolments'
+  | 'memberships'
+  | 'students'
 
 export const listStructure = <T>(orgId: string, path: StructurePath, params: Record<string, string>, signal?: AbortSignal) =>
   call<T[]>(`/v1/${path}?${new URLSearchParams(params)}`, { orgId, signal })
@@ -62,4 +80,40 @@ export const removeStructure = (orgId: string, path: StructurePath, id: string) 
 export const restoreStructure = (orgId: string, path: StructurePath, id: string) =>
   call<unknown>(`/v1/${path}/${id}/restore`, { orgId, method: 'POST' })
 
-export const listStaff = (orgId: string, signal?: AbortSignal) => call<StaffSummary[]>('/v1/staff', { orgId, signal })
+export const listStudents = (orgId: string, params: Record<string, string>, signal?: AbortSignal) =>
+  call<StudentPage>(`/v1/students?${new URLSearchParams(params)}`, { orgId, signal })
+
+/** Checks a class list; nothing changes until the import is applied. */
+export async function previewImport(orgId: string, file: File, sectionId: string): Promise<ImportPreview> {
+  const form = new FormData()
+  form.append('file', file)
+  if (sectionId) form.append('sectionId', sectionId)
+  return call<ImportPreview>('/v1/students/import', { orgId, method: 'POST', form })
+}
+
+export const applyImport = (orgId: string, id: string) => call<ImportJob>(`/v1/import-jobs/${id}/apply`, { orgId, method: 'POST' })
+
+export const listImportJobs = (orgId: string, signal?: AbortSignal) => call<ImportJob[]>('/v1/import-jobs', { orgId, signal })
+
+export const previewPromotion = (orgId: string, fromYearId: string, toYearId: string) =>
+  call<PromotionPreview>('/v1/enrolments/promote', { orgId, method: 'POST', body: { fromYearId, toYearId } })
+
+/** Downloads a file the API serves to signed-in people, under the given name. */
+export async function download(orgId: string, path: string, filename: string) {
+  const headers: Record<string, string> = { 'X-Org-Id': orgId }
+  const token = tokenGetter ? await tokenGetter() : null
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(BASE + path, { headers })
+  if (!res.ok) throw await toApiError(res)
+  saveBlob(await res.blob(), filename)
+}
+
+/** Hands a file made in the browser to the person, for example a template. */
+export function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

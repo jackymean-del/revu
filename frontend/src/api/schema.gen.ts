@@ -490,11 +490,327 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Staff of the organisation, for choosing who teaches what. The rest of people arrives in v1.8. */
+        /** Every staff member. Removed ones only when asked for. */
         get: operations["listStaff"];
+        put?: never;
+        /** Add a staff member. */
+        post: operations["createStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/staff/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a staff member. */
+        put: operations["updateStaff"];
+        post?: never;
+        /** Remove a staff member. It can be restored; refused while anything still uses it. */
+        delete: operations["removeStaff"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/staff/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring back a removed staff member. */
+        post: operations["restoreStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/guardians": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every family contact of a student. Removed ones only when asked for. */
+        get: operations["listGuardians"];
+        put?: never;
+        /** Add a family contact of a student. */
+        post: operations["createGuardian"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/guardians/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a family contact of a student. */
+        put: operations["updateGuardian"];
+        post?: never;
+        /** Remove a family contact of a student. It can be restored; refused while anything still uses it. */
+        delete: operations["removeGuardian"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/guardians/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring back a removed family contact of a student. */
+        post: operations["restoreGuardian"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/enrolments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every placement of a student in a section for a year. Removed ones only when asked for. */
+        get: operations["listEnrolments"];
+        put?: never;
+        /** Add a placement of a student in a section for a year. */
+        post: operations["createEnrolment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/enrolments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a placement of a student in a section for a year. */
+        put: operations["updateEnrolment"];
+        post?: never;
+        /** Remove a placement of a student in a section for a year. It can be restored; refused while anything still uses it. */
+        delete: operations["removeEnrolment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/enrolments/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring back a removed placement of a student in a section for a year. */
+        post: operations["restoreEnrolment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Students, by name, a page at a time. Search and filters narrow the list. */
+        get: operations["listStudents"];
+        put?: never;
+        /** Add a student. */
+        post: operations["createStudent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/students/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a student. */
+        put: operations["updateStudent"];
+        post?: never;
+        /** Remove a student. It can be restored; refused while anything still uses it. */
+        delete: operations["removeStudent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/students/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring back a removed student. */
+        post: operations["restoreStudent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/students/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a CSV or Excel class list and show what importing it would do. Nothing changes yet. */
+        post: operations["previewStudentImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/import-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent imports, newest first. */
+        get: operations["listImportJobs"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/import-jobs/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply a previewed import. Repeatable; students are matched by admission number. */
+        post: operations["applyImportJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/import-jobs/{id}/errors.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The rejected rows with their reasons, to fix and import again. */
+        get: operations["importJobErrors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/enrolments/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Show where each section of one year would move in the next. A preview; nothing changes. */
+        post: operations["previewPromotion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who can sign in to this organisation, and with which roles. */
+        get: operations["listMemberships"];
+        put?: never;
+        /** Give a signed-up person a role here. */
+        post: operations["createMembership"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/memberships/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a role, its branch, or the staff record it belongs to. */
+        put: operations["updateMembership"];
+        post?: never;
+        /** End a role. The last organisation-wide administrator cannot be removed. */
+        delete: operations["removeMembership"];
         options?: never;
         head?: never;
         patch?: never;
@@ -709,11 +1025,221 @@ export interface components {
              */
             subjectId?: string;
         };
-        StaffSummary: {
+        Staff: {
             /** Format: uuid */
             id: string;
             name: string;
             email?: string;
+            phone?: string;
+            employeeNo?: string;
+            designation?: string;
+            /**
+             * Format: date-time
+             * @description Set when removed; absent while in use.
+             */
+            removedAt?: string;
+        };
+        StaffInput: {
+            name: string;
+            email?: string;
+            phone?: string;
+            employeeNo?: string;
+            designation?: string;
+        };
+        Guardian: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            relation?: string;
+            phone?: string;
+            email?: string;
+            /** @description Language for messages, for example en or hi. */
+            language?: string;
+            /** @enum {string} */
+            channel?: "whatsapp" | "sms" | "email";
+            /** @description The first contact; at most one per student. */
+            isPrimary: boolean;
+            /**
+             * Format: date-time
+             * @description Set when removed; absent while in use.
+             */
+            removedAt?: string;
+        };
+        GuardianInput: {
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            relation?: string;
+            phone?: string;
+            email?: string;
+            /** @description Language for messages, for example en or hi. */
+            language?: string;
+            /** @enum {string} */
+            channel?: "whatsapp" | "sms" | "email";
+            /** @description The first contact; at most one per student. */
+            isPrimary: boolean;
+        };
+        Enrolment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            studentId: string;
+            /** Format: uuid */
+            sectionId: string;
+            rollNo?: string;
+            /**
+             * Format: uuid
+             * @description The year of the section, set by the server.
+             */
+            yearId?: string;
+            /**
+             * Format: date-time
+             * @description Set when removed; absent while in use.
+             */
+            removedAt?: string;
+        };
+        EnrolmentInput: {
+            /** Format: uuid */
+            studentId: string;
+            /** Format: uuid */
+            sectionId: string;
+            rollNo?: string;
+        };
+        Student: {
+            /** Format: uuid */
+            id: string;
+            admissionNo: string;
+            name: string;
+            preferredName?: string;
+            /** Format: date */
+            dob?: string;
+            /** @enum {string} */
+            status: "active" | "left" | "graduated";
+            placement?: components["schemas"]["Placement"];
+            /**
+             * Format: date-time
+             * @description Set when removed; absent while in use.
+             */
+            removedAt?: string;
+        };
+        StudentInput: {
+            admissionNo: string;
+            name: string;
+            preferredName?: string;
+            /** Format: date */
+            dob?: string;
+            /** @enum {string} */
+            status?: "active" | "left" | "graduated";
+        };
+        /** @description Where the student is placed in the latest year they are enrolled. */
+        Placement: {
+            /** Format: uuid */
+            enrolmentId: string;
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: uuid */
+            yearId: string;
+            rollNo?: string;
+        };
+        StudentPage: {
+            items: components["schemas"]["Student"][];
+            /** @description Absent on the last page. */
+            nextCursor?: string;
+        };
+        ImportProblem: {
+            /** @description Row number in the file, counting the heading row as 1. */
+            row: number;
+            admissionNo?: string;
+            name?: string;
+            reasons: string[];
+        };
+        ImportPreview: {
+            /** Format: uuid */
+            id: string;
+            fileName: string;
+            rows: number;
+            /** @description New students that would be added. */
+            create: number;
+            /** @description Students already here whose details would change. */
+            update: number;
+            unchanged: number;
+            rejected: number;
+            /** @description The first rejected rows; the full list is the errors.csv download. */
+            problems: components["schemas"]["ImportProblem"][];
+            /** @description Headings understood, as the field each fills. */
+            columns: string[];
+            /** @description Headings ignored. */
+            unknownColumns: string[];
+        };
+        ImportJob: {
+            /** Format: uuid */
+            id: string;
+            fileName: string;
+            /** @enum {string} */
+            status: "previewed" | "applied";
+            rows: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            appliedAt?: string;
+            /** @description Counts, for example create, update, rejected, created, updated. */
+            summary: {
+                [key: string]: number;
+            };
+        };
+        PromotionRequest: {
+            /** Format: uuid */
+            fromYearId: string;
+            /** Format: uuid */
+            toYearId: string;
+        };
+        PromotionMove: {
+            /** Format: uuid */
+            fromSectionId: string;
+            fromName: string;
+            students: number;
+            /** Format: uuid */
+            toSectionId?: string;
+            toName?: string;
+            /**
+             * @description promote, to the section of the same name in the next level; leaving, from the last level; no_match, when the next year has no such section yet.
+             * @enum {string}
+             */
+            outcome: "promote" | "leaving" | "no_match";
+            /** @description Students already placed in the next year, left as they are. */
+            alreadyPlaced?: number;
+        };
+        PromotionPreview: {
+            moves: components["schemas"]["PromotionMove"][];
+            students: number;
+        };
+        Membership: {
+            /** Format: uuid */
+            id: string;
+            clerkUserId: string;
+            /** @enum {string} */
+            role: "admin" | "principal" | "coordinator" | "teacher" | "class_teacher" | "viewer";
+            /** Format: uuid */
+            branchId?: string;
+            /** Format: uuid */
+            staffId?: string;
+            staffName?: string;
+            /**
+             * @description clerk rows follow the sign-in organisation and are changed there.
+             * @enum {string}
+             */
+            source: "revu" | "clerk";
+        };
+        MembershipInput: {
+            clerkUserId: string;
+            /** @enum {string} */
+            role: "admin" | "principal" | "coordinator" | "teacher" | "class_teacher" | "viewer";
+            /** Format: uuid */
+            branchId?: string;
+            /** Format: uuid */
+            staffId?: string;
         };
         Me: {
             /** @description The sign-in id (Clerk user id). */
@@ -1995,6 +2521,600 @@ export interface operations {
     };
     listStaff: {
         parameters: {
+            query?: {
+                /** @description Also list removed items, so they can be restored. */
+                includeRemoved?: components["parameters"]["IncludeRemoved"];
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createStaff: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateStaff: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeStaff: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreStaff: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Staff"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listGuardians: {
+        parameters: {
+            query?: {
+                /** @description Also list removed items, so they can be restored. */
+                includeRemoved?: components["parameters"]["IncludeRemoved"];
+                /** @description Only contacts of this student. */
+                studentId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guardian"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createGuardian: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardianInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guardian"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateGuardian: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuardianInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guardian"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeGuardian: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreGuardian: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guardian"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listEnrolments: {
+        parameters: {
+            query?: {
+                /** @description Also list removed items, so they can be restored. */
+                includeRemoved?: components["parameters"]["IncludeRemoved"];
+                /** @description Only placements of this student. */
+                studentId?: string;
+                /** @description Only students of this section. */
+                sectionId?: string;
+                /** @description Only placements in this year. */
+                yearId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Enrolment"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createEnrolment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrolmentInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Enrolment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateEnrolment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrolmentInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Enrolment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeEnrolment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreEnrolment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Enrolment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listStudents: {
+        parameters: {
+            query?: {
+                /** @description Also list removed items, so they can be restored. */
+                includeRemoved?: components["parameters"]["IncludeRemoved"];
+                /** @description Part of a name or admission number. */
+                q?: string;
+                /** @description Only students placed in this section. */
+                sectionId?: string;
+                /** @description The nextCursor of the previous page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentPage"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createStudent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Student"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateStudent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Student"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeStudent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreStudent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Student"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewStudentImport: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description .csv or .xlsx, first row headings.
+                     */
+                    file: string;
+                    /**
+                     * Format: uuid
+                     * @description Place every student without a section column here.
+                     */
+                    sectionId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The preview, kept as an import job until applied. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listImportJobs: {
+        parameters: {
             query?: never;
             header: {
                 /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
@@ -2005,14 +3125,200 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Every current staff member, by name. */
+            /** @description The imports. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffSummary"][];
+                    "application/json": components["schemas"]["ImportJob"][];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    applyImportJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What was done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJob"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    importJobErrors: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV with the original row number and reasons. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewPromotion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, section by section. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionPreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listMemberships: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every membership. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Membership"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createMembership: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Membership"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateMembership: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Membership"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeMembership: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

@@ -39,6 +39,9 @@ export function Shell() {
           <Link to="/" activeOptions={{ exact: true }} className={link} activeProps={active} inactiveProps={inactive}>
             System
           </Link>
+          <Link to="/people" className={link} activeProps={active} inactiveProps={inactive}>
+            People
+          </Link>
           <Link to="/settings/structure" className={link} activeProps={active} inactiveProps={inactive}>
             Structure
           </Link>

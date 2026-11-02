@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { listStaff, listStructure, type Branch, type Level, type Section, type StructurePath, type Subject, type Year } from '../api/client'
+import { listStructure, type Branch, type Level, type Section, type Staff, type StructurePath, type Subject, type Year } from '../api/client'
 import { EditableList, type Col, type Option } from '../components/EditableList'
 import { useOrg } from '../lib/org-context'
 import { withArticle } from '../lib/terminology/terminology'
@@ -63,7 +63,7 @@ export function Structure() {
   const levelId = levelPick || levels[0]?.id || ''
   const sections = useChoices<Section>(orgId, 'sections', yearId ? { yearId } : {})
   const sectionId = sections.some((s) => s.id === sectionPick) ? sectionPick : sections[0]?.id || ''
-  const staff = useQuery({ queryKey: ['staff', orgId], queryFn: ({ signal }) => listStaff(orgId!, signal), enabled: !!orgId && tab === 'teaching' }).data ?? []
+  const staff = useChoices<Staff>(orgId, 'staff')
 
   if (loading) return <p className="mx-auto max-w-5xl px-4 py-10 text-muted">Loading</p>
   if (!orgId)

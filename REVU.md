@@ -103,6 +103,17 @@ A rule nothing checks comes back.
   never from a client-sent id alone. RLS is the second line, set per
   transaction so pooled connections never leak a tenant.
 
+## People and imports (v1.8)
+
+- A student is one identity; each year's place is an enrolment, whose year
+  comes from its section. Leaving or graduating is the student's status.
+- Class lists import in two steps: POST /v1/students/import previews and
+  stores an import job; POST /v1/import-jobs/{id}/apply writes exactly the
+  accepted rows, matched by admission number, so a repeat never duplicates.
+  Rejected rows download as CSV (cells that could run as a formula are
+  neutralised). Up to 5000 rows per file until background jobs arrive.
+- Records with the five usual operations share backend/internal/records.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com
