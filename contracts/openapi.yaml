@@ -1659,6 +1659,350 @@ paths:
                 $ref: "#/components/schemas/DashboardList"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/subject-groups:
+    get:
+      operationId: listSubjectGroups
+      summary: Every subject group of a level, in order. Removed ones only when asked for.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: levelId
+          in: query
+          description: Only groups of this level.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubjectGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createSubjectGroup
+      summary: Add a subject group of a level.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectGroupInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-groups/{id}:
+    put:
+      operationId: updateSubjectGroup
+      summary: Change a subject group of a level.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectGroupInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeSubjectGroup
+      summary: Remove a subject group of a level. It can be restored; refused while anything still uses it.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-groups/{id}/restore:
+    post:
+      operationId: restoreSubjectGroup
+      summary: Bring back a removed subject group of a level.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-group-options:
+    get:
+      operationId: listSubjectGroupOptions
+      summary: Every subject a group offers, in order. Removed ones only when asked for.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/IncludeRemoved"
+        - name: groupId
+          in: query
+          description: Only options of this group.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubjectGroupOption"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createSubjectGroupOption
+      summary: Add a subject a group offers.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectGroupOptionInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectGroupOption"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-group-options/{id}:
+    put:
+      operationId: updateSubjectGroupOption
+      summary: Change a subject a group offers.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectGroupOptionInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectGroupOption"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeSubjectGroupOption
+      summary: Remove a subject a group offers. It can be restored; refused while anything still uses it.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-group-options/{id}/restore:
+    post:
+      operationId: restoreSubjectGroupOption
+      summary: Bring back a removed subject a group offers.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectGroupOption"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-choices:
+    get:
+      operationId: listSubjectChoices
+      summary: The choices in force on a day for the students of a section.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "on"
+          in: query
+          description: The day to read choices on; today, kept inside the year, when left out.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: The choices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubjectChoice"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: assignSubjectChoices
+      summary: Give some students one option of a group. A group that allows one option replaces their earlier choice from the date given, keeping it in history.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubjectChoiceInput"
+      responses:
+        "200":
+          description: What changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChoiceResult"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-choices/{id}:
+    delete:
+      operationId: endSubjectChoice
+      summary: End a choice on a day, keeping it in history. A choice that had not started yet is withdrawn.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: "on"
+          in: query
+          description: The day to read choices on; today, kept inside the year, when left out.
+          schema:
+            type: string
+            format: date
+      responses:
+        "204":
+          description: Ended.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-choices/copy:
+    post:
+      operationId: copySubjectChoices
+      summary: Give the students of a section the options they took last year, where a group of their new level offers the same subject.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChoiceCopyInput"
+      responses:
+        "200":
+          description: What changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChoiceResult"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/subject-choices/import:
+    post:
+      operationId: importSubjectChoices
+      summary: Read admission numbers and subjects from a file. Shows what would change, and applies it only when asked.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  x-go-type: string
+                  description: .csv or .xlsx with an admission number column and one or more subject columns.
+                apply:
+                  type: string
+                  enum: ["true", "false"]
+                  description: true applies the rows that are in order; otherwise nothing is saved.
+      responses:
+        "200":
+          description: The report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChoiceImportReport"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/sections/{id}/choice-completeness:
+    get:
+      operationId: getChoiceCompleteness
+      summary: For each subject group of the section's level, who has chosen what and who still has to.
+      tags: [choices]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: "on"
+          in: query
+          description: The day to read choices on; today, kept inside the year, when left out.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: The check.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChoiceCompleteness"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -1960,7 +2304,7 @@ components:
           x-enum-varnames: [SubjectKindAcademic, SubjectKindCoCurricular]
     LevelSubject:
       type: object
-      required: [id, levelId, subjectId, optional]
+      required: [id, levelId, subjectId, optional, applicability]
       properties:
         id:
           type: string
@@ -1974,6 +2318,10 @@ components:
         optional:
           type: boolean
           description: An elective, chosen by some students only.
+        applicability:
+          type: string
+          enum: [all, selected]
+          description: selected when the subject is optional or offered by a subject group, so only the students who chose it take it.
         removedAt:
           type: string
           format: date-time
@@ -2613,6 +2961,230 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DashboardRow"
+    SubjectGroup:
+      type: object
+      required: [id, levelId, name, rule, minChoices, maxChoices]
+      properties:
+        id:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: For example Second language.
+        rule:
+          $ref: "#/components/schemas/ChoiceRule"
+        minChoices:
+          type: integer
+        maxChoices:
+          type: integer
+        removedAt:
+          type: string
+          format: date-time
+          description: Set when removed; absent while in use.
+    SubjectGroupInput:
+      type: object
+      additionalProperties: false
+      required: [levelId, name, rule]
+      properties:
+        levelId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rule:
+          $ref: "#/components/schemas/ChoiceRule"
+        minChoices:
+          type: integer
+          description: For the range rule only.
+        maxChoices:
+          type: integer
+          description: For the range rule only.
+    ChoiceRule:
+      type: string
+      enum: [exactly_one, at_most_one, range]
+      description: exactly_one and at_most_one fix the counts; range takes minChoices to maxChoices.
+    SubjectGroupOption:
+      type: object
+      required: [id, groupId, subjectId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        removedAt:
+          type: string
+          format: date-time
+    SubjectGroupOptionInput:
+      type: object
+      additionalProperties: false
+      required: [groupId, subjectId]
+      properties:
+        groupId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+    SubjectChoice:
+      type: object
+      required: [id, studentId, groupId, subjectId, effectiveFrom, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          type: string
+          format: date
+          description: The last day it applies; absent while it runs to the end of the year.
+        source:
+          type: string
+          enum: [manual, import, copied]
+    SubjectChoiceInput:
+      type: object
+      additionalProperties: false
+      required: [groupId, subjectId, studentIds]
+      properties:
+        groupId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+          description: One of the group's options.
+        studentIds:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: string
+            format: uuid
+        effectiveFrom:
+          type: string
+          format: date
+          description: When a change applies from. A first choice applies from the start of the year.
+    ChoiceCopyInput:
+      type: object
+      additionalProperties: false
+      required: [sectionId]
+      properties:
+        sectionId:
+          type: string
+          format: uuid
+    ChoiceResult:
+      type: object
+      required: [assigned, changed, unchanged, skipped]
+      properties:
+        assigned:
+          type: integer
+          description: Students given a first choice.
+        changed:
+          type: integer
+          description: Students whose earlier choice ended and the new one began.
+        unchanged:
+          type: integer
+        skipped:
+          type: integer
+          description: Students left as they were, for example no matching group this year.
+    ChoiceImportReport:
+      type: object
+      required: [rows, assign, change, unchanged, applied, problems]
+      properties:
+        rows:
+          type: integer
+        assign:
+          type: integer
+        change:
+          type: integer
+        unchanged:
+          type: integer
+        applied:
+          type: boolean
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportProblem"
+    ChoiceCompleteness:
+      type: object
+      required: [sectionId, on, students, groups]
+      properties:
+        sectionId:
+          type: string
+          format: uuid
+        "on":
+          type: string
+          format: date
+        students:
+          type: integer
+          description: Students placed in the section.
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupCompleteness"
+    GroupCompleteness:
+      type: object
+      required: [groupId, name, rule, minChoices, maxChoices, options, missing]
+      properties:
+        groupId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rule:
+          $ref: "#/components/schemas/ChoiceRule"
+        minChoices:
+          type: integer
+        maxChoices:
+          type: integer
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptionCount"
+        missing:
+          type: array
+          description: Students below the group's minimum. Their result for the group is blocked with the reason choice missing.
+          items:
+            $ref: "#/components/schemas/MissingChoice"
+    OptionCount:
+      type: object
+      required: [subjectId, students]
+      properties:
+        subjectId:
+          type: string
+          format: uuid
+        students:
+          type: integer
+    MissingChoice:
+      type: object
+      required: [studentId, name, chosen]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        chosen:
+          type: integer
+          description: How many options of the group the student has, below the minimum.
     Me:
       type: object
       required: [userId, orgs]

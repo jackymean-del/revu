@@ -43,7 +43,10 @@ type Column struct {
 // removed. word names them in the organisation's words.
 type Dependant struct {
 	Table, Column string
-	Word          func(words Words, n int) string
+	// Count, when set, replaces the table and column with a query counting
+	// what uses the item; $1 is its id.
+	Count string
+	Word  func(words Words, n int) string
 }
 
 // parent is a column pointing at a row that must be live for a restore.
@@ -296,8 +299,12 @@ func (r Resource[T, In]) remove(c fiber.Ctx) error {
 	var users []string
 	var words Words
 	for _, d := range r.Dependants {
+		sql := d.Count
+		if sql == "" {
+			sql = `SELECT count(*) FROM ` + d.Table + ` WHERE ` + d.Column + ` = $1::uuid AND deleted_at IS NULL`
+		}
 		var n int
-		if err := tx.QueryRow(ctx, `SELECT count(*) FROM `+d.Table+` WHERE `+d.Column+` = $1::uuid AND deleted_at IS NULL`, id).Scan(&n); err != nil {
+		if err := tx.QueryRow(ctx, sql, id).Scan(&n); err != nil {
 			return err
 		}
 		if n == 0 {

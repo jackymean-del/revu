@@ -178,6 +178,7 @@ var levels = records.Resource[api.Level, api.LevelInput]{
 	Dependants: []records.Dependant{
 		{Table: "sections", Column: "level_id", Word: term("group.section")},
 		{Table: "level_subjects", Column: "level_id", Word: term("course.subject")},
+		{Table: "subject_groups", Column: "level_id", Word: plain("subject group", "subject groups")},
 	},
 }
 
@@ -246,9 +247,15 @@ var subjects = records.Resource[api.Subject, api.SubjectInput]{
 
 var levelSubjects = records.Resource[api.LevelSubject, api.LevelSubjectInput]{
 	Path: "level-subjects", Table: "level_subjects", Audited: "level_subjects",
-	SelectList: `id::text, level_id::text, subject_id::text, optional`,
+	// A subject is for selected students when it is optional or a subject
+	// group of the level offers it (Part 74.1); otherwise every student takes it.
+	SelectList: `id::text, level_id::text, subject_id::text, optional,
+		CASE WHEN optional OR EXISTS (
+		  SELECT 1 FROM subject_group_options o JOIN subject_groups g ON g.id = o.group_id AND g.deleted_at IS NULL
+		   WHERE o.deleted_at IS NULL AND o.subject_id = level_subjects.subject_id AND g.level_id = level_subjects.level_id)
+		THEN 'selected' ELSE 'all' END`,
 	Scan: func(r pgx.CollectableRow) (ls api.LevelSubject, err error) {
-		return ls, r.Scan(&ls.Id, &ls.LevelId, &ls.SubjectId, &ls.Optional, &ls.RemovedAt)
+		return ls, r.Scan(&ls.Id, &ls.LevelId, &ls.SubjectId, &ls.Optional, &ls.Applicability, &ls.RemovedAt)
 	},
 	Order:   `(SELECT seq FROM levels l WHERE l.id = level_id), (SELECT lower(name) FROM subjects s WHERE s.id = subject_id)`,
 	Filters: map[string]string{"levelId": "level_id"},
@@ -264,6 +271,11 @@ var levelSubjects = records.Resource[api.LevelSubject, api.LevelSubjectInput]{
 		}
 		return f, nil
 	},
+	Dependants: []records.Dependant{{Count: `
+		SELECT count(*) FROM subject_group_options o
+		  JOIN subject_groups g ON g.id = o.group_id AND g.deleted_at IS NULL
+		  JOIN level_subjects ls ON ls.id = $1::uuid AND ls.subject_id = o.subject_id AND ls.level_id = g.level_id
+		 WHERE o.deleted_at IS NULL`, Word: plain("subject group offering it", "subject groups offering it")}},
 	Parents: []records.Parent{
 		{Column: "level_id", Table: "levels", Word: one("group.level")},
 		{Column: "subject_id", Table: "subjects", Word: one("course.subject")},

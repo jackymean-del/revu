@@ -35,7 +35,9 @@ function useNav() {
   const roles = current?.roles ?? []
   const admin = roles.includes('admin')
   const items: { to: string; label: string; exact?: boolean }[] = [{ to: '/', label: 'Home', exact: true }]
-  if (admin) items.push({ to: '/people', label: 'People' }, { to: '/settings/structure', label: 'Structure' }, { to: '/settings/words', label: 'Words' })
+  if (admin) items.push({ to: '/people', label: 'People' })
+  if (admin || roles.includes('coordinator') || roles.includes('class_teacher')) items.push({ to: '/choices', label: 'Choices' })
+  if (admin) items.push({ to: '/settings/structure', label: 'Structure' }, { to: '/settings/words', label: 'Words' })
   if (admin || roles.includes('principal')) items.push({ to: '/settings/history', label: 'History' })
   return items
 }

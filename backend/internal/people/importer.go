@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
@@ -21,9 +20,9 @@ import (
 	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/records"
+	"github.com/jackymean-del/revu/internal/tables"
 	"github.com/jackymean-del/revu/internal/tenant"
 	"github.com/jackymean-del/revu/internal/terminology"
-	"github.com/xuri/excelize/v2"
 )
 
 // Importing a class list is two steps. The preview reads the file, checks
@@ -56,16 +55,6 @@ var headings = map[string][]string{
 // fieldOrder is how fields read back in the preview's list of columns.
 var fieldOrder = []string{"admissionNo", "name", "preferredName", "dob", "section", "rollNo", "guardianName", "guardianRelation", "guardianPhone", "guardianEmail"}
 
-func norm(s string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(s) {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
 // importRow is one accepted row, kept with the job until it is applied.
 type importRow struct {
 	Row              int    `json:"row"`
@@ -80,39 +69,6 @@ type importRow struct {
 	GuardianPhone    string `json:"guardianPhone,omitempty"`
 	GuardianEmail    string `json:"guardianEmail,omitempty"`
 	Action           string `json:"action"` // create, update or unchanged at preview time
-}
-
-// readTable returns the rows of a .csv or .xlsx file, first row headings.
-func readTable(name string, data []byte) ([][]string, error) {
-	if strings.HasSuffix(strings.ToLower(name), ".xlsx") || bytes.HasPrefix(data, []byte("PK\x03\x04")) {
-		f, err := excelize.OpenReader(bytes.NewReader(data))
-		if err != nil {
-			return nil, errors.New("this Excel file could not be opened")
-		}
-		defer f.Close()
-		sheets := f.GetSheetList()
-		if len(sheets) == 0 {
-			return nil, errors.New("this Excel file has no sheets")
-		}
-		return f.GetRows(sheets[0])
-	}
-	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
-	first, _, _ := bytes.Cut(data, []byte("\n"))
-	sep := ','
-	for _, c := range []rune{';', '\t'} {
-		if bytes.Count(first, []byte(string(c))) > bytes.Count(first, []byte(string(sep))) {
-			sep = c
-		}
-	}
-	r := csv.NewReader(bytes.NewReader(data))
-	r.Comma = sep
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
-	rows, err := r.ReadAll()
-	if err != nil {
-		return nil, errors.New("this file could not be read as CSV: " + err.Error())
-	}
-	return rows, nil
 }
 
 var dateLayouts = []string{"2006-01-02", "02-01-2006", "02/01/2006", "2/1/2006", "02.01.2006", "2-1-2006", "01-02-06", "2006/01/02"}
@@ -155,9 +111,9 @@ func sectionsOf(ctx context.Context, tx pgx.Tx, yearID string) (sectionIndex, er
 		if err := rows.Scan(&id, &level, &name); err != nil {
 			return idx, err
 		}
-		idx.byName[norm(level+" "+name)] = id
-		plainCount[norm(name)]++
-		plainID[norm(name)] = id
+		idx.byName[tables.Norm(level+" "+name)] = id
+		plainCount[tables.Norm(name)]++
+		plainID[tables.Norm(name)] = id
 	}
 	for k, n := range plainCount {
 		if n == 1 {
@@ -198,7 +154,7 @@ func previewImport(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	table, err := readTable(fh.Filename, data)
+	table, err := tables.Read(fh.Filename, data)
 	if err != nil {
 		return problem.Invalid(api.FieldError{Field: "file", Code: "format", Message: err.Error() + "."})
 	}
@@ -210,15 +166,15 @@ func previewImport(c fiber.Ctx) error {
 	accepts := map[string]string{} // normalised heading -> field
 	for field, list := range headings {
 		for _, h := range list {
-			accepts[norm(h)] = field
+			accepts[tables.Norm(h)] = field
 		}
 	}
 	for _, n := range []int{1, 2} {
-		accepts[norm(words("person.admission_no", n))] = "admissionNo"
-		accepts[norm(words("person.student", 1)+" name")] = "name"
-		accepts[norm(words("group.section", n))] = "section"
-		accepts[norm(words("person.roll_no", n))] = "rollNo"
-		accepts[norm(words("person.guardian", n))] = "guardianName"
+		accepts[tables.Norm(words("person.admission_no", n))] = "admissionNo"
+		accepts[tables.Norm(words("person.student", 1)+" name")] = "name"
+		accepts[tables.Norm(words("group.section", n))] = "section"
+		accepts[tables.Norm(words("person.roll_no", n))] = "rollNo"
+		accepts[tables.Norm(words("person.guardian", n))] = "guardianName"
 	}
 
 	if len(table) == 0 {
@@ -227,7 +183,7 @@ func previewImport(c fiber.Ctx) error {
 	col := map[string]int{}
 	var unknown []string
 	for i, h := range table[0] {
-		field, ok := accepts[norm(h)]
+		field, ok := accepts[tables.Norm(h)]
 		switch {
 		case strings.TrimSpace(h) == "":
 		case !ok:
@@ -323,7 +279,7 @@ func previewImport(c fiber.Ctx) error {
 			}
 		}
 		if v := cell(r, "section"); v != "" && sections.yearID != "" {
-			if id, ok := sections.byName[norm(v)]; ok {
+			if id, ok := sections.byName[tables.Norm(v)]; ok {
 				row.SectionID = id
 			} else {
 				why = append(why, fmt.Sprintf("no %s %q in %s", strings.ToLower(words("group.section", 1)), v, sections.year))

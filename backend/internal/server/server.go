@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth"
+	"github.com/jackymean-del/revu/internal/choices"
 	"github.com/jackymean-del/revu/internal/clerksync"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/dashboard"
@@ -83,6 +84,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	people.Routes(inOrg, people.Options{Directory: d.Directory, AppURL: cfg.AppURL})
 	setup.Routes(inOrg)
 	dashboard.Routes(inOrg)
+	choices.Routes(inOrg)
 	audit.Routes(inOrg)
 	return app
 }

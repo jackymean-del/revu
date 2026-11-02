@@ -79,6 +79,7 @@ func (c caller) titles(key string) []string {
 //	second branch: Grade 6 C (Omar teaches Mathematics; Nila without a contact;
 //	                          no class teacher)
 //	nowhere:       Sam, active, no section and no contact
+//	Grade 6 has the seeded Second language group; only Ravi has chosen.
 //	staff:         Asha (admin), Tara, Omar, and Ben who has never signed in
 func TestDashboards(t *testing.T) {
 	owner, appPool := dbtest.Open(t)
@@ -160,7 +161,8 @@ func TestDashboards(t *testing.T) {
 		for _, tile := range d.Tiles {
 			keys = append(keys, tile.Key)
 		}
-		want := []string{"unplaced_students", "no_contact", "no_class_teacher", "open_invitations", "staff_without_sign_in", "missing_setup"}
+		// Seven tiles apply; the limit of six leaves out what is in order.
+		want := []string{"unplaced_students", "no_contact", "missing_choices", "no_class_teacher", "open_invitations", "staff_without_sign_in"}
 		if !slices.Equal(keys, want) {
 			t.Fatalf("tiles %v, want %v", keys, want)
 		}
@@ -172,14 +174,12 @@ func TestDashboards(t *testing.T) {
 			"no_contact":            {"Leela", "Nila", "Sam"},
 			"no_class_teacher":      {"Grade 6 A", "Grade 6 C"},
 			"staff_without_sign_in": {"Ben"},
+			"missing_choices":       {"Kiran", "Leela", "Nila"},
 			"missing_setup":         nil,
 		} {
 			if got := admin.titles(key); !slices.Equal(got, want) {
 				t.Errorf("%s: %v, want %v", key, got, want)
 			}
-		}
-		if s := d.Tiles[len(d.Tiles)-1]; s.Status != "ok" {
-			t.Errorf("nothing missing in setup reads %s", s.Status)
 		}
 	})
 
@@ -197,6 +197,9 @@ func TestDashboards(t *testing.T) {
 		}
 		if got := taraC.titles("my_class_no_contact"); !slices.Equal(got, []string{"Leela"}) {
 			t.Fatalf("Tara's class without a contact %v", got)
+		}
+		if got := taraC.titles("my_class_no_choice"); !slices.Equal(got, []string{"Kiran", "Leela"}) {
+			t.Fatalf("Tara's class without a language %v", got)
 		}
 		if got := omarC.titles("my_students"); !slices.Equal(got, []string{"Nila"}) {
 			t.Fatalf("Omar's students %v", got)
@@ -221,6 +224,9 @@ func TestDashboards(t *testing.T) {
 		}
 		if got := coord.titles("no_contact"); !slices.Equal(got, []string{"Nila"}) {
 			t.Errorf("students without a contact %v", got)
+		}
+		if got := coord.titles("missing_choices"); !slices.Equal(got, []string{"Nila"}) {
+			t.Errorf("students without a language %v", got)
 		}
 	})
 

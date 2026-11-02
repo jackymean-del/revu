@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,11 +28,19 @@ type Demo struct {
 	FirstSeq                       int      // order of the first level
 	Sections                       []string // in every level
 	Subjects                       []string // taught in every level
-	Staff                          []string
-	Domain                         string // for staff email addresses
-	PerSection                     int    // students in each section
-	Admission                      string // admission number prefix
-	BirthYear                      int    // of the first level's students
+	// Choice, when set, is a subject group of every level: each student
+	// takes one option, except every eleventh, left for the missing list.
+	Choice     *choice
+	Staff      []string
+	Domain     string // for staff email addresses
+	PerSection int    // students in each section
+	Admission  string // admission number prefix
+	BirthYear  int    // of the first level's students
+}
+
+type choice struct {
+	Group   string
+	Options []string
 }
 
 // Demos are two organisations with different presets, so every screen can be
@@ -43,7 +52,8 @@ var Demos = []Demo{
 		Terms:  []span{{"Term 1", "2026-04-01", "2026-09-30"}, {"Term 2", "2026-10-01", "2027-03-31"}},
 		Levels: []string{"Grade 6", "Grade 7", "Grade 8"}, FirstSeq: 6,
 		Sections: []string{"A", "B"},
-		Subjects: []string{"English", "Hindi", "Mathematics", "Science", "Social Science"},
+		Subjects: []string{"English", "Mathematics", "Science", "Social Science"},
+		Choice:   &choice{"Second language", []string{"Hindi", "Odia", "Sanskrit"}},
 		Staff:    []string{"Asha Rao", "Vikram Nair", "Farah Siddiqui", "Joseph Mathew", "Priya Menon", "Arjun Bose", "Lakshmi Pillai", "Kiran Joshi"},
 		Domain:   "riverside.example", PerSection: 12, Admission: "RPS-", BirthYear: 2015,
 	},
@@ -68,6 +78,7 @@ type Result struct {
 	OrgID                       string
 	Sections, Staff, Students   int
 	TeachingAssignments, Guards int
+	Choices                     int
 }
 
 // Run creates the demo organisations and makes userID an administrator of
@@ -158,6 +169,18 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		}
 		subjects = append(subjects, id)
 	}
+	var options []string
+	if d.Choice != nil {
+		for _, s := range d.Choice.Options {
+			id, err := ensure(ctx, tx,
+				`SELECT id::text FROM subjects WHERE org_id = $1 AND lower(name) = lower($2) AND deleted_at IS NULL`,
+				`INSERT INTO subjects (org_id, name) VALUES ($1, $2) RETURNING id::text`, 2, org, s)
+			if err != nil {
+				return r, err
+			}
+			options = append(options, id)
+		}
+	}
 
 	var staff []string
 	for i, s := range d.Staff {
@@ -184,12 +207,29 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		if err != nil {
 			return r, err
 		}
-		for _, subject := range subjects {
+		for _, subject := range append(slices.Clone(subjects), options...) {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO level_subjects (org_id, level_id, subject_id) SELECT $1, $2::uuid, $3::uuid
 				 WHERE NOT EXISTS (SELECT 1 FROM level_subjects WHERE level_id = $2::uuid AND subject_id = $3::uuid AND deleted_at IS NULL)`,
 				org, level, subject); err != nil {
 				return r, err
+			}
+		}
+		group := ""
+		if d.Choice != nil {
+			if group, err = ensure(ctx, tx,
+				`SELECT id::text FROM subject_groups WHERE org_id = $1 AND level_id = $2::uuid AND lower(name) = lower($3) AND deleted_at IS NULL`,
+				`INSERT INTO subject_groups (org_id, level_id, name, rule, min_choices, max_choices) VALUES ($1, $2::uuid, $3, 'exactly_one', 1, 1) RETURNING id::text`, 3,
+				org, level, d.Choice.Group); err != nil {
+				return r, err
+			}
+			for _, o := range options {
+				if _, err := tx.Exec(ctx, `
+					INSERT INTO subject_group_options (org_id, group_id, subject_id) SELECT $1, $2::uuid, $3::uuid
+					 WHERE NOT EXISTS (SELECT 1 FROM subject_group_options WHERE group_id = $2::uuid AND subject_id = $3::uuid AND deleted_at IS NULL)`,
+					org, group, o); err != nil {
+					return r, err
+				}
 			}
 		}
 		for si, sname := range d.Sections {
@@ -234,6 +274,15 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 					org, id, section, year, fmt.Sprint(k)); err != nil {
 					return r, err
 				}
+				if group != "" && student%11 != 0 {
+					if _, err := tx.Exec(ctx, `
+						INSERT INTO student_subject_choices (org_id, student_id, year_id, group_id, subject_id, effective_from, source)
+						SELECT $1, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::date, 'manual'
+						 WHERE NOT EXISTS (SELECT 1 FROM student_subject_choices WHERE student_id = $2::uuid AND group_id = $4::uuid)`,
+						org, id, year, group, options[student%len(options)], d.Year.Start); err != nil {
+						return r, err
+					}
+				}
 				parent := []string{"Mother", "Father"}[student%2]
 				if _, err := tx.Exec(ctx, `
 					INSERT INTO guardians (org_id, student_id, name, relation, phone, is_primary)
@@ -251,8 +300,9 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		       (SELECT count(*) FROM staff WHERE org_id = $1 AND deleted_at IS NULL),
 		       (SELECT count(*) FROM students WHERE org_id = $1 AND deleted_at IS NULL),
 		       (SELECT count(*) FROM teaching_assignments WHERE org_id = $1 AND deleted_at IS NULL),
-		       (SELECT count(*) FROM guardians WHERE org_id = $1 AND deleted_at IS NULL)`, org).
-		Scan(&r.Sections, &r.Staff, &r.Students, &r.TeachingAssignments, &r.Guards)
+		       (SELECT count(*) FROM guardians WHERE org_id = $1 AND deleted_at IS NULL),
+		       (SELECT count(*) FROM student_subject_choices WHERE org_id = $1 AND effective_to IS NULL)`, org).
+		Scan(&r.Sections, &r.Staff, &r.Students, &r.TeachingAssignments, &r.Guards, &r.Choices)
 	return r, err
 }
 

@@ -15,6 +15,10 @@ export function tileLabel(t: T, key: string, count: number): string {
       return `Your ${t('person.student', { count, lower: true })}`
     case 'my_class_no_contact':
       return `${students} in your ${t('group.section', { lower: true })} with no ${t('person.guardian', { lower: true })}`
+    case 'my_class_no_choice':
+      return `${students} in your ${t('group.section', { lower: true })} with a ${t('course.subject', { lower: true })} choice missing`
+    case 'missing_choices':
+      return `${students} with a ${t('course.subject', { lower: true })} choice missing`
     case 'missing_setup':
       return count === 0 ? 'Setup is complete' : count === 1 ? 'Setup step missing' : 'Setup steps missing'
     case 'unplaced_students':
@@ -62,6 +66,8 @@ export const tileAction: Record<string, { to: string; label: string } | undefine
   unplaced_students: { to: '/people', label: 'Open People' },
   no_contact: { to: '/people', label: 'Open People' },
   no_class_teacher: { to: '/settings/structure', label: 'Assign in Structure' },
+  missing_choices: { to: '/choices', label: 'Open Choices' },
+  my_class_no_choice: { to: '/choices', label: 'Open Choices' },
   open_invitations: { to: '/people', label: 'Open People' },
   staff_without_sign_in: { to: '/people', label: 'Open People' },
 }

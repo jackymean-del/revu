@@ -44,6 +44,7 @@ export type Year = components['schemas']['Year']
 export type Level = components['schemas']['Level']
 export type Section = components['schemas']['Section']
 export type Subject = components['schemas']['Subject']
+export type TeachingAssignment = components['schemas']['TeachingAssignment']
 export type Staff = components['schemas']['Staff']
 export type Student = components['schemas']['Student']
 export type StudentPage = components['schemas']['StudentPage']
@@ -66,6 +67,8 @@ export type StructurePath =
   | 'enrolments'
   | 'memberships'
   | 'students'
+  | 'subject-groups'
+  | 'subject-group-options'
 
 export const listStructure = <T>(orgId: string, path: StructurePath, params: Record<string, string>, signal?: AbortSignal) =>
   call<T[]>(`/v1/${path}?${new URLSearchParams(params)}`, { orgId, signal })
@@ -148,3 +151,31 @@ export const getDashboard = (orgId: string, signal?: AbortSignal) => call<Dashbo
 
 export const getDashboardList = (orgId: string, key: string, signal?: AbortSignal) =>
   call<DashboardList>(`/v1/dashboard/${encodeURIComponent(key)}`, { orgId, signal })
+
+export type SubjectGroup = components['schemas']['SubjectGroup']
+export type SubjectChoice = components['schemas']['SubjectChoice']
+export type ChoiceResult = components['schemas']['ChoiceResult']
+export type ChoiceImportReport = components['schemas']['ChoiceImportReport']
+export type ChoiceCompleteness = components['schemas']['ChoiceCompleteness']
+
+export const listSubjectChoices = (orgId: string, sectionId: string, on: string, signal?: AbortSignal) =>
+  call<SubjectChoice[]>(`/v1/subject-choices?${new URLSearchParams({ sectionId, ...(on ? { on } : {}) })}`, { orgId, signal })
+
+export const getChoiceCompleteness = (orgId: string, sectionId: string, on: string, signal?: AbortSignal) =>
+  call<ChoiceCompleteness>(`/v1/sections/${sectionId}/choice-completeness?${new URLSearchParams(on ? { on } : {})}`, { orgId, signal })
+
+export const assignSubjectChoices = (orgId: string, body: components['schemas']['SubjectChoiceInput']) =>
+  call<ChoiceResult>('/v1/subject-choices', { orgId, method: 'POST', body })
+
+export const endSubjectChoice = (orgId: string, id: string, on: string) =>
+  call<void>(`/v1/subject-choices/${id}?${new URLSearchParams(on ? { on } : {})}`, { orgId, method: 'DELETE' })
+
+export const copySubjectChoices = (orgId: string, sectionId: string) => call<ChoiceResult>('/v1/subject-choices/copy', { orgId, method: 'POST', body: { sectionId } })
+
+/** Reads choices from a file; nothing changes unless apply is true. */
+export async function importSubjectChoices(orgId: string, file: File, apply: boolean): Promise<ChoiceImportReport> {
+  const form = new FormData()
+  form.append('file', file)
+  if (apply) form.append('apply', 'true')
+  return call<ChoiceImportReport>('/v1/subject-choices/import', { orgId, method: 'POST', form })
+}

@@ -69,6 +69,28 @@ const (
 
 var leaders = []string{"admin", "principal", "coordinator"}
 
+// noChoice lists students below a subject group's minimum on today, kept
+// inside the year (Part 74.1), with the groups they still have to choose
+// for. The middle part limits which sections count.
+const (
+	noChoiceHead = `
+		SELECT st.id::text, st.name, string_agg(g.name, ', ' ORDER BY g.name)
+		  FROM enrolments e
+		  JOIN students st ON st.id = e.student_id AND st.deleted_at IS NULL AND st.status = 'active'
+		  JOIN sections s ON s.id = e.section_id AND s.deleted_at IS NULL
+		  JOIN academic_years y ON y.id = e.year_id
+		  JOIN subject_groups g ON g.level_id = s.level_id AND g.deleted_at IS NULL AND g.min_choices > 0
+		 WHERE e.year_id::text = @year AND e.deleted_at IS NULL AND `
+	noChoiceTail = `
+		   AND (SELECT count(*) FROM student_subject_choices c
+		          JOIN subject_group_options o ON o.group_id = c.group_id AND o.subject_id = c.subject_id AND o.deleted_at IS NULL
+		         WHERE c.student_id = st.id AND c.group_id = g.id AND c.year_id = y.id
+		           AND c.effective_from <= greatest(least(current_date, y.ends_on), y.starts_on)
+		           AND (c.effective_to IS NULL OR c.effective_to >= greatest(least(current_date, y.ends_on), y.starts_on))) < g.min_choices
+		 GROUP BY st.id, st.name
+		 ORDER BY lower(st.name)`
+)
+
 var all = []tile{
 	{key: "my_classes", kind: total, roles: []string{"teacher", "class_teacher"}, needsStaff: true, sql: `
 		SELECT a.id::text, ` + sectionName + `, coalesce(sub.name, '')
@@ -94,6 +116,8 @@ var all = []tile{
 		 WHERE e.year_id::text = @year AND e.deleted_at IS NULL AND e.section_id IN ` + mine + ` AND subject_id IS NULL)
 		   AND NOT EXISTS (SELECT 1 FROM guardians g WHERE g.student_id = st.id AND g.deleted_at IS NULL)
 		 ORDER BY lower(st.name)`},
+	{key: "my_class_no_choice", kind: exception, roles: []string{"class_teacher"}, needsStaff: true,
+		sql: noChoiceHead + `e.section_id IN ` + mine + ` AND subject_id IS NULL)` + noChoiceTail},
 	{key: "missing_setup", kind: exception, roles: leaders, wholeOrg: true, sql: `
 		SELECT k, k, '' FROM (VALUES
 		  (1, 'years', (SELECT count(*) FROM academic_years WHERE deleted_at IS NULL)),
@@ -115,6 +139,7 @@ var all = []tile{
 		 WHERE st.deleted_at IS NULL AND st.status = 'active' AND ` + studentInBranch + `
 		   AND NOT EXISTS (SELECT 1 FROM guardians g WHERE g.student_id = st.id AND g.deleted_at IS NULL)
 		 ORDER BY lower(st.name)`},
+	{key: "missing_choices", kind: exception, roles: leaders, sql: noChoiceHead + sectionInBranch + noChoiceTail},
 	{key: "no_class_teacher", kind: exception, roles: leaders, sql: `
 		SELECT s.id::text, ` + sectionName + `, ''
 		  FROM sections s

@@ -64,12 +64,13 @@ func Open(t *testing.T) (owner, app *pgxpool.Pool) {
 
 // Org is a seeded organisation and the ids of the rows created for it.
 type Org struct {
-	ID, UserID, BranchID, YearID, LevelID, SectionID, SubjectID, StaffID, StudentID string
+	ID, UserID, BranchID, YearID, LevelID, SectionID, SubjectID, StaffID, StudentID, GroupID string
 }
 
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
+	"student_subject_choices", "subject_group_options", "subject_groups",
 	"invitations", "import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
 	"enrolments", "guardians", "students", "staff", "level_subjects", "subjects", "sections",
 	"levels", "periods", "academic_years", "branches",
@@ -113,6 +114,12 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO terminology (org_id, key, singular, plural) VALUES ($1, 'group.section', 'Section', 'Sections') RETURNING id`, o.ID)
 	one(`INSERT INTO invitations (org_id, email, role) VALUES ($1, $2, 'teacher') RETURNING id`, o.ID, "invitee-"+o.UserID+"@example.test")
 	one(`INSERT INTO import_jobs (org_id, kind, file_name, total_rows) VALUES ($1, 'students', 'class.csv', 0) RETURNING id`, o.ID)
+	o.GroupID = one(`INSERT INTO subject_groups (org_id, level_id, name, rule, min_choices, max_choices) VALUES ($1, $2, 'Second language', 'exactly_one', 1, 1) RETURNING id`, o.ID, o.LevelID)
+	language := one(`INSERT INTO subjects (org_id, name, code) VALUES ($1, 'Hindi', 'HIN') RETURNING id`, o.ID)
+	one(`INSERT INTO subject_group_options (org_id, group_id, subject_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.GroupID, language)
+	one(`INSERT INTO level_subjects (org_id, level_id, subject_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.LevelID, language)
+	one(`INSERT INTO student_subject_choices (org_id, student_id, year_id, group_id, subject_id, effective_from, source) VALUES ($1, $2, $3, $4, $5, '2026-04-01', 'manual') RETURNING id`,
+		o.ID, o.StudentID, o.YearID, o.GroupID, language)
 	one(`INSERT INTO feature_flags (org_id, key, enabled) VALUES ($1, 'scan_grading', true) RETURNING id`, o.ID)
 	return o
 }

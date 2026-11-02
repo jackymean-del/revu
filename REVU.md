@@ -150,6 +150,30 @@ A rule nothing checks comes back.
   403 auth.forbidden. A tile someone does not get answers 404 dashboard.unknown.
 - Leaders can print Home; the print view drops the header, buttons and lists.
 
+## Subject groups and choices (P0.2)
+
+- A subject group (backend/internal/choices) belongs to a level and offers
+  options under a rule: exactly one, at most one, or a range. A subject in no
+  group is taken by everyone; a level subject reports applicability selected
+  when it is optional or a group offers it. Adding an option adds the subject
+  to the level. One subject is offered by one group of a level at most.
+- A choice holds for a year between effective_from and effective_to (the
+  last day; null runs to the end). Nothing is deleted: a change ends the old
+  row the day before the new one begins, a correction on its first day ends
+  it before it began, and every change is audited with the rows' ids.
+- A first choice applies from the start of the year; a change applies from
+  the date given, or today kept inside the year.
+- Missing means below the group's minimum on the day. It is listed by GET
+  /v1/sections/{id}/choice-completeness and the missing_choices and
+  my_class_no_choice tiles; results will block that group with the reason
+  choice missing. revU never picks an option for anyone.
+- Who: administrators and coordinators change choices, a class teacher in
+  their own section (policy SubjectChoices); a section's teachers and
+  leaders may read them. Groups themselves are structure (administrators).
+- Import reads an admission number column and either one column per group,
+  headed with its name, or a Subject column. It reports first and applies
+  only with apply=true; the same file twice changes nothing.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com

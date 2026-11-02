@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { listStructure, type Branch, type Level, type Section, type Staff, type StructurePath, type Subject, type Year } from '../api/client'
+import { listStructure, type Branch, type Level, type Section, type Staff, type StructurePath, type Subject, type SubjectGroup, type Year } from '../api/client'
 import { EditableList, type Col, type Option } from '../components/EditableList'
 import { useOrg } from '../lib/org-context'
 import { withArticle } from '../lib/terminology/terminology'
@@ -64,6 +64,9 @@ export function Structure() {
   const sections = useChoices<Section>(orgId, 'sections', yearId ? { yearId } : {})
   const sectionId = sections.some((s) => s.id === sectionPick) ? sectionPick : sections[0]?.id || ''
   const staff = useChoices<Staff>(orgId, 'staff')
+  const groups = useChoices<SubjectGroup>(orgId, 'subject-groups', levelId ? { levelId } : {})
+  const [groupPick, setGroup] = useState('')
+  const groupId = groups.some((g) => g.id === groupPick) ? groupPick : groups[0]?.id || ''
 
   if (loading) return <p className="mx-auto max-w-5xl px-4 py-10 text-muted">Loading</p>
   if (!orgId)
@@ -229,12 +232,61 @@ export function Structure() {
                   cols={[
                     { key: 'subjectId', label: t('course.subject'), kind: 'select', required: true, options: subjectOptions },
                     { key: 'optional', label: 'Elective', kind: 'checkbox', show: (i) => (i.optional ? 'Elective' : 'Everyone') },
+                    { key: 'applicability', label: 'Who takes it', kind: 'text', readOnly: true, show: (i) => (i.applicability === 'selected' ? 'Those who choose it' : 'Everyone') },
                   ]}
                 />
               ) : (
                 <p className="text-sm text-muted">Add {withArticle(t('group.level', { lower: true }))} first.</p>
               )}
             </Block>
+            {levelId && (
+              <Block title={`${t('course.subject')} groups of this ${t('group.level', { lower: true })}`}>
+                <p className="max-w-2xl text-sm text-muted">
+                  A group such as Second language holds the options a {t('person.student', { lower: true })} chooses from. A {t('course.subject', { lower: true })} in no
+                  group is taken by everyone.
+                </p>
+                <EditableList
+                  key={`groups-${levelId}`}
+                  orgId={orgId}
+                  path="subject-groups"
+                  scope={{ levelId }}
+                  canEdit={canEdit}
+                  noun={`${t('course.subject', { lower: true })} group`}
+                  empty={`No ${t('course.subject', { lower: true })} groups for this ${t('group.level', { lower: true })}.`}
+                  cols={[
+                    nameCol('30%'),
+                    {
+                      key: 'rule',
+                      label: 'Rule',
+                      kind: 'select',
+                      required: true,
+                      options: [
+                        { value: 'exactly_one', label: 'Exactly one' },
+                        { value: 'at_most_one', label: 'At most one' },
+                        { value: 'range', label: 'A range' },
+                      ],
+                    },
+                    { key: 'minChoices', label: 'At least', kind: 'number', width: '6rem' },
+                    { key: 'maxChoices', label: 'At most', kind: 'number', width: '6rem' },
+                  ]}
+                />
+                {groupId && (
+                  <div className="space-y-2 pt-2">
+                    <Picker label="Options of" value={groupId} options={groups.map((g) => ({ value: g.id, label: g.name }))} onChange={setGroup} />
+                    <EditableList
+                      key={`options-${groupId}`}
+                      orgId={orgId}
+                      path="subject-group-options"
+                      scope={{ groupId }}
+                      canEdit={canEdit}
+                      noun="option"
+                      empty="No options yet."
+                      cols={[{ key: 'subjectId', label: t('course.subject'), kind: 'select', required: true, options: subjectOptions }]}
+                    />
+                  </div>
+                )}
+              </Block>
+            )}
           </>
         )}
 

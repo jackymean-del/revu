@@ -953,6 +953,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/subject-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every subject group of a level, in order. Removed ones only when asked for. */
+        get: operations["listSubjectGroups"];
+        put?: never;
+        /** Add a subject group of a level. */
+        post: operations["createSubjectGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a subject group of a level. */
+        put: operations["updateSubjectGroup"];
+        post?: never;
+        /** Remove a subject group of a level. It can be restored; refused while anything still uses it. */
+        delete: operations["removeSubjectGroup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-groups/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring back a removed subject group of a level. */
+        post: operations["restoreSubjectGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-group-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every subject a group offers, in order. Removed ones only when asked for. */
+        get: operations["listSubjectGroupOptions"];
+        put?: never;
+        /** Add a subject a group offers. */
+        post: operations["createSubjectGroupOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-group-options/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a subject a group offers. */
+        put: operations["updateSubjectGroupOption"];
+        post?: never;
+        /** Remove a subject a group offers. It can be restored; refused while anything still uses it. */
+        delete: operations["removeSubjectGroupOption"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-group-options/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bring back a removed subject a group offers. */
+        post: operations["restoreSubjectGroupOption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The choices in force on a day for the students of a section. */
+        get: operations["listSubjectChoices"];
+        put?: never;
+        /** Give some students one option of a group. A group that allows one option replaces their earlier choice from the date given, keeping it in history. */
+        post: operations["assignSubjectChoices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-choices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** End a choice on a day, keeping it in history. A choice that had not started yet is withdrawn. */
+        delete: operations["endSubjectChoice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-choices/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Give the students of a section the options they took last year, where a group of their new level offers the same subject. */
+        post: operations["copySubjectChoices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subject-choices/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read admission numbers and subjects from a file. Shows what would change, and applies it only when asked. */
+        post: operations["importSubjectChoices"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sections/{id}/choice-completeness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** For each subject group of the section's level, who has chosen what and who still has to. */
+        get: operations["getChoiceCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1119,6 +1311,11 @@ export interface components {
             subjectId: string;
             /** @description An elective, chosen by some students only. */
             optional: boolean;
+            /**
+             * @description selected when the subject is optional or offered by a subject group, so only the students who chose it take it.
+             * @enum {string}
+             */
+            applicability: "all" | "selected";
             /**
              * Format: date-time
              * @description Set when removed; absent while in use.
@@ -1479,6 +1676,140 @@ export interface components {
         DashboardList: {
             key: string;
             rows: components["schemas"]["DashboardRow"][];
+        };
+        SubjectGroup: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            levelId: string;
+            /** @description For example Second language. */
+            name: string;
+            rule: components["schemas"]["ChoiceRule"];
+            minChoices: number;
+            maxChoices: number;
+            /**
+             * Format: date-time
+             * @description Set when removed; absent while in use.
+             */
+            removedAt?: string;
+        };
+        SubjectGroupInput: {
+            /** Format: uuid */
+            levelId: string;
+            name: string;
+            rule: components["schemas"]["ChoiceRule"];
+            /** @description For the range rule only. */
+            minChoices?: number;
+            /** @description For the range rule only. */
+            maxChoices?: number;
+        };
+        /**
+         * @description exactly_one and at_most_one fix the counts; range takes minChoices to maxChoices.
+         * @enum {string}
+         */
+        ChoiceRule: "exactly_one" | "at_most_one" | "range";
+        SubjectGroupOption: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            groupId: string;
+            /** Format: uuid */
+            subjectId: string;
+            /** Format: date-time */
+            removedAt?: string;
+        };
+        SubjectGroupOptionInput: {
+            /** Format: uuid */
+            groupId: string;
+            /** Format: uuid */
+            subjectId: string;
+        };
+        SubjectChoice: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            studentId: string;
+            /** Format: uuid */
+            groupId: string;
+            /** Format: uuid */
+            subjectId: string;
+            /** Format: date */
+            effectiveFrom: string;
+            /**
+             * Format: date
+             * @description The last day it applies; absent while it runs to the end of the year.
+             */
+            effectiveTo?: string;
+            /** @enum {string} */
+            source: "manual" | "import" | "copied";
+        };
+        SubjectChoiceInput: {
+            /** Format: uuid */
+            groupId: string;
+            /**
+             * Format: uuid
+             * @description One of the group's options.
+             */
+            subjectId: string;
+            studentIds: string[];
+            /**
+             * Format: date
+             * @description When a change applies from. A first choice applies from the start of the year.
+             */
+            effectiveFrom?: string;
+        };
+        ChoiceCopyInput: {
+            /** Format: uuid */
+            sectionId: string;
+        };
+        ChoiceResult: {
+            /** @description Students given a first choice. */
+            assigned: number;
+            /** @description Students whose earlier choice ended and the new one began. */
+            changed: number;
+            unchanged: number;
+            /** @description Students left as they were, for example no matching group this year. */
+            skipped: number;
+        };
+        ChoiceImportReport: {
+            rows: number;
+            assign: number;
+            change: number;
+            unchanged: number;
+            applied: boolean;
+            problems: components["schemas"]["ImportProblem"][];
+        };
+        ChoiceCompleteness: {
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: date */
+            on: string;
+            /** @description Students placed in the section. */
+            students: number;
+            groups: components["schemas"]["GroupCompleteness"][];
+        };
+        GroupCompleteness: {
+            /** Format: uuid */
+            groupId: string;
+            name: string;
+            rule: components["schemas"]["ChoiceRule"];
+            minChoices: number;
+            maxChoices: number;
+            options: components["schemas"]["OptionCount"][];
+            /** @description Students below the group's minimum. Their result for the group is blocked with the reason choice missing. */
+            missing: components["schemas"]["MissingChoice"][];
+        };
+        OptionCount: {
+            /** Format: uuid */
+            subjectId: string;
+            students: number;
+        };
+        MissingChoice: {
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            /** @description How many options of the group the student has, below the minimum. */
+            chosen: number;
         };
         Me: {
             /** @description The sign-in id (Clerk user id). */
@@ -3801,6 +4132,459 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSubjectGroups: {
+        parameters: {
+            query?: {
+                /** @description Also list removed items, so they can be restored. */
+                includeRemoved?: components["parameters"]["IncludeRemoved"];
+                /** @description Only groups of this level. */
+                levelId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroup"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createSubjectGroup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectGroupInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateSubjectGroup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectGroupInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeSubjectGroup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreSubjectGroup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSubjectGroupOptions: {
+        parameters: {
+            query?: {
+                /** @description Also list removed items, so they can be restored. */
+                includeRemoved?: components["parameters"]["IncludeRemoved"];
+                /** @description Only options of this group. */
+                groupId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroupOption"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createSubjectGroupOption: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectGroupOptionInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroupOption"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateSubjectGroupOption: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectGroupOptionInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroupOption"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeSubjectGroupOption: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreSubjectGroupOption: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectGroupOption"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSubjectChoices: {
+        parameters: {
+            query: {
+                sectionId: string;
+                /** @description The day to read choices on; today, kept inside the year, when left out. */
+                on?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The choices. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubjectChoice"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    assignSubjectChoices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubjectChoiceInput"];
+            };
+        };
+        responses: {
+            /** @description What changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoiceResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    endSubjectChoice: {
+        parameters: {
+            query?: {
+                /** @description The day to read choices on; today, kept inside the year, when left out. */
+                on?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    copySubjectChoices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChoiceCopyInput"];
+            };
+        };
+        responses: {
+            /** @description What changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoiceResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    importSubjectChoices: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description .csv or .xlsx with an admission number column and one or more subject columns.
+                     */
+                    file: string;
+                    /**
+                     * @description true applies the rows that are in order; otherwise nothing is saved.
+                     * @enum {string}
+                     */
+                    apply?: "true" | "false";
+                };
+            };
+        };
+        responses: {
+            /** @description The report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoiceImportReport"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getChoiceCompleteness: {
+        parameters: {
+            query?: {
+                /** @description The day to read choices on; today, kept inside the year, when left out. */
+                on?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoiceCompleteness"];
                 };
             };
             default: components["responses"]["Problem"];
