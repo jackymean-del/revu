@@ -161,6 +161,9 @@ A rule nothing checks comes back.
   marked source 'revu' are never changed by it.
 - Without CLERK_SECRET_KEY, local work can still sign in as DEV_USER_ID
   (refused in production; ignored when the Clerk key is set).
+- Demo data: `go run ./cmd/server seed` from backend/ (with MIGRATE_DATABASE_URL and DEV_USER_ID set to your sign-in id) fills
+  Riverside Public School (school words: 3 grades, 6 sections, 8 staff, 72 students with parents) and Lakeview University
+  (university words: 2 programme years, 4 batches, 5 faculty, 40 learners), with you as administrator. Safe to run again.
 - Signing in locally before Clerk (until v1.4): set DEV_USER_ID (refused when APP_ENV=production) and run `go run ./cmd/server seed` from backend/ with MIGRATE_DATABASE_URL set; it creates two demo organisations (school and university presets) with that user as administrator.
 - Institution words: the key list and presets live in frontend/src/lib/terminology/presets.json. After editing it run make gen (npm run gen:terms) so the server's embedded copy matches; a Go test fails when it does not. The lint rule frontend/eslint-rules/institution-words.js fails on any preset word written literally in a component.
 - Backend tests that need the database: TEST_DATABASE_URL (owner) builds it from database/migrations and tests as revu_app.

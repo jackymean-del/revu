@@ -25,9 +25,12 @@ migrate:   ## Apply all SQL migrations to a running db (for existing volumes)
 		docker compose exec -T db psql -U revu -d revu < "$$f"; \
 	done
 
-test:      ## Go tests against the running database, then the frontend checks
+test:      ## Everything CI checks: Go tests on the running database, every harness, lint, dead code, budget, browser journey
 	cd backend && TEST_DATABASE_URL="postgresql://revu:secret@localhost:5432/revu?sslmode=disable" go test ./... -count=1 -p 1
-	cd frontend && npx tsc -b && npx eslint src --max-warnings 0 && npx tsx style-verify.mts
+	cd frontend && npx tsc -b && npx eslint src *.mts --max-warnings 0 && npx knip
+	cd frontend && for f in *-verify.mts; do [ "$$f" = bundle-verify.mts ] || npx tsx "$$f" || exit 1; done
+	cd frontend && npx vite build && npx tsx bundle-verify.mts
+	cd e2e && npm test
 
 gen:       ## Regenerate the API types (TypeScript, Go) and the server's copy of the word list
 	cd frontend && npm run gen:api && npm run gen:terms
