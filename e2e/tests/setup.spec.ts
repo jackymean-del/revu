@@ -110,15 +110,20 @@ test('a teacher sees Home with their classes and no settings', async ({ page }) 
   db.sections.push({ id: 's6a', name: 'A', levelId: 'l6', yearId: 'y', branchId: 'b' })
   db.subjects.push({ id: 'math', name: 'Mathematics', kind: 'academic' })
   db['teaching-assignments'] = [{ id: 'ta1', staffId: 'staff-1', sectionId: 's6a', subjectId: 'math' }]
+  void page.route('**/v1/dashboard', (r) =>
+    r.fulfill({ json: { tiles: [{ key: 'my_classes', count: 1, status: 'info', listable: true }, { key: 'my_students', count: 0, status: 'info', listable: true }] } }),
+  )
+  void page.route('**/v1/dashboard/my_classes', (r) => r.fulfill({ json: { key: 'my_classes', rows: [{ id: 'ta1', title: 'Grade 6 A', detail: 'Mathematics' }] } }))
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Your classes' })).toBeVisible()
-  await expect(page.getByText('Grade 6 A')).toBeVisible()
-  await expect(page.getByText('Mathematics')).toBeVisible()
-  const nav = page.getByRole('navigation', { name: 'Main' })
-  await expect(nav.getByRole('link')).toHaveText(['Home'])
-  await expect(page.getByRole('heading', { name: 'Finish setting up' })).toHaveCount(0)
-
   // Keyboard users can jump past the header.
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
+
+  await page.getByRole('button', { name: /1\s*Teaching assignment/ }).click()
+  await expect(page.getByRole('region', { name: 'Teaching assignment' }).getByText('Grade 6 A')).toBeVisible()
+  await expect(page.getByText('Mathematics')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Print' })).toHaveCount(0)
+  const nav = page.getByRole('navigation', { name: 'Main' })
+  await expect(nav.getByRole('link')).toHaveText(['Home'])
+  await expect(page.getByRole('heading', { name: 'Finish setting up' })).toHaveCount(0)
 })

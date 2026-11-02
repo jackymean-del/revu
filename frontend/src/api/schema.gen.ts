@@ -919,6 +919,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in person's home tiles, by role, exceptions first, at most six. */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The list behind one tile. Its length is the tile's number. */
+        get: operations["getDashboardList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1416,6 +1450,35 @@ export interface components {
             invitations: number;
             /** @description An administrator has finished the setup steps. */
             done: boolean;
+        };
+        Tile: {
+            /** @description What the tile counts; the app names it in the organisation's words. */
+            key: string;
+            count: number;
+            /**
+             * @description attention when something needs doing, ok when nothing does, info for plain totals.
+             * @enum {string}
+             */
+            status: "attention" | "ok" | "info";
+            /** @description Whether this person may open the list behind the number (Part 77). */
+            listable: boolean;
+        };
+        Dashboard: {
+            /**
+             * Format: uuid
+             * @description The year the tiles count in, the one under way.
+             */
+            yearId?: string;
+            tiles: components["schemas"]["Tile"][];
+        };
+        DashboardRow: {
+            id: string;
+            title: string;
+            detail?: string;
+        };
+        DashboardList: {
+            key: string;
+            rows: components["schemas"]["DashboardRow"][];
         };
         Me: {
             /** @description The sign-in id (Clerk user id). */
@@ -3688,6 +3751,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tiles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDashboardList: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardList"];
                 };
             };
             default: components["responses"]["Problem"];

@@ -134,6 +134,22 @@ A rule nothing checks comes back.
 - The setup steps use the ordinary endpoints; GET /v1/setup reports progress and
   POST /v1/setup/complete marks it done. Home and the menu follow the person's roles.
 
+## Dashboards (P0.1)
+
+- GET /v1/dashboard gives the person's tiles for their roles: at most six,
+  needing attention first, then plain totals, then what is in order. GET
+  /v1/dashboard/{key} gives the list behind one tile.
+- A tile is one SQL query in backend/internal/dashboard; its number is the
+  length of that query's list, so the two cannot disagree (AT-DB-01). A new
+  tile is one entry in that table, a label in src/lib/dashboard.ts and a row in
+  dashboard_test.go.
+- Teachers count only what is assigned to them (AT-DB-02); a role over some
+  branches counts only those branches, and tiles about things in no branch
+  (unplaced students, setup, staff sign-in) go to roles over the whole
+  organisation. View-only gets numbers and no lists (Part 77): the list answers
+  403 auth.forbidden. A tile someone does not get answers 404 dashboard.unknown.
+- Leaders can print Home; the print view drops the header, buttons and lists.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com

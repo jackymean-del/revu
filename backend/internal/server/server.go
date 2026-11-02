@@ -17,6 +17,7 @@ import (
 	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/clerksync"
 	"github.com/jackymean-del/revu/internal/config"
+	"github.com/jackymean-del/revu/internal/dashboard"
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/org"
 	"github.com/jackymean-del/revu/internal/people"
@@ -81,6 +82,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	structure.Routes(inOrg)
 	people.Routes(inOrg, people.Options{Directory: d.Directory, AppURL: cfg.AppURL})
 	setup.Routes(inOrg)
+	dashboard.Routes(inOrg)
 	audit.Routes(inOrg)
 	return app
 }

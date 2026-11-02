@@ -387,6 +387,27 @@ func (e SubjectInputKind) Valid() bool {
 	}
 }
 
+// Defines values for TileStatus.
+const (
+	Attention TileStatus = "attention"
+	Info      TileStatus = "info"
+	Ok        TileStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the TileStatus enum.
+func (e TileStatus) Valid() bool {
+	switch e {
+	case Attention:
+		return true
+	case Info:
+		return true
+	case Ok:
+		return true
+	default:
+		return false
+	}
+}
+
 // AuditActor defines model for AuditActor.
 type AuditActor struct {
 	Id   string `json:"id"`
@@ -438,6 +459,27 @@ type Branch struct {
 type BranchInput struct {
 	Address string `json:"address,omitempty"`
 	Name    string `json:"name"`
+}
+
+// Dashboard defines model for Dashboard.
+type Dashboard struct {
+	Tiles []Tile `json:"tiles"`
+
+	// YearId The year the tiles count in, the one under way.
+	YearId string `json:"yearId,omitempty"`
+}
+
+// DashboardList defines model for DashboardList.
+type DashboardList struct {
+	Key  string         `json:"key"`
+	Rows []DashboardRow `json:"rows"`
+}
+
+// DashboardRow defines model for DashboardRow.
+type DashboardRow struct {
+	Detail string `json:"detail,omitempty"`
+	Id     string `json:"id"`
+	Title  string `json:"title"`
 }
 
 // Enrolment defines model for Enrolment.
@@ -965,6 +1007,23 @@ type Terminology struct {
 	Preset    Preset         `json:"preset"`
 }
 
+// Tile defines model for Tile.
+type Tile struct {
+	Count int `json:"count"`
+
+	// Key What the tile counts; the app names it in the organisation's words.
+	Key string `json:"key"`
+
+	// Listable Whether this person may open the list behind the number (Part 77).
+	Listable bool `json:"listable"`
+
+	// Status attention when something needs doing, ok when nothing does, info for plain totals.
+	Status TileStatus `json:"status"`
+}
+
+// TileStatus attention when something needs doing, ok when nothing does, info for plain totals.
+type TileStatus string
+
 // Year defines model for Year.
 type Year struct {
 	EndsOn string `json:"endsOn"`
@@ -1059,6 +1118,18 @@ type UpdateBranchParams struct {
 
 // RestoreBranchParams defines parameters for RestoreBranch.
 type RestoreBranchParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetDashboardParams defines parameters for GetDashboard.
+type GetDashboardParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetDashboardListParams defines parameters for GetDashboardList.
+type GetDashboardListParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }

@@ -1,25 +1,15 @@
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { getSetup, listStructure, type Level, type Section, type Subject } from '../api/client'
+import { getSetup } from '../api/client'
 import { SignInPrompt } from '../components/Account'
+import { Dashboard } from '../components/Dashboard'
 import { useAuthState } from '../lib/auth-context'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 
-type Assignment = { id: string; sectionId: string; subjectId?: string }
-
 const card = 'rounded-xl border border-line bg-white p-5'
 
-function Tile({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="rounded-xl border border-line bg-white px-4 py-3">
-      <p className="text-2xl font-extrabold tabular-nums">{value}</p>
-      <p className="text-sm text-muted">{label}</p>
-    </div>
-  )
-}
-
-/** Home: what to do next, by role. Administrators finish setup and see counts; teachers see their classes. */
+/** Home: what to do next, by role. Administrators finish setup; everyone sees their own tiles. */
 export function Home() {
   const t = useT()
   const auth = useAuthState()
@@ -28,16 +18,8 @@ export function Home() {
   const roles = current?.roles ?? []
   const isAdmin = roles.includes('admin')
   const teaches = roles.includes('teacher') || roles.includes('class_teacher')
+  const leads = roles.some((r) => r === 'admin' || r === 'principal' || r === 'coordinator')
   const setup = useQuery({ queryKey: ['setup', orgId], queryFn: ({ signal }) => getSetup(orgId, signal), enabled: !!orgId })
-  const mine = useQuery({
-    queryKey: ['structure', orgId, 'teaching-assignments', { staffId: current?.staffId }],
-    queryFn: ({ signal }) => listStructure<Assignment>(orgId, 'teaching-assignments', { staffId: current!.staffId! }, signal),
-    enabled: !!orgId && teaches && !!current?.staffId,
-  })
-  const sections = useQuery({ queryKey: ['structure', orgId, 'sections', {}], queryFn: ({ signal }) => listStructure<Section>(orgId, 'sections', {}, signal), enabled: !!orgId && teaches })
-  const levels = useQuery({ queryKey: ['structure', orgId, 'levels', {}], queryFn: ({ signal }) => listStructure<Level>(orgId, 'levels', {}, signal), enabled: !!orgId && teaches })
-  const subjects = useQuery({ queryKey: ['structure', orgId, 'subjects', {}], queryFn: ({ signal }) => listStructure<Subject>(orgId, 'subjects', {}, signal), enabled: !!orgId && teaches })
-
   const shell = (children: React.ReactNode) => <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10">{children}</div>
 
   if (auth.enabled && auth.loaded && !auth.signedIn)
@@ -63,12 +45,6 @@ export function Home() {
     )
 
   const s = setup.data
-  const level = (id: string) => levels.data?.find((l) => l.id === id)?.name ?? ''
-  const sectionName = (id: string) => {
-    const sec = sections.data?.find((x) => x.id === id)
-    return sec ? `${level(sec.levelId)} ${sec.name}`.trim() : ''
-  }
-  const subjectName = (id?: string) => (id ? (subjects.data?.find((x) => x.id === id)?.name ?? '') : t('person.class_teacher'))
   const steps = s
     ? [
         { done: s.years > 0 && s.periods > 0, text: `Add the ${t('period.year', { lower: true })} and its ${t('period.term', { count: 2, lower: true })}` },
@@ -88,7 +64,7 @@ export function Home() {
       </div>
 
       {isAdmin && s && !s.done && (
-        <section aria-labelledby="setup-heading" className={`${card} space-y-3 border-brand/40`}>
+        <section aria-labelledby="setup-heading" className={`${card} space-y-3 border-brand/40 print:hidden`}>
           <h2 id="setup-heading" className="font-extrabold">
             Finish setting up
           </h2>
@@ -109,40 +85,15 @@ export function Home() {
         </section>
       )}
 
-      {s && (isAdmin || roles.some((r) => r === 'principal' || r === 'coordinator')) && (
-        <section aria-label="Totals" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Tile value={s.students} label={t('person.student', { count: s.students })} />
-          <Tile value={s.staff} label="Staff" />
-          <Tile value={s.sections} label={t('group.section', { count: s.sections })} />
-          <Tile value={s.subjects} label={t('course.subject', { count: s.subjects })} />
-        </section>
-      )}
+      <Dashboard orgId={orgId} orgName={current.name} canAct={isAdmin} canPrint={leads} />
 
-      {teaches && (
-        <section aria-labelledby="classes-heading" className={`${card} space-y-3`}>
-          <h2 id="classes-heading" className="font-extrabold">
-            Your classes
-          </h2>
-          {!current.staffId ? (
-            <p className="text-sm text-muted">Your sign-in is not linked to a staff record yet. Ask your administrator to link it in People.</p>
-          ) : (mine.data ?? []).length === 0 ? (
-            <p className="text-sm text-muted">Nothing is assigned to you yet. Your administrator assigns classes in Structure.</p>
-          ) : (
-            <ul className="divide-y divide-line text-sm">
-              {mine.data!.map((a) => (
-                <li key={a.id} className="flex justify-between gap-3 py-2">
-                  <span className="font-semibold">{sectionName(a.sectionId)}</span>
-                  <span className="text-muted">{subjectName(a.subjectId)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="text-xs text-subtle">Marks entry for these classes arrives with the next release.</p>
-        </section>
+      {teaches && !current.staffId && (
+        <p className={`${card} text-sm text-muted`}>Your sign-in is not linked to a staff record yet. Ask your administrator to link it in People.</p>
       )}
+      {teaches && <p className="text-xs text-subtle print:hidden">Marks entry for your classes arrives with the next release.</p>}
 
       {isAdmin && (
-        <nav aria-label="Shortcuts" className="flex flex-wrap gap-2 text-sm">
+        <nav aria-label="Shortcuts" className="flex flex-wrap gap-2 text-sm print:hidden">
           {[
             { to: '/people', label: `Import ${t('person.student', { count: 2, lower: true })}` },
             { to: '/settings/structure', label: 'Structure' },

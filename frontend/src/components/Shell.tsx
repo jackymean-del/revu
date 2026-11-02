@@ -45,10 +45,10 @@ export function Shell() {
   const nav = useNav()
   return (
     <div className="flex min-h-screen flex-col">
-      <a href="#main" className="sr-only z-50 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
+      <a href="#main" className="sr-only z-50 rounded-md print:hidden bg-ink px-3 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">
         Skip to content
       </a>
-      <header className="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-white px-4 py-2 sm:px-6">
+      <header className="flex min-h-14 print:hidden flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-white px-4 py-2 sm:px-6">
         <BrandLockup />
         <nav aria-label="Main" className="flex flex-wrap items-center gap-1">
           {nav.map((n) => (
@@ -65,7 +65,7 @@ export function Shell() {
       <main id="main" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>
-      <footer className="px-6 py-4 text-center text-xs text-subtle">
+      <footer className="px-6 py-4 print:hidden text-center text-xs text-subtle">
         by <b className="font-extrabold text-ink">bhusku</b> &middot; Heavy on craft. Full of energy. &middot;{' '}
         <Link to="/system" className="underline hover:text-ink">
           System status

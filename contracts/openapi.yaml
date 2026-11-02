@@ -1622,6 +1622,43 @@ paths:
                 $ref: "#/components/schemas/SetupStatus"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/dashboard:
+    get:
+      operationId: getDashboard
+      summary: The signed-in person's home tiles, by role, exceptions first, at most six.
+      tags: [dashboard]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The tiles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/dashboard/{key}:
+    get:
+      operationId: getDashboardList
+      summary: The list behind one tile. Its length is the tile's number.
+      tags: [dashboard]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardList"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -2527,6 +2564,55 @@ components:
         done:
           type: boolean
           description: An administrator has finished the setup steps.
+    Tile:
+      type: object
+      required: [key, count, status, listable]
+      properties:
+        key:
+          type: string
+          description: What the tile counts; the app names it in the organisation's words.
+        count:
+          type: integer
+        status:
+          type: string
+          enum: [attention, ok, info]
+          description: attention when something needs doing, ok when nothing does, info for plain totals.
+        listable:
+          type: boolean
+          description: Whether this person may open the list behind the number (Part 77).
+    Dashboard:
+      type: object
+      required: [tiles]
+      properties:
+        yearId:
+          type: string
+          format: uuid
+          description: The year the tiles count in, the one under way.
+        tiles:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/Tile"
+    DashboardRow:
+      type: object
+      required: [id, title]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+    DashboardList:
+      type: object
+      required: [key, rows]
+      properties:
+        key:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardRow"
     Me:
       type: object
       required: [userId, orgs]

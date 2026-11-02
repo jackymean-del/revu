@@ -139,3 +139,12 @@ export const listInvitations = (orgId: string, signal?: AbortSignal) => call<Inv
 export const createInvitation = (orgId: string, body: InvitationInput) => call<Invitation>('/v1/invitations', { orgId, method: 'POST', body })
 
 export const revokeInvitation = (orgId: string, id: string) => call<void>(`/v1/invitations/${id}`, { orgId, method: 'DELETE' })
+
+export type Dashboard = components['schemas']['Dashboard']
+export type Tile = components['schemas']['Tile']
+export type DashboardList = components['schemas']['DashboardList']
+
+export const getDashboard = (orgId: string, signal?: AbortSignal) => call<Dashboard>('/v1/dashboard', { orgId, signal })
+
+export const getDashboardList = (orgId: string, key: string, signal?: AbortSignal) =>
+  call<DashboardList>(`/v1/dashboard/${encodeURIComponent(key)}`, { orgId, signal })
