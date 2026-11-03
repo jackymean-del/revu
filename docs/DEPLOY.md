@@ -2,8 +2,10 @@
 
 revU runs like schedU (blueprint Part 65): the API and its own PostgreSQL 18
 on Railway, the app on Cloudflare Pages, sign-in through the bhusku Clerk
-instance. The app lives at app.revu.bhusku.com; revu.bhusku.com is kept for
-the marketing site. Secrets are typed into Railway, Cloudflare and Clerk by a
+instance. The app lives at revu.bhusku.com (the Pages project that served
+the prototype now builds the app; the prototype stays in prototype/).
+The blueprint's later layout puts the app at app.revu.bhusku.com once the
+marketing site takes revu.bhusku.com. Secrets are typed into Railway, Cloudflare and Clerk by a
 person and never committed.
 
 ## Railway: the API and its database
@@ -28,8 +30,8 @@ person and never committed.
    MIGRATE_DATABASE_URL=${{Postgres.DATABASE_URL}}
    APP_DB_PASSWORD=<32 letters and digits, generated on your machine>
    CLERK_SECRET_KEY=<a key made for this service in Clerk>
-   ALLOWED_ORIGINS=https://app.revu.bhusku.com
-   APP_URL=https://app.revu.bhusku.com
+   ALLOWED_ORIGINS=https://revu.bhusku.com,https://revu-cmf.pages.dev
+   APP_URL=https://revu.bhusku.com
    ```
 
    The server migrates as the owner account, sets the `revu_app` password,
@@ -52,17 +54,23 @@ A password for `APP_DB_PASSWORD`, in PowerShell:
 - Give each service its own secret key (API keys, Secret keys, Add new key,
   for example `revu-railway`), so one can be replaced without touching
   schedU. A secret key is shown once; if it is lost, make another.
-- Add app.revu.bhusku.com to the instance's allowed domains.
+- The live instance's primary domain is bhusku.com and allowed subdomains
+  are off, so revu.bhusku.com signs in with no change. Leave both as they
+  are: schedU depends on them. A live key does not sign in on .pages.dev.
+- The server also accepts a session only from an address in
+  ALLOWED_ORIGINS.
 - Webhook: endpoint `https://<api domain>/v1/webhooks/clerk`, then set
   `CLERK_WEBHOOK_SECRET` on Railway to its signing secret.
 
 ## Cloudflare Pages: the app
 
-- A project `revu-app` from the same repository: root directory `frontend`,
-  build command `npm run build`, output `dist`.
-- Variables: `VITE_API_URL=https://<api domain>` and
-  `VITE_CLERK_PUBLISHABLE_KEY=<the instance's publishable key>`.
-- Custom domain app.revu.bhusku.com (a CNAME at Hostinger).
+- The project `revu` (revu-cmf.pages.dev) from the same repository: root
+  directory `frontend`, framework preset None, build command
+  `npm run build`, output `dist`.
+- Variables: `VITE_API_URL=https://revu-production.up.railway.app`,
+  `VITE_CLERK_PUBLISHABLE_KEY=<the same instance's publishable key>` and
+  `NODE_VERSION=24`.
+- Custom domain revu.bhusku.com.
 
 ## The first institution
 
