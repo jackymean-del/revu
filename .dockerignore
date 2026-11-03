@@ -4,3 +4,4 @@
 !database/migrations/
 backend/bin/
 **/.env*
+backend/.testbin/

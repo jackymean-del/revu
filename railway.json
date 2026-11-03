@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "//": "Read by Railway from the repository root. Variables: APP_ENV=production, MIGRATE_DATABASE_URL (owner), DATABASE_URL (revu_app), APP_DB_PASSWORD, CLERK_SECRET_KEY, ALLOWED_ORIGINS, APP_URL. See docs/DEPLOY.md.",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "backend/Dockerfile",
+    "watchPatterns": ["backend/**", "database/migrations/**", "contracts/**", "railway.json"]
+  },
+  "deploy": {
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 30,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5
+  }
+}
