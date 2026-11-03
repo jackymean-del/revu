@@ -29,6 +29,16 @@ const ssoCallback = createRoute({
   path: '/sso-callback',
   component: lazyRouteComponent(() => import('./pages/SsoCallback'), 'SsoCallback'),
 })
+const owner = createRoute({
+  getParentRoute: () => root,
+  path: '/owner',
+  component: lazyRouteComponent(() => import('./pages/Owner'), 'Owner'),
+})
+const groups = createRoute({
+  getParentRoute: () => root,
+  path: '/groups',
+  component: lazyRouteComponent(() => import('./pages/Groups'), 'Groups'),
+})
 const setup = createRoute({
   getParentRoute: () => root,
   path: '/setup',
@@ -65,7 +75,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, setup, people, marks, choices, structure, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, marks, choices, structure, words, history])
 
 export const router = createRouter({ routeTree })
 

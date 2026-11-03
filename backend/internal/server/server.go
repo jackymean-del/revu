@@ -25,6 +25,7 @@ import (
 	"github.com/jackymean-del/revu/internal/layout"
 	"github.com/jackymean-del/revu/internal/org"
 	"github.com/jackymean-del/revu/internal/people"
+	"github.com/jackymean-del/revu/internal/platform"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/setup"
 	"github.com/jackymean-del/revu/internal/structure"
@@ -41,6 +42,10 @@ type Deps struct {
 	// Directory asks the sign-in service for verified emails and sends
 	// invitation links; nil when sign-in is not configured.
 	Directory auth.Directory
+	// Owner is the database owner account, for the platform owner's console
+	// and group pages only, which read across institutions by counts. nil
+	// when no MIGRATE_DATABASE_URL is set; those pages then answer 503.
+	Owner *pgxpool.Pool
 }
 
 // New returns the app with every route registered. Without a database,
@@ -64,7 +69,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:  cfg.AllowedOrigins,
 		AllowMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
-		AllowHeaders:  []string{"Authorization", "Content-Type", "If-Match", "Idempotency-Key", auth.OrgHeader},
+		AllowHeaders:  []string{"Authorization", "Content-Type", "If-Match", "Idempotency-Key", auth.OrgHeader, tenant.ViewAsHeader},
 		ExposeHeaders: []string{fiber.HeaderXRequestID},
 		MaxAge:        300,
 	}))
@@ -79,7 +84,9 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	}
 	// Routes outside any one organisation come first: the tenant middleware
 	// below applies to every /v1 route registered after it.
-	v1.Get("/me", org.Me(d.DB, d.Auth, d.Directory))
+	owner := platform.Options{Owner: d.Owner, Auth: d.Auth, Directory: d.Directory, Owners: cfg.PlatformOwners, AppURL: cfg.AppURL}
+	v1.Get("/me", org.Me(d.DB, owner))
+	platform.Routes(v1, owner)
 	v1.Post("/webhooks/clerk", clerksync.Handler(d.DB, cfg.ClerkWebhook, d.Now))
 	// Everything below acts inside one organisation.
 	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))

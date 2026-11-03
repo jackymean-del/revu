@@ -100,6 +100,18 @@ func main() {
 		}
 	}
 
+	// The platform owner's pages read across institutions, by counts only,
+	// through the owner account; nothing else uses this pool.
+	if cfg.MigrateURL != "" {
+		owner, err := db.Connect(ctx, cfg.MigrateURL)
+		if err != nil {
+			slog.Error("owner pool", "err", err)
+			os.Exit(1)
+		}
+		defer owner.Close()
+		deps.Owner = owner
+	}
+
 	app := server.New(cfg, deps)
 	go func() {
 		<-ctx.Done()

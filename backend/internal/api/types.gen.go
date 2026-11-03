@@ -504,6 +504,48 @@ func (e OpResultOutcome) Valid() bool {
 	}
 }
 
+// Defines values for OwnerOrgType.
+const (
+	OwnerOrgTypeCollege    OwnerOrgType = "college"
+	OwnerOrgTypeSchool     OwnerOrgType = "school"
+	OwnerOrgTypeUniversity OwnerOrgType = "university"
+)
+
+// Valid indicates whether the value is a known member of the OwnerOrgType enum.
+func (e OwnerOrgType) Valid() bool {
+	switch e {
+	case OwnerOrgTypeCollege:
+		return true
+	case OwnerOrgTypeSchool:
+		return true
+	case OwnerOrgTypeUniversity:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnerOrgInputType.
+const (
+	OwnerOrgInputTypeCollege    OwnerOrgInputType = "college"
+	OwnerOrgInputTypeSchool     OwnerOrgInputType = "school"
+	OwnerOrgInputTypeUniversity OwnerOrgInputType = "university"
+)
+
+// Valid indicates whether the value is a known member of the OwnerOrgInputType enum.
+func (e OwnerOrgInputType) Valid() bool {
+	switch e {
+	case OwnerOrgInputTypeCollege:
+		return true
+	case OwnerOrgInputTypeSchool:
+		return true
+	case OwnerOrgInputTypeUniversity:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ParticipationStatus.
 const (
 	ParticipationStatusAbsent        ParticipationStatus = "absent"
@@ -1124,6 +1166,11 @@ type GridStudent struct {
 // GridStudentStatus The row status, when set. Its cells are locked and its marks hidden.
 type GridStudentStatus string
 
+// GroupAdminInput defines model for GroupAdminInput.
+type GroupAdminInput struct {
+	Email string `json:"email"`
+}
+
 // GroupCompleteness defines model for GroupCompleteness.
 type GroupCompleteness struct {
 	GroupId    string `json:"groupId"`
@@ -1137,6 +1184,36 @@ type GroupCompleteness struct {
 
 	// Rule exactly_one and at_most_one fix the counts; range takes minChoices to maxChoices.
 	Rule ChoiceRule `json:"rule"`
+}
+
+// GroupInput defines model for GroupInput.
+type GroupInput struct {
+	Name string `json:"name"`
+}
+
+// GroupInstitution defines model for GroupInstitution.
+type GroupInstitution struct {
+	// Assessments Open for entry.
+	Assessments int    `json:"assessments"`
+	Id          string `json:"id"`
+
+	// MarksEntered Cells entered so far, of any state but pending.
+	MarksEntered int `json:"marksEntered"`
+
+	// Member Whether the person also belongs to it, and so can open it.
+	Member bool   `json:"member"`
+	Name   string `json:"name"`
+
+	// Sections Classes running now, in the current academic period.
+	Sections int    `json:"sections"`
+	Students int    `json:"students"`
+	Type     string `json:"type"`
+}
+
+// GroupRef defines model for GroupRef.
+type GroupRef struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // Guardian defines model for Guardian.
@@ -1376,7 +1453,12 @@ type MarksGridApplicability string
 
 // Me defines model for Me.
 type Me struct {
-	Orgs []MyOrg `json:"orgs"`
+	// Groups Groups this person administers.
+	Groups []GroupRef `json:"groups"`
+	Orgs   []MyOrg    `json:"orgs"`
+
+	// PlatformOwner Whether this person runs the platform (a verified address in PLATFORM_OWNER_EMAILS).
+	PlatformOwner bool `json:"platformOwner"`
 
 	// UserId The sign-in id (Clerk user id).
 	UserId string `json:"userId"`
@@ -1420,6 +1502,13 @@ type MissingChoice struct {
 	StudentId string `json:"studentId"`
 }
 
+// MyGroup defines model for MyGroup.
+type MyGroup struct {
+	Id           string             `json:"id"`
+	Institutions []GroupInstitution `json:"institutions"`
+	Name         string             `json:"name"`
+}
+
 // MyOrg defines model for MyOrg.
 type MyOrg struct {
 	Id        string       `json:"id"`
@@ -1452,6 +1541,55 @@ type OptionCount struct {
 	Students  int    `json:"students"`
 	SubjectId string `json:"subjectId"`
 }
+
+// OwnerGroup defines model for OwnerGroup.
+type OwnerGroup struct {
+	Admins []string `json:"admins"`
+	Id     string   `json:"id"`
+	Name   string   `json:"name"`
+	OrgIds []string `json:"orgIds"`
+}
+
+// OwnerOrg defines model for OwnerOrg.
+type OwnerOrg struct {
+	// Admins People who hold the administrator role.
+	Admins    int    `json:"admins"`
+	CreatedAt string `json:"createdAt"`
+
+	// Demo A sample institution, not a client's.
+	Demo      bool   `json:"demo"`
+	GroupId   string `json:"groupId,omitempty"`
+	GroupName string `json:"groupName,omitempty"`
+	Id        string `json:"id"`
+	Name      string `json:"name"`
+
+	// PendingAdmins Addresses invited as administrator who have not signed in yet.
+	PendingAdmins []string     `json:"pendingAdmins"`
+	Preset        string       `json:"preset"`
+	Staff         int          `json:"staff"`
+	Students      int          `json:"students"`
+	Type          OwnerOrgType `json:"type"`
+}
+
+// OwnerOrgType defines model for OwnerOrg.Type.
+type OwnerOrgType string
+
+// OwnerOrgCreated defines model for OwnerOrgCreated.
+type OwnerOrgCreated struct {
+	// Emailed Whether the sign-in service emailed the invitation; they can sign in with the address either way.
+	Emailed bool   `json:"emailed"`
+	OrgId   string `json:"orgId"`
+}
+
+// OwnerOrgInput defines model for OwnerOrgInput.
+type OwnerOrgInput struct {
+	AdminEmail string            `json:"adminEmail"`
+	Name       string            `json:"name"`
+	Type       OwnerOrgInputType `json:"type"`
+}
+
+// OwnerOrgInputType defines model for OwnerOrgInput.Type.
+type OwnerOrgInputType string
 
 // Participation defines model for Participation.
 type Participation struct {
@@ -2305,6 +2443,11 @@ type UpdateMembershipParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// RemoveGroupAdminParams defines parameters for RemoveGroupAdmin.
+type RemoveGroupAdminParams struct {
+	Email string `form:"email" json:"email"`
+}
+
 // ListPeriodsParams defines parameters for ListPeriods.
 type ListPeriodsParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -2813,6 +2956,15 @@ type CreateMembershipJSONRequestBody = MembershipInput
 
 // UpdateMembershipJSONRequestBody defines body for UpdateMembership for application/json ContentType.
 type UpdateMembershipJSONRequestBody = MembershipInput
+
+// CreateOwnerGroupJSONRequestBody defines body for CreateOwnerGroup for application/json ContentType.
+type CreateOwnerGroupJSONRequestBody = GroupInput
+
+// AddGroupAdminJSONRequestBody defines body for AddGroupAdmin for application/json ContentType.
+type AddGroupAdminJSONRequestBody = GroupAdminInput
+
+// CreateOwnerOrgJSONRequestBody defines body for CreateOwnerOrg for application/json ContentType.
+type CreateOwnerOrgJSONRequestBody = OwnerOrgInput
 
 // CreatePeriodJSONRequestBody defines body for CreatePeriod for application/json ContentType.
 type CreatePeriodJSONRequestBody = PeriodInput

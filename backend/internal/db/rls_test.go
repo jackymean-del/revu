@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -23,6 +24,10 @@ func unscopedTables(ctx context.Context, q querier) ([]string, error) {
 		SELECT c.relname
 		  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		 WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relname <> 'schema_migrations'
+		   -- A platform table (groups, their administrators, the owner's log)
+		   -- needs no org_id when the application role cannot touch it at all.
+		   AND (has_table_privilege('revu_app', c.oid, 'SELECT') OR has_table_privilege('revu_app', c.oid, 'INSERT')
+		        OR has_table_privilege('revu_app', c.oid, 'UPDATE') OR has_table_privilege('revu_app', c.oid, 'DELETE'))
 		   AND NOT (
 		     c.relrowsecurity
 		     AND (c.relname = 'orgs' OR EXISTS (SELECT 1 FROM pg_attribute a
@@ -42,7 +47,8 @@ func tenantTables(t *testing.T, owner *pgxpool.Pool) map[string]string {
 	t.Helper()
 	rows, err := owner.Query(context.Background(), `
 		SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-		 WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relrowsecurity`)
+		 WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relrowsecurity
+		   AND has_table_privilege('revu_app', c.oid, 'SELECT')`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +137,8 @@ func TestEveryTableIsTenantScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if _, err := tx.Exec(ctx, `CREATE TABLE planted_unscoped (id uuid, org_id uuid NOT NULL)`); err != nil {
+	// Planted as a tenant table would be: the application can use it.
+	if _, err := tx.Exec(ctx, `CREATE TABLE planted_unscoped (id uuid, org_id uuid NOT NULL); GRANT SELECT, INSERT ON planted_unscoped TO revu_app`); err != nil {
 		t.Fatal(err)
 	}
 	bad, err = unscopedTables(ctx, tx)
@@ -140,6 +147,34 @@ func TestEveryTableIsTenantScoped(t *testing.T) {
 	}
 	if !slices.Contains(bad, "planted_unscoped") {
 		t.Fatal("a table without row-level security was not detected")
+	}
+	// A platform table is exempt only while the application cannot reach it.
+	if _, err := tx.Exec(ctx, `CREATE TABLE planted_platform (id uuid); ALTER TABLE planted_platform ENABLE ROW LEVEL SECURITY`); err != nil {
+		t.Fatal(err)
+	}
+	if bad, err = unscopedTables(ctx, tx); err != nil || slices.Contains(bad, "planted_platform") {
+		t.Fatalf("a platform table out of the application's reach was flagged: %v %v", bad, err)
+	}
+	if _, err := tx.Exec(ctx, `GRANT SELECT ON planted_platform TO revu_app`); err != nil {
+		t.Fatal(err)
+	}
+	if bad, err = unscopedTables(ctx, tx); err != nil || !slices.Contains(bad, "planted_platform") {
+		t.Fatalf("a platform table the application can read was not detected: %v %v", bad, err)
+	}
+}
+
+// The platform tables are out of the application role's reach: no
+// institution's request can read the groups, their administrators or the
+// owner's log.
+func TestPlatformTablesAreOutOfReach(t *testing.T) {
+	_, app := dbtest.Open(t)
+	ctx := context.Background()
+	for _, table := range []string{"groups", "group_admins", "platform_audit"} {
+		var n int
+		err := app.QueryRow(ctx, `SELECT count(*) FROM `+table).Scan(&n)
+		if err == nil || !strings.Contains(err.Error(), "permission denied") {
+			t.Errorf("revu_app reads %s: %v", table, err)
+		}
 	}
 }
 

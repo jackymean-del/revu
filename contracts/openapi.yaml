@@ -2378,6 +2378,205 @@ paths:
                 $ref: "#/components/schemas/Layout"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/owner/orgs:
+    get:
+      operationId: listOwnerOrgs
+      summary: Every institution, for the platform owner, by name, type, administrators and counts only. No student or staff record is ever included (Part 77).
+      tags: [platform]
+      responses:
+        "200":
+          description: The institutions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OwnerOrg"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createOwnerOrg
+      summary: Create an institution and invite its first administrator by email (Part 56.5). The owner gets no access to it.
+      tags: [platform]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerOrgInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerOrgCreated"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/owner/groups:
+    get:
+      operationId: listOwnerGroups
+      summary: Every group, with its administrators and institutions.
+      tags: [platform]
+      responses:
+        "200":
+          description: The groups.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createOwnerGroup
+      summary: Create a group, a name over several institutions that owns no records (Part 49).
+      tags: [platform]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupInput"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/owner/groups/{id}/members/{orgId}:
+    put:
+      operationId: addGroupMember
+      summary: Put an institution in a group, moving it from any other.
+      tags: [platform]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeGroupMember
+      summary: Take an institution out of a group.
+      tags: [platform]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/owner/groups/{id}/admins:
+    post:
+      operationId: addGroupAdmin
+      summary: Name a group administrator by email; they see the group once signed in with that verified address.
+      tags: [platform]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupAdminInput"
+      responses:
+        "200":
+          description: The group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeGroupAdmin
+      summary: Remove a group administrator.
+      tags: [platform]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/owner/demo:
+    post:
+      operationId: createOwnerDemo
+      summary: Give the owner a demo group of sample institutions, where they hold every role and can preview each one.
+      tags: [platform]
+      responses:
+        "200":
+          description: The demo group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerGroup"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/groups:
+    get:
+      operationId: listMyGroups
+      summary: The groups the signed-in person administers, with status counts for each institution, and nothing inside them (Part 77).
+      tags: [groups]
+      responses:
+        "200":
+          description: The groups.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyGroup"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -4013,9 +4212,147 @@ components:
           maxItems: 3
           items:
             $ref: "#/components/schemas/SortRule"
+    OwnerOrg:
+      type: object
+      required: [id, name, type, preset, createdAt, admins, pendingAdmins, students, staff, demo]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [school, college, university]
+        preset:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        groupId:
+          type: string
+          format: uuid
+        groupName:
+          type: string
+        admins:
+          type: integer
+          description: People who hold the administrator role.
+        pendingAdmins:
+          type: array
+          description: Addresses invited as administrator who have not signed in yet.
+          items:
+            type: string
+        students:
+          type: integer
+        staff:
+          type: integer
+        demo:
+          type: boolean
+          description: A sample institution, not a client's.
+    OwnerOrgInput:
+      type: object
+      additionalProperties: false
+      required: [name, type, adminEmail]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [school, college, university]
+        adminEmail:
+          type: string
+    OwnerOrgCreated:
+      type: object
+      required: [orgId, emailed]
+      properties:
+        orgId:
+          type: string
+          format: uuid
+        emailed:
+          type: boolean
+          description: Whether the sign-in service emailed the invitation; they can sign in with the address either way.
+    OwnerGroup:
+      type: object
+      required: [id, name, admins, orgIds]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        admins:
+          type: array
+          items:
+            type: string
+        orgIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+    GroupInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+    GroupAdminInput:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+    GroupRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    MyGroup:
+      type: object
+      required: [id, name, institutions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        institutions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupInstitution"
+    GroupInstitution:
+      type: object
+      required: [id, name, type, member, students, sections, assessments, marksEntered]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+        member:
+          type: boolean
+          description: Whether the person also belongs to it, and so can open it.
+        students:
+          type: integer
+        sections:
+          type: integer
+          description: Classes running now, in the current academic period.
+        assessments:
+          type: integer
+          description: Open for entry.
+        marksEntered:
+          type: integer
+          description: Cells entered so far, of any state but pending.
     Me:
       type: object
-      required: [userId, orgs]
+      required: [userId, orgs, platformOwner, groups]
       properties:
         userId:
           type: string
@@ -4024,6 +4361,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MyOrg"
+        platformOwner:
+          type: boolean
+          description: Whether this person runs the platform (a verified address in PLATFORM_OWNER_EMAILS).
+        groups:
+          type: array
+          description: Groups this person administers.
+          items:
+            $ref: "#/components/schemas/GroupRef"
     MyOrg:
       type: object
       required: [id, name, preset, roles, setupDone]

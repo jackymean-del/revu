@@ -1385,6 +1385,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/owner/orgs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every institution, for the platform owner, by name, type, administrators and counts only. No student or staff record is ever included (Part 77). */
+        get: operations["listOwnerOrgs"];
+        put?: never;
+        /** Create an institution and invite its first administrator by email (Part 56.5). The owner gets no access to it. */
+        post: operations["createOwnerOrg"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/owner/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every group, with its administrators and institutions. */
+        get: operations["listOwnerGroups"];
+        put?: never;
+        /** Create a group, a name over several institutions that owns no records (Part 49). */
+        post: operations["createOwnerGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/owner/groups/{id}/members/{orgId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put an institution in a group, moving it from any other. */
+        put: operations["addGroupMember"];
+        post?: never;
+        /** Take an institution out of a group. */
+        delete: operations["removeGroupMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/owner/groups/{id}/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Name a group administrator by email; they see the group once signed in with that verified address. */
+        post: operations["addGroupAdmin"];
+        /** Remove a group administrator. */
+        delete: operations["removeGroupAdmin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/owner/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Give the owner a demo group of sample institutions, where they hold every role and can preview each one. */
+        post: operations["createOwnerDemo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The groups the signed-in person administers, with status counts for each institution, and nothing inside them (Part 77). */
+        get: operations["listMyGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -2291,10 +2397,86 @@ export interface components {
             items: components["schemas"]["LayoutItem"][];
             sort: components["schemas"]["SortRule"][];
         };
+        OwnerOrg: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            type: "school" | "college" | "university";
+            preset: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            groupId?: string;
+            groupName?: string;
+            /** @description People who hold the administrator role. */
+            admins: number;
+            /** @description Addresses invited as administrator who have not signed in yet. */
+            pendingAdmins: string[];
+            students: number;
+            staff: number;
+            /** @description A sample institution, not a client's. */
+            demo: boolean;
+        };
+        OwnerOrgInput: {
+            name: string;
+            /** @enum {string} */
+            type: "school" | "college" | "university";
+            adminEmail: string;
+        };
+        OwnerOrgCreated: {
+            /** Format: uuid */
+            orgId: string;
+            /** @description Whether the sign-in service emailed the invitation; they can sign in with the address either way. */
+            emailed: boolean;
+        };
+        OwnerGroup: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            admins: string[];
+            orgIds: string[];
+        };
+        GroupInput: {
+            name: string;
+        };
+        GroupAdminInput: {
+            email: string;
+        };
+        GroupRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+        };
+        MyGroup: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            institutions: components["schemas"]["GroupInstitution"][];
+        };
+        GroupInstitution: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            /** @description Whether the person also belongs to it, and so can open it. */
+            member: boolean;
+            students: number;
+            /** @description Classes running now, in the current academic period. */
+            sections: number;
+            /** @description Open for entry. */
+            assessments: number;
+            /** @description Cells entered so far, of any state but pending. */
+            marksEntered: number;
+        };
         Me: {
             /** @description The sign-in id (Clerk user id). */
             userId: string;
             orgs: components["schemas"]["MyOrg"][];
+            /** @description Whether this person runs the platform (a verified address in PLATFORM_OWNER_EMAILS). */
+            platformOwner: boolean;
+            /** @description Groups this person administers. */
+            groups: components["schemas"]["GroupRef"][];
         };
         MyOrg: {
             /** Format: uuid */
@@ -5524,6 +5706,240 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Layout"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listOwnerOrgs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The institutions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerOrg"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createOwnerOrg: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerOrgInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerOrgCreated"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listOwnerGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The groups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createOwnerGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupInput"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addGroupMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                orgId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeGroupMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                orgId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addGroupAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupAdminInput"];
+            };
+        };
+        responses: {
+            /** @description The group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeGroupAdmin: {
+        parameters: {
+            query: {
+                email: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createOwnerDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The demo group. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listMyGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The groups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyGroup"][];
                 };
             };
             default: components["responses"]["Problem"];

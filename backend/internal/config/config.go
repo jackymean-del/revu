@@ -22,6 +22,9 @@ type Config struct {
 	DevUserID      string // local only: signs every request in as this user
 	ClerkSecretKey string // verifies sign-in tokens; required in production
 	ClerkWebhook   string // signing secret of the Clerk webhook endpoint (whsec_...)
+	// PlatformOwners are the verified addresses that run the platform
+	// (Part 56.2): the owner console, never an institution's content.
+	PlatformOwners []string
 	AppURL         string // where invitation links land; defaults to the first allowed origin
 }
 
@@ -54,6 +57,12 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("PORT %q is not a valid port", port)
 	}
 	c.Port = p
+
+	for _, e := range strings.Split(getenv("PLATFORM_OWNER_EMAILS"), ",") {
+		if e = strings.ToLower(strings.TrimSpace(e)); e != "" {
+			c.PlatformOwners = append(c.PlatformOwners, e)
+		}
+	}
 
 	for _, o := range strings.Split(getenv("ALLOWED_ORIGINS"), ",") {
 		if o = strings.TrimSpace(o); o != "" {

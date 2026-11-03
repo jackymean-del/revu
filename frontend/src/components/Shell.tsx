@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useOrg } from '../lib/org-context'
 import { Account } from './Account'
 import { BrandLockup } from './BrandLockup'
+import { PreviewBanner, Switcher } from './Switcher'
 
 const link = 'rounded-lg px-3 py-1.5 text-sm font-semibold'
 const active = { className: 'bg-mist text-brand' }
@@ -31,7 +32,7 @@ function OrgPicker() {
 
 /** Which areas a person sees, by role. The server decides what they may do; this only keeps the menu short. */
 function useNav() {
-  const { current } = useOrg()
+  const { current, platformOwner, groups } = useOrg()
   const roles = current?.roles ?? []
   const admin = roles.includes('admin')
   const items: { to: string; label: string; exact?: boolean }[] = [{ to: '/', label: 'Home', exact: true }]
@@ -40,6 +41,8 @@ function useNav() {
   if (admin || roles.includes('coordinator') || roles.includes('class_teacher')) items.push({ to: '/choices', label: 'Choices' })
   if (admin) items.push({ to: '/settings/structure', label: 'Structure' }, { to: '/settings/words', label: 'Words' })
   if (admin || roles.includes('principal')) items.push({ to: '/settings/history', label: 'History' })
+  if (groups.length > 0) items.push({ to: '/groups', label: 'Groups' })
+  if (platformOwner) items.push({ to: '/owner', label: 'Owner' })
   return items
 }
 
@@ -67,9 +70,11 @@ export function Shell() {
         </nav>
         <div className="ml-auto flex min-w-0 items-center gap-3">
           <OrgPicker />
+          <Switcher />
           <Account />
         </div>
       </header>
+      <PreviewBanner />
       <main id="main" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>

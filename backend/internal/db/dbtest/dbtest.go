@@ -71,7 +71,7 @@ type Org struct {
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
-	"sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
+	"group_members", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
 	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
 	"student_subject_choices", "subject_group_options", "subject_groups",
 	"invitations", "import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
@@ -138,6 +138,9 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	profile := one(`INSERT INTO layout_profiles (org_id, surface, scope_kind, scope_id, user_id) VALUES ($1, 'entry_grid', 'user', $2, $3) RETURNING id`, o.ID, o.AssessmentID, o.UserID)
 	one(`INSERT INTO layout_items (org_id, profile_id, item_kind, item_id, position) VALUES ($1, $2, 'part', $3, 1) RETURNING item_id`, o.ID, profile, o.PartID)
 	one(`INSERT INTO layout_sort_rules (org_id, profile_id, seq, field) VALUES ($1, $2, 1, 'name') RETURNING field`, o.ID, profile)
+	group := one(`INSERT INTO groups (name) VALUES ($1) RETURNING id`, name+" group "+o.UserID)
+	t.Cleanup(func() { _, _ = owner.Exec(context.Background(), `DELETE FROM groups WHERE id = $1`, group) })
+	one(`INSERT INTO group_members (org_id, group_id) VALUES ($1, $2) RETURNING org_id`, o.ID, group)
 	one(`INSERT INTO feature_flags (org_id, key, enabled) VALUES ($1, 'scan_grading', true) RETURNING id`, o.ID)
 	return o
 }

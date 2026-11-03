@@ -21,6 +21,11 @@ func TestLoad(t *testing.T) {
 					t.Fatalf("DatabaseURL %q", c.DatabaseURL)
 				}
 			}},
+		{name: "owner addresses are lower case and trimmed", env: map[string]string{"PLATFORM_OWNER_EMAILS": " Jackymean@Gmail.com , ,b@x.org"}, check: func(t *testing.T, c Config) {
+			if len(c.PlatformOwners) != 2 || c.PlatformOwners[0] != "jackymean@gmail.com" {
+				t.Fatalf("owners %v", c.PlatformOwners)
+			}
+		}},
 		{name: "origins are split and trimmed", env: map[string]string{"ALLOWED_ORIGINS": " https://a.test , https://b.test ,"}, check: func(t *testing.T, c Config) {
 			if len(c.AllowedOrigins) != 2 || c.AllowedOrigins[1] != "https://b.test" {
 				t.Fatalf("origins: %v", c.AllowedOrigins)

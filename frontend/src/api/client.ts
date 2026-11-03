@@ -15,6 +15,16 @@ export const setTokenGetter = (get: (() => Promise<string | null>) | null) => {
   tokenGetter = get
 }
 
+/**
+ * The role an administrator is previewing, sent with every call inside the
+ * institution. The server narrows the request to that role and refuses any
+ * change, so the preview shows exactly what the role would see.
+ */
+let previewRole: string | null = null
+export const setPreviewRole = (role: string | null) => {
+  previewRole = role
+}
+
 type Options = { signal?: AbortSignal; orgId?: string; method?: string; body?: unknown; form?: FormData }
 
 /** Calls the API; a non-2xx answer throws an ApiError. */
@@ -23,6 +33,7 @@ async function call<T>(path: string, { signal, orgId, method = 'GET', body, form
   const token = tokenGetter ? await tokenGetter() : null
   if (token) headers.Authorization = `Bearer ${token}`
   if (orgId) headers['X-Org-Id'] = orgId
+  if (orgId && previewRole) headers['X-View-As'] = previewRole
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const res = await fetch(BASE + path, { signal, method, headers, body: form ?? (body === undefined ? undefined : JSON.stringify(body)) })
   if (!res.ok) throw await toApiError(res)
@@ -104,6 +115,7 @@ export const previewPromotion = (orgId: string, fromYearId: string, toYearId: st
 /** Downloads a file the API serves to signed-in people, under the given name. */
 export async function download(orgId: string, path: string, filename: string) {
   const headers: Record<string, string> = { 'X-Org-Id': orgId }
+  if (previewRole) headers['X-View-As'] = previewRole
   const token = tokenGetter ? await tokenGetter() : null
   if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(BASE + path, { headers })
@@ -236,3 +248,28 @@ export const resolveLayout = (orgId: string, scopeId: string, signal?: AbortSign
   call<Layout>(`/v1/layouts/resolve?${new URLSearchParams({ surface: 'entry_grid', scopeId })}`, { orgId, signal })
 
 export const saveLayout = (orgId: string, body: LayoutInput) => call<Layout>('/v1/layouts/mine', { orgId, method: 'PUT', body })
+
+export type OwnerOrg = components['schemas']['OwnerOrg']
+export type OwnerOrgInput = components['schemas']['OwnerOrgInput']
+export type OwnerGroup = components['schemas']['OwnerGroup']
+export type MyGroup = components['schemas']['MyGroup']
+
+export const listOwnerOrgs = (signal?: AbortSignal) => call<OwnerOrg[]>('/v1/owner/orgs', { signal })
+
+export const createOwnerOrg = (body: OwnerOrgInput) => call<components['schemas']['OwnerOrgCreated']>('/v1/owner/orgs', { method: 'POST', body })
+
+export const listOwnerGroups = (signal?: AbortSignal) => call<OwnerGroup[]>('/v1/owner/groups', { signal })
+
+export const createOwnerGroup = (name: string) => call<OwnerGroup>('/v1/owner/groups', { method: 'POST', body: { name } })
+
+export const setGroupMember = (groupId: string, orgId: string, member: boolean) =>
+  call<OwnerGroup>(`/v1/owner/groups/${groupId}/members/${orgId}`, { method: member ? 'PUT' : 'DELETE' })
+
+export const addGroupAdmin = (groupId: string, email: string) => call<OwnerGroup>(`/v1/owner/groups/${groupId}/admins`, { method: 'POST', body: { email } })
+
+export const removeGroupAdmin = (groupId: string, email: string) =>
+  call<OwnerGroup>(`/v1/owner/groups/${groupId}/admins?${new URLSearchParams({ email })}`, { method: 'DELETE' })
+
+export const createOwnerDemo = () => call<OwnerGroup>('/v1/owner/demo', { method: 'POST' })
+
+export const listMyGroups = (signal?: AbortSignal) => call<MyGroup[]>('/v1/groups', { signal })

@@ -13,7 +13,7 @@ const card = 'rounded-xl border border-line bg-white p-5'
 export function Home() {
   const t = useT()
   const auth = useAuthState()
-  const { current, orgs, loading, error, unreachable, userId } = useOrg()
+  const { current, orgs, loading, error, unreachable, userId, platformOwner, groups } = useOrg()
   const orgId = current?.id ?? ''
   const roles = current?.roles ?? []
   const isAdmin = roles.includes('admin')
@@ -40,6 +40,27 @@ export function Home() {
         <button type="button" onClick={() => window.location.reload()} className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
           Try again
         </button>
+      </div>,
+    )
+  if (!current && (platformOwner || groups.length > 0))
+    return shell(
+      <div className={card}>
+        <h1 className="text-xl font-extrabold">You are signed in</h1>
+        <p className="mt-2 text-muted">
+          {platformOwner ? 'You run the platform: create institutions, form groups and make your demo group from the owner console.' : 'You administer a group: see each institution at a glance.'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {platformOwner && (
+            <Link to="/owner" className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
+              Open the owner console
+            </Link>
+          )}
+          {groups.length > 0 && (
+            <Link to="/groups" className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-brand hover:bg-mist">
+              Open your groups
+            </Link>
+          )}
+        </div>
       </div>,
     )
   if (!current)

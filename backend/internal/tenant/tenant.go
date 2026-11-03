@@ -11,10 +11,12 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/problem"
 )
@@ -86,6 +88,11 @@ func Middleware(pool *pgxpool.Pool, identify Identify) fiber.Handler {
 		if err != nil {
 			return err
 		}
+		if as := strings.TrimSpace(c.Get(ViewAsHeader)); as != "" {
+			if m, err = preview(c, m, as); err != nil {
+				return err
+			}
+		}
 		c.Locals(txKey, tx)
 		c.Locals(memberKey, m)
 
@@ -97,6 +104,34 @@ func Middleware(pool *pgxpool.Pool, identify Identify) fiber.Handler {
 		}
 		return tx.Commit(ctx)
 	}
+}
+
+// ViewAsHeader asks to see the institution as one role (Part 31: a
+// permission preview for administrators, clearly marked as one).
+const ViewAsHeader = "X-View-As"
+
+var previewRoles = map[string]bool{"principal": true, "coordinator": true, "teacher": true, "class_teacher": true, "viewer": true}
+
+// preview narrows the member to one role for this request. Only an
+// administrator of the whole institution may preview, and a preview changes
+// nothing: the server enforces the chosen role, so what is shown is exactly
+// what that role would see.
+func preview(c fiber.Ctx, m Member, as string) (Member, error) {
+	admin := false
+	for _, r := range m.Roles {
+		admin = admin || (r.Name == "admin" && r.BranchID == "")
+	}
+	if !admin {
+		return m, problem.New(http.StatusForbidden, "preview.not_allowed", "Only an administrator of the whole institution can preview other roles.")
+	}
+	if !previewRoles[as] {
+		return m, problem.Invalid(api.FieldError{Field: ViewAsHeader, Code: "unknown", Message: "Preview as principal, coordinator, teacher, class teacher or view only."})
+	}
+	if c.Method() != http.MethodGet && c.Method() != http.MethodHead {
+		return m, problem.New(http.StatusForbidden, "preview.read_only", "A preview changes nothing. Stop the preview to make changes.")
+	}
+	m.Roles = []Role{{Name: as}}
+	return m, nil
 }
 
 // enter scopes tx to the organisation and loads the user's roles there.

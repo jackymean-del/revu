@@ -3,13 +3,11 @@
 package org
 
 import (
-	"log/slog"
-
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackymean-del/revu/internal/api"
-	"github.com/jackymean-del/revu/internal/auth"
+	"github.com/jackymean-del/revu/internal/platform"
 )
 
 // Me answers who is signed in and lists their organisations through
@@ -17,21 +15,17 @@ import (
 // any invitation for an address the sign-in service says this person has
 // verified, so an invited person lands in their organisation on first
 // sign-in.
-func Me(pool *pgxpool.Pool, a auth.Authenticator, dir auth.Directory) fiber.Handler {
+func Me(pool *pgxpool.Pool, o platform.Options) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		user, err := a.UserID(c)
+		who, err := platform.Who(c, o)
 		if err != nil {
 			return err
 		}
-		if dir != nil {
-			emails, err := dir.VerifiedEmails(c.Context(), user)
-			if err != nil {
-				slog.Warn("could not read verified emails; invitations wait for the next sign-in", "err", err)
-			} else if len(emails) > 0 {
-				var n int
-				if err := pool.QueryRow(c.Context(), `SELECT revu_claim_invitations($1, $2)`, user, emails).Scan(&n); err != nil {
-					return err
-				}
+		user := who.User
+		if len(who.Emails) > 0 {
+			var n int
+			if err := pool.QueryRow(c.Context(), `SELECT revu_claim_invitations($1, $2)`, user, who.Emails).Scan(&n); err != nil {
+				return err
 			}
 		}
 		rows, err := pool.Query(c.Context(), `SELECT id::text, name, preset, roles, coalesce(staff_id::text, ''), setup_done FROM revu_my_orgs($1)`, user)
@@ -53,6 +47,10 @@ func Me(pool *pgxpool.Pool, a auth.Authenticator, dir auth.Directory) fiber.Hand
 		if orgs == nil {
 			orgs = []api.MyOrg{}
 		}
-		return c.JSON(api.Me{UserId: user, Orgs: orgs})
+		groups, err := platform.GroupsOf(c.Context(), o.Owner, who.Emails)
+		if err != nil {
+			return err
+		}
+		return c.JSON(api.Me{UserId: user, Orgs: orgs, PlatformOwner: platform.IsOwner(who, o.Owners), Groups: groups})
 	}
 }

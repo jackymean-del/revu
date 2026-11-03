@@ -202,6 +202,32 @@ A rule nothing checks comes back.
   never change a calculation.
 - bundle-verify.mts measures every lazy screen, not only the entry.
 
+## Platform owner, groups and preview
+
+- The platform owner is a Clerk-verified address in PLATFORM_OWNER_EMAILS
+  (backend/internal/platform). The owner console (/owner) lists institutions
+  by name, type, administrators and counts, creates an institution and
+  invites its first administrator, forms groups and names their
+  administrators, and makes the owner's demo group. The owner gets no access
+  to any institution's records (Parts 56.5, 70.1 and 77): a client's data is
+  reached only through a membership there.
+- A group (Part 49) is a name over institutions and never a tenant. groups,
+  group_admins and platform_audit are platform tables the application role
+  cannot touch at all; the owner and group handlers reach them through the
+  owner account (Deps.Owner), returning names and counts only.
+  group_members carries org_id and is a tenant table. rls_test accepts a
+  table without org_id only while revu_app has no privilege on it.
+- A group administrator (/groups) sees each member institution's counts and
+  opens one only where they also belong to it.
+- Preview: an administrator of the whole institution sends X-View-As with a
+  role; the tenant middleware narrows the request to that role and refuses
+  every change (preview.read_only). The Switch menu starts and stops it and
+  a banner always says it is a preview. Parent and student previews arrive
+  with the family portal (v4.10).
+- Pages that span institutions (sign-in, sign-up, owner, groups) use neutral
+  words, never a preset's; journeys in auth.spec.ts and owner.spec.ts fail
+  on any preset word.
+
 ## Layout
 
 - frontend/ - the app (React 19 + Vite), deployed to app.revu.bhusku.com

@@ -30,6 +30,7 @@ person and never committed.
    MIGRATE_DATABASE_URL=${{Postgres.DATABASE_URL}}
    APP_DB_PASSWORD=<32 letters and digits, generated on your machine>
    CLERK_SECRET_KEY=<a key made for this service in Clerk>
+   PLATFORM_OWNER_EMAILS=<the owner's verified email addresses, comma separated>
    ALLOWED_ORIGINS=https://revu.bhusku.com,https://revu-cmf.pages.dev
    APP_URL=https://revu.bhusku.com
    ```
