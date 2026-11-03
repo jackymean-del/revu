@@ -9,12 +9,14 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackymean-del/revu/internal/api"
+	"github.com/jackymean-del/revu/internal/evidence"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/tenant"
 )
@@ -69,6 +71,27 @@ const (
 
 var leaders = []string{"admin", "principal", "coordinator"}
 
+// marksPending lists, oldest first, each open assessment and section the
+// person teaches where cells are still to enter: students who take the
+// subject, with no row status, and a column still pending.
+var marksPending = `
+	SELECT a.id::text || '/' || s.id::text, a.title || ', ' || ` + sectionName + `, n.pending::text || ' to enter'
+	  FROM assessments a
+	  JOIN assessment_scopes sc ON sc.assessment_id = a.id
+	  JOIN sections s ON s.id = sc.section_id AND s.deleted_at IS NULL
+	  CROSS JOIN LATERAL (
+	    SELECT count(*) AS pending
+	      FROM enrolments e
+	      JOIN students st ON st.id = e.student_id AND st.deleted_at IS NULL AND st.status = 'active'
+	      JOIN assessment_parts p ON p.assessment_id = a.id AND p.deleted_at IS NULL
+	     WHERE e.section_id = s.id AND e.year_id = a.year_id AND e.deleted_at IS NULL
+	       AND NOT EXISTS (SELECT 1 FROM assessment_participation x WHERE x.assessment_id = a.id AND x.student_id = st.id)
+	       AND NOT EXISTS (SELECT 1 FROM evidence ev WHERE ev.student_id = st.id AND ev.part_id = p.id AND ev.state <> 'pending')
+	       AND ` + fmt.Sprintf(evidence.Applicable, evidence.Selected, "st.id") + `) n
+	 WHERE a.deleted_at IS NULL AND a.status = 'open' AND a.year_id::text = @year AND n.pending > 0
+	   AND EXISTS (SELECT 1 FROM teaching_assignments t WHERE t.staff_id::text = @staff AND t.section_id = s.id AND t.subject_id = a.subject_id AND t.deleted_at IS NULL)
+	 ORDER BY a.created_at, 2`
+
 // noChoice lists students below a subject group's minimum on today, kept
 // inside the year (Part 74.1), with the groups they still have to choose
 // for. The middle part limits which sections count.
@@ -92,6 +115,7 @@ const (
 )
 
 var all = []tile{
+	{key: "marks_pending", kind: exception, roles: []string{"teacher", "class_teacher"}, needsStaff: true, sql: marksPending},
 	{key: "my_classes", kind: total, roles: []string{"teacher", "class_teacher"}, needsStaff: true, sql: `
 		SELECT a.id::text, ` + sectionName + `, coalesce(sub.name, '')
 		  FROM teaching_assignments a

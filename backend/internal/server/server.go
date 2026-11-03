@@ -13,18 +13,22 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/assessment"
 	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/choices"
 	"github.com/jackymean-del/revu/internal/clerksync"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/dashboard"
+	"github.com/jackymean-del/revu/internal/evidence"
 	"github.com/jackymean-del/revu/internal/handlers"
+	"github.com/jackymean-del/revu/internal/layout"
 	"github.com/jackymean-del/revu/internal/org"
 	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/setup"
 	"github.com/jackymean-del/revu/internal/structure"
+	"github.com/jackymean-del/revu/internal/tables"
 	"github.com/jackymean-del/revu/internal/tenant"
 	"github.com/jackymean-del/revu/internal/terminology"
 )
@@ -85,6 +89,10 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	setup.Routes(inOrg)
 	dashboard.Routes(inOrg)
 	choices.Routes(inOrg)
+	assessment.Routes(inOrg)
+	evidence.Routes(inOrg)
+	layout.Routes(inOrg)
+	tables.Routes(inOrg)
 	audit.Routes(inOrg)
 	return app
 }

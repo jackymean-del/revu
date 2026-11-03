@@ -78,7 +78,7 @@ type Result struct {
 	OrgID                       string
 	Sections, Staff, Students   int
 	TeachingAssignments, Guards int
-	Choices                     int
+	Choices, Assessments        int
 }
 
 // Run creates the demo organisations and makes userID an administrator of
@@ -150,12 +150,17 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 	if err != nil {
 		return r, err
 	}
+	var firstTerm string
 	for i, t := range d.Terms {
-		if _, err := ensure(ctx, tx,
+		id, err := ensure(ctx, tx,
 			`SELECT id::text FROM periods WHERE org_id = $1 AND year_id = $2::uuid AND (lower(name) = lower($3) OR seq = $4) AND deleted_at IS NULL`,
 			`INSERT INTO periods (org_id, year_id, name, seq, starts_on, ends_on) VALUES ($1, $2::uuid, $3, $4, $5::date, $6::date) RETURNING id::text`, 4,
-			org, year, t.Name, i+1, t.Start, t.End); err != nil {
+			org, year, t.Name, i+1, t.Start, t.End)
+		if err != nil {
 			return r, err
+		}
+		if i == 0 {
+			firstTerm = id
 		}
 	}
 
@@ -232,12 +237,21 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 				}
 			}
 		}
+		if err := unitTest(ctx, tx, org, year, firstTerm, level, subjects[slices.Index(d.Subjects, "Mathematics")]); err != nil {
+			return r, err
+		}
 		for si, sname := range d.Sections {
 			section, err := ensure(ctx, tx,
 				`SELECT id::text FROM sections WHERE org_id = $1 AND year_id = $2::uuid AND level_id = $3::uuid AND branch_id = $4::uuid AND lower(name) = lower($5) AND deleted_at IS NULL`,
 				`INSERT INTO sections (org_id, year_id, level_id, branch_id, name) VALUES ($1, $2::uuid, $3::uuid, $4::uuid, $5) RETURNING id::text`, 5,
 				org, year, level, branch, sname)
 			if err != nil {
+				return r, err
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO assessment_scopes (org_id, assessment_id, section_id)
+				SELECT $1, a.id, $2::uuid FROM assessments a WHERE a.org_id = $1 AND a.level_id = $3::uuid AND a.title = 'Unit test 1' AND a.deleted_at IS NULL
+				ON CONFLICT DO NOTHING`, org, section, level); err != nil {
 				return r, err
 			}
 			n := li*len(d.Sections) + si
@@ -301,9 +315,29 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		       (SELECT count(*) FROM students WHERE org_id = $1 AND deleted_at IS NULL),
 		       (SELECT count(*) FROM teaching_assignments WHERE org_id = $1 AND deleted_at IS NULL),
 		       (SELECT count(*) FROM guardians WHERE org_id = $1 AND deleted_at IS NULL),
-		       (SELECT count(*) FROM student_subject_choices WHERE org_id = $1 AND effective_to IS NULL)`, org).
-		Scan(&r.Sections, &r.Staff, &r.Students, &r.TeachingAssignments, &r.Guards, &r.Choices)
+		       (SELECT count(*) FROM student_subject_choices WHERE org_id = $1 AND effective_to IS NULL),
+		       (SELECT count(*) FROM assessments WHERE org_id = $1 AND deleted_at IS NULL)`, org).
+		Scan(&r.Sections, &r.Staff, &r.Students, &r.TeachingAssignments, &r.Guards, &r.Choices, &r.Assessments)
 	return r, err
+}
+
+// unitTest is an open Mathematics test out of 40 for a level, so the marks
+// grid has something to enter into; each section of the level joins it as
+// the section is made.
+func unitTest(ctx context.Context, tx pgx.Tx, org, year, term, level, subject string) error {
+	id, err := ensure(ctx, tx,
+		`SELECT id::text FROM assessments WHERE org_id = $1 AND period_id = $2::uuid AND level_id = $3::uuid AND subject_id = $4::uuid AND title = 'Unit test 1' AND deleted_at IS NULL`,
+		`INSERT INTO assessments (org_id, period_id, level_id, subject_id, title, entry_mode, year_id) VALUES ($1, $2::uuid, $3::uuid, $4::uuid, 'Unit test 1', 'total', $5::uuid) RETURNING id::text`, 4,
+		org, term, level, subject, year)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) SELECT $1, $2::uuid, 1, 'Total', 40
+		 WHERE NOT EXISTS (SELECT 1 FROM assessment_parts WHERE assessment_id = $2::uuid AND deleted_at IS NULL)`, org, id); err != nil {
+		return err
+	}
+	return nil
 }
 
 // CreateOrg is the platform owner's step for a new client (blueprint Part

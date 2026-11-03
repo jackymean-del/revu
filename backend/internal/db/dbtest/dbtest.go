@@ -65,11 +65,14 @@ func Open(t *testing.T) (owner, app *pgxpool.Pool) {
 // Org is a seeded organisation and the ids of the rows created for it.
 type Org struct {
 	ID, UserID, BranchID, YearID, LevelID, SectionID, SubjectID, StaffID, StudentID, GroupID string
+	PeriodID, AssessmentID, PartID                                                           string
 }
 
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
+	"sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
+	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
 	"student_subject_choices", "subject_group_options", "subject_groups",
 	"invitations", "import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
 	"enrolments", "guardians", "students", "staff", "level_subjects", "subjects", "sections",
@@ -99,7 +102,7 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	})
 	o.BranchID = one(`INSERT INTO branches (org_id, name) VALUES ($1, $2) RETURNING id`, o.ID, name+" main")
 	o.YearID = one(`INSERT INTO academic_years (org_id, label, starts_on, ends_on) VALUES ($1, '2026-27', '2026-04-01', '2027-03-31') RETURNING id`, o.ID)
-	one(`INSERT INTO periods (org_id, year_id, name, seq, starts_on, ends_on) VALUES ($1, $2, 'Term 1', 1, '2026-04-01', '2026-09-30') RETURNING id`, o.ID, o.YearID)
+	o.PeriodID = one(`INSERT INTO periods (org_id, year_id, name, seq, starts_on, ends_on) VALUES ($1, $2, 'Term 1', 1, '2026-04-01', '2026-09-30') RETURNING id`, o.ID, o.YearID)
 	o.LevelID = one(`INSERT INTO levels (org_id, name, seq) VALUES ($1, 'Grade 6', 6) RETURNING id`, o.ID)
 	o.SectionID = one(`INSERT INTO sections (org_id, branch_id, level_id, year_id, name) VALUES ($1, $2, $3, $4, 'A') RETURNING id`, o.ID, o.BranchID, o.LevelID, o.YearID)
 	o.SubjectID = one(`INSERT INTO subjects (org_id, name) VALUES ($1, 'Mathematics') RETURNING id`, o.ID)
@@ -120,6 +123,21 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO level_subjects (org_id, level_id, subject_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.LevelID, language)
 	one(`INSERT INTO student_subject_choices (org_id, student_id, year_id, group_id, subject_id, effective_from, source) VALUES ($1, $2, $3, $4, $5, '2026-04-01', 'manual') RETURNING id`,
 		o.ID, o.StudentID, o.YearID, o.GroupID, language)
+	o.AssessmentID = one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Unit test 1', 'total') RETURNING id`,
+		o.ID, o.YearID, o.PeriodID, o.LevelID, o.SubjectID)
+	one(`INSERT INTO assessment_scopes (org_id, assessment_id, section_id) VALUES ($1, $2, $3) RETURNING section_id`, o.ID, o.AssessmentID, o.SectionID)
+	o.PartID = one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 40) RETURNING id`, o.ID, o.AssessmentID)
+	bulk := one(`INSERT INTO bulk_writes (org_id, assessment_id, section_id, kind, cells) VALUES ($1, $2, $3, 'upload', 1) RETURNING id`, o.ID, o.AssessmentID, o.SectionID)
+	mark := one(`INSERT INTO evidence (org_id, student_id, assessment_id, part_id, value, state, source) VALUES ($1, $2, $3, $4, 31.5, 'scored', 'import') RETURNING id`,
+		o.ID, o.StudentID, o.AssessmentID, o.PartID)
+	one(`INSERT INTO evidence_history (org_id, evidence_id, version, value, state, source, bulk_id) VALUES ($1, $2, 1, 31.5, 'scored', 'import', $3) RETURNING evidence_id`, o.ID, mark, bulk)
+	// The seeded assessment only: tests that enter marks make their own.
+	one(`INSERT INTO assessment_participation (org_id, assessment_id, student_id, status) VALUES ($1, $2, $3, 'exempt') RETURNING student_id`, o.ID, o.AssessmentID, o.StudentID)
+	one(`INSERT INTO sync_outbox_receipts (org_id, op_id, result) VALUES ($1, $2, '{}') RETURNING op_id`, o.ID, "seed-op-"+o.UserID)
+	one(`INSERT INTO result_stale_intents (org_id, student_id, period_id, subject_id) VALUES ($1, $2, $3, $4) RETURNING student_id`, o.ID, o.StudentID, o.PeriodID, o.SubjectID)
+	profile := one(`INSERT INTO layout_profiles (org_id, surface, scope_kind, scope_id, user_id) VALUES ($1, 'entry_grid', 'user', $2, $3) RETURNING id`, o.ID, o.AssessmentID, o.UserID)
+	one(`INSERT INTO layout_items (org_id, profile_id, item_kind, item_id, position) VALUES ($1, $2, 'part', $3, 1) RETURNING item_id`, o.ID, profile, o.PartID)
+	one(`INSERT INTO layout_sort_rules (org_id, profile_id, seq, field) VALUES ($1, $2, 1, 'name') RETURNING field`, o.ID, profile)
 	one(`INSERT INTO feature_flags (org_id, key, enabled) VALUES ($1, 'scan_grading', true) RETURNING id`, o.ID)
 	return o
 }

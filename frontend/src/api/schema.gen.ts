@@ -1145,6 +1145,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Assessments the person may see, newest first. */
+        get: operations["listAssessments"];
+        put?: never;
+        /** Add an assessment for some sections, with its entry columns. */
+        post: operations["createAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change an assessment. A column holding marks cannot be removed, and a maximum cannot fall below a mark entered. */
+        put: operations["updateAssessment"];
+        post?: never;
+        /** Remove an assessment that holds no marks yet. */
+        delete: operations["removeAssessment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lock an assessment, so marks change after this only with a reason. */
+        post: operations["lockAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a locked assessment again, saying why. */
+        post: operations["unlockAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/grid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The entry grid for one section, with its students, columns, every cell with its state and version, and row status. */
+        get: operations["getMarksGrid"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/participation/{studentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or clear a row status for one student. Marks under a status are hidden, never deleted. */
+        put: operations["setParticipation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/template.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A spreadsheet pre-filled with admission numbers, names and the entry columns in the order asked for, to fill in any row order. */
+        get: operations["downloadMarksTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply many cells as one undoable step (an upload, a paste, blanks marked not applicable, a component absent). Cells the person may not change are listed, not applied. */
+        post: operations["applyBulkWrite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/bulk-writes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bulk writes of one section, newest first. */
+        get: operations["listBulkWrites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bulk-writes/{id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo a bulk write in one step. A cell changed since is kept as it is and counted. */
+        post: operations["undoBulkWrite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sync/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply saved edits in order, each through the evidence rules. An edit whose cell moved on returns as a conflict with the current cell; a replayed op id returns its first answer. */
+        post: operations["syncEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tables/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read the first sheet of an uploaded .csv or .xlsx file as text, so the app can preview it. Nothing is stored. */
+        post: operations["readTable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/layouts/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The layout in force for the person on a surface and scope, their own view or the default. */
+        get: operations["resolveLayout"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/layouts/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save the person's own view of a surface. It changes no calculation and nobody else's view. */
+        put: operations["saveMyLayout"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -1810,6 +2050,246 @@ export interface components {
             name: string;
             /** @description How many options of the group the student has, below the minimum. */
             chosen: number;
+        };
+        /**
+         * @description A blank is pending and never zero. Only scored carries a value (decision D16).
+         * @enum {string}
+         */
+        ValueState: "scored" | "absent" | "exempt" | "not_applicable" | "pending" | "not_assessed";
+        /** @description An exact decimal with up to 2 places, sent as text so it is never a float. */
+        Decimal: string;
+        AssessmentPart: {
+            /** Format: uuid */
+            id: string;
+            seq: number;
+            name: string;
+            /** @enum {string} */
+            kind: "main" | "additional";
+            /** @description Required for an additional part, such as PRAC for a practical. */
+            componentCode?: string;
+            countsInTotal: boolean;
+            maxMarks: components["schemas"]["Decimal"];
+        };
+        AssessmentPartInput: {
+            /**
+             * Format: uuid
+             * @description An existing part to keep; left out for a new one.
+             */
+            id?: string;
+            name: string;
+            /** @enum {string} */
+            kind?: "main" | "additional";
+            componentCode?: string;
+            countsInTotal: boolean;
+            maxMarks: components["schemas"]["Decimal"];
+        };
+        Assessment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            yearId: string;
+            /** Format: uuid */
+            periodId: string;
+            /** Format: uuid */
+            levelId: string;
+            /** Format: uuid */
+            subjectId: string;
+            title: string;
+            kind: string;
+            /**
+             * @description total is one mark per student; sections is one per paper section.
+             * @enum {string}
+             */
+            entryMode: "total" | "sections";
+            /** @enum {string} */
+            status: "draft" | "published" | "open" | "locked";
+            /** Format: date */
+            heldOn?: string;
+            sectionIds: string[];
+            parts: components["schemas"]["AssessmentPart"][];
+        };
+        AssessmentInput: {
+            /** Format: uuid */
+            periodId: string;
+            /** Format: uuid */
+            levelId: string;
+            /** Format: uuid */
+            subjectId: string;
+            title: string;
+            kind?: string;
+            /** @enum {string} */
+            entryMode: "total" | "sections";
+            /** Format: date */
+            heldOn?: string;
+            sectionIds: string[];
+            /** @description Total marks mode takes exactly one main part. */
+            parts: components["schemas"]["AssessmentPartInput"][];
+        };
+        ReasonInput: {
+            reason: string;
+        };
+        GridStudent: {
+            /** Format: uuid */
+            id: string;
+            admissionNo: string;
+            name: string;
+            rollNo: string;
+            /** @description false when the subject is chosen by some students and this one did not choose it. */
+            applicable: boolean;
+            /**
+             * @description The row status, when set. Its cells are locked and its marks hidden.
+             * @enum {string}
+             */
+            status?: "not_applicable" | "absent" | "exempt" | "left";
+        };
+        GridCell: {
+            /** Format: uuid */
+            studentId: string;
+            /** Format: uuid */
+            partId: string;
+            state: components["schemas"]["ValueState"];
+            value?: components["schemas"]["Decimal"];
+            /** @description 0 for a cell never saved. */
+            version: number;
+        };
+        MarksGrid: {
+            assessment: components["schemas"]["Assessment"];
+            /** Format: uuid */
+            sectionId: string;
+            /** @enum {string} */
+            applicability: "all" | "selected";
+            students: components["schemas"]["GridStudent"][];
+            /** @description Saved cells only; a missing cell is pending at version 0. */
+            cells: components["schemas"]["GridCell"][];
+            canEdit: boolean;
+            canLock?: boolean;
+            /** @description Whether this person may mark a student as left (TC). */
+            canSetLeft?: boolean;
+        };
+        Participation: {
+            /** Format: uuid */
+            assessmentId: string;
+            /** Format: uuid */
+            studentId: string;
+            /**
+             * @description Absent when the status was cleared.
+             * @enum {string}
+             */
+            status?: "not_applicable" | "absent" | "exempt" | "left";
+            reasonCode?: string;
+            note?: string;
+        };
+        ParticipationInput: {
+            /**
+             * @description Empty clears the status and brings the marks back.
+             * @enum {string}
+             */
+            status?: "" | "not_applicable" | "absent" | "exempt" | "left";
+            reasonCode?: string;
+            note?: string;
+            /** Format: date */
+            effectiveFrom?: string;
+        };
+        EvidenceOp: {
+            opId: string;
+            /** Format: uuid */
+            studentId: string;
+            /** Format: uuid */
+            partId: string;
+            state: components["schemas"]["ValueState"];
+            value?: components["schemas"]["Decimal"];
+            /** @description The version the edit was made on; 0 for a cell never saved. */
+            baseVersion: number;
+            /** @description Needed to change a locked assessment. */
+            reason?: string;
+        };
+        SyncInput: {
+            deviceId?: string;
+            ops: components["schemas"]["EvidenceOp"][];
+        };
+        OpResult: {
+            opId: string;
+            /** @enum {string} */
+            outcome: "applied" | "conflict" | "refused";
+            code?: string;
+            message?: string;
+            cell?: components["schemas"]["GridCell"];
+        };
+        SyncResult: {
+            results: components["schemas"]["OpResult"][];
+        };
+        BulkCell: {
+            /** Format: uuid */
+            studentId: string;
+            /** Format: uuid */
+            partId: string;
+            state: components["schemas"]["ValueState"];
+            value?: components["schemas"]["Decimal"];
+        };
+        BulkInput: {
+            /** Format: uuid */
+            sectionId: string;
+            /** @enum {string} */
+            kind: "upload" | "paste" | "blanks_not_applicable" | "component_absent";
+            cells: components["schemas"]["BulkCell"][];
+            reason?: string;
+        };
+        BulkResult: {
+            /** Format: uuid */
+            id: string;
+            applied: number;
+            refused: components["schemas"]["BulkRefusal"][];
+        };
+        BulkRefusal: {
+            studentId: string;
+            partId: string;
+            message: string;
+        };
+        BulkWrite: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            cells: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            undoneAt?: string;
+        };
+        UndoResult: {
+            restored: number;
+            /** @description Cells changed after the bulk write, left as they are. */
+            kept: number;
+        };
+        TableText: {
+            header: string[];
+            rows: string[][];
+        };
+        LayoutItem: {
+            itemId: string;
+            position: number;
+            visible: boolean;
+            pinned: boolean;
+        };
+        SortRule: {
+            /** @enum {string} */
+            field: "roll_no" | "admission_no" | "name";
+            /** @enum {string} */
+            direction: "asc" | "desc";
+        };
+        Layout: {
+            surface: string;
+            scopeId: string;
+            items: components["schemas"]["LayoutItem"][];
+            sort: components["schemas"]["SortRule"][];
+            /** @description true when this is the person's own saved view. */
+            personal: boolean;
+        };
+        LayoutInput: {
+            /** @enum {string} */
+            surface: "entry_grid";
+            scopeId: string;
+            items: components["schemas"]["LayoutItem"][];
+            sort: components["schemas"]["SortRule"][];
         };
         Me: {
             /** @description The sign-in id (Clerk user id). */
@@ -4585,6 +5065,465 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChoiceCompleteness"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAssessments: {
+        parameters: {
+            query?: {
+                /** @description Only those covering this section. */
+                sectionId?: string;
+                /** @description Only those in this period. */
+                periodId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentInput"];
+            };
+        };
+        responses: {
+            /** @description Added. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssessmentInput"];
+            };
+        };
+        responses: {
+            /** @description Changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    lockAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Locked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    unlockAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonInput"];
+            };
+        };
+        responses: {
+            /** @description Open. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Assessment"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getMarksGrid: {
+        parameters: {
+            query: {
+                /** @description The section. */
+                sectionId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The grid. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarksGrid"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setParticipation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParticipationInput"];
+            };
+        };
+        responses: {
+            /** @description The row as it now is. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Participation"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    downloadMarksTemplate: {
+        parameters: {
+            query: {
+                /** @description The section. */
+                sectionId: string;
+                /** @description Part ids in the order to show, comma separated; all, in paper order, when left out. */
+                columns?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The spreadsheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    applyBulkWrite: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkInput"];
+            };
+        };
+        responses: {
+            /** @description What was applied. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listBulkWrites: {
+        parameters: {
+            query: {
+                /** @description The section. */
+                sectionId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkWrite"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    undoBulkWrite: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What was restored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    syncEvidence: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncInput"];
+            };
+        };
+        responses: {
+            /** @description One result per edit, in order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    readTable: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The heading row and the rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TableText"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    resolveLayout: {
+        parameters: {
+            query: {
+                /** @description For now entry_grid. */
+                surface: string;
+                /** @description For an entry grid, the assessment. */
+                scopeId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The layout. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Layout"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveMyLayout: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Layout"];
                 };
             };
             default: components["responses"]["Problem"];

@@ -26,7 +26,7 @@ func TestDemoSeed(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, r := range first {
-			for _, table := range []string{"student_subject_choices", "subject_group_options", "subject_groups", "audit_log", "guardians", "enrolments", "teaching_assignments", "students", "memberships", "staff",
+			for _, table := range []string{"assessment_parts", "assessment_scopes", "assessments", "student_subject_choices", "subject_group_options", "subject_groups", "audit_log", "guardians", "enrolments", "teaching_assignments", "students", "memberships", "staff",
 				"level_subjects", "subjects", "sections", "levels", "periods", "academic_years", "branches", "terminology"} {
 				_, _ = owner.Exec(ctx, `DELETE FROM `+table+` WHERE org_id = $1`, r.OrgID)
 			}
@@ -36,8 +36,8 @@ func TestDemoSeed(t *testing.T) {
 
 	want := []seed.Result{
 		// Every eleventh student is left without a language: 6 of 72.
-		{Sections: 6, Staff: 8, Students: 72, TeachingAssignments: 6 * 5, Guards: 72, Choices: 66},
-		{Sections: 4, Staff: 5, Students: 40, TeachingAssignments: 4 * 5, Guards: 40},
+		{Sections: 6, Staff: 8, Students: 72, TeachingAssignments: 6 * 5, Guards: 72, Choices: 66, Assessments: 3},
+		{Sections: 4, Staff: 5, Students: 40, TeachingAssignments: 4 * 5, Guards: 40, Assessments: 2},
 	}
 	for i, r := range first {
 		w := want[i]

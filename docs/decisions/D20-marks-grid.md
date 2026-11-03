@@ -111,3 +111,14 @@ Screens use one component, `MarksGrid`, and never a grid library:
   confirm the 100 ms target on a real mid-range device.
 - Column virtualisation was not needed at 20 columns. Add it only if a
   scheme needs many more.
+
+## Built in P0.3
+
+`MarksGrid` and `OneAtATime` in `frontend/src/components/DataGrid/` follow
+this record, on @tanstack/react-table 9.3.1 and @tanstack/react-virtual
+3.14.21. Keys are handled once on the grid against a cursor and an edit
+buffer held in refs, so keys typed before the next draw reach the cell the
+person is on; the P0.3 journey caught digits landing on the previous cell
+when they were handled by the focused element. The offline store (Dexie)
+loads with the first edit, so the Marks route stays at 163 KB gzip with
+the entry. Paste is not in P0.3 (optional, Part 59.7).

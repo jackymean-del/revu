@@ -9,6 +9,8 @@ import type { T } from './terminology/terminology'
 export function tileLabel(t: T, key: string, count: number): string {
   const students = t('person.student', { count })
   switch (key) {
+    case 'marks_pending':
+      return count === 1 ? 'Assessment with marks to enter' : 'Assessments with marks to enter'
     case 'my_classes':
       return count === 1 ? 'Teaching assignment' : 'Teaching assignments'
     case 'my_students':
@@ -63,6 +65,7 @@ export function setupPiece(t: T, key: string): string {
 /** The one thing to do about a tile, for those who may do it. */
 export const tileAction: Record<string, { to: string; label: string } | undefined> = {
   missing_setup: { to: '/setup', label: 'Continue setup' },
+  marks_pending: { to: '/marks', label: 'Open Marks' },
   unplaced_students: { to: '/people', label: 'Open People' },
   no_contact: { to: '/people', label: 'Open People' },
   no_class_teacher: { to: '/settings/structure', label: 'Assign in Structure' },

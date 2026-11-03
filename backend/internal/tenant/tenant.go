@@ -136,3 +136,25 @@ func MemberFrom(c fiber.Ctx) (Member, bool) {
 	m, ok := c.Locals(memberKey).(Member)
 	return m, ok
 }
+
+// Teaching is the acting person as the policy sees them, with the sections
+// and subjects they teach, for rules about their own sections.
+func Teaching(c fiber.Ctx) (policy.Actor, error) {
+	tx, err := Tx(c)
+	if err != nil {
+		return policy.Actor{}, err
+	}
+	m, _ := MemberFrom(c)
+	a := m.Actor()
+	rows, err := tx.Query(c.Context(), `
+		SELECT DISTINCT a.section_id::text, coalesce(a.subject_id::text, '')
+		  FROM teaching_assignments a JOIN memberships m ON m.staff_id = a.staff_id
+		 WHERE m.clerk_user_id = $1 AND a.deleted_at IS NULL`, m.UserID)
+	if err != nil {
+		return a, err
+	}
+	a.Assignments, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (as policy.Assignment, err error) {
+		return as, r.Scan(&as.SectionID, &as.SubjectID)
+	})
+	return a, err
+}

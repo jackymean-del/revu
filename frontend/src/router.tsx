@@ -27,6 +27,11 @@ const choices = createRoute({
   path: '/choices',
   component: lazyRouteComponent(() => import('./pages/Choices'), 'Choices'),
 })
+const marks = createRoute({
+  getParentRoute: () => root,
+  path: '/marks',
+  component: lazyRouteComponent(() => import('./pages/Marks'), 'Marks'),
+})
 const structure = createRoute({
   getParentRoute: () => root,
   path: '/settings/structure',
@@ -43,7 +48,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, setup, people, choices, structure, words, history])
+const routeTree = root.addChildren([home, system, setup, people, marks, choices, structure, words, history])
 
 export const router = createRouter({ routeTree })
 

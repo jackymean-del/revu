@@ -2,6 +2,7 @@ import { useEffect, useMemo, type ReactNode } from 'react'
 import { ClerkProvider, useAuth } from '@clerk/react'
 import { setTokenGetter } from '../api/client'
 import { AuthContext } from './auth-context'
+import { OUTBOX_DB } from './outbox-name'
 
 const KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
@@ -12,6 +13,16 @@ function ClerkBridge({ children }: { children: ReactNode }) {
     setTokenGetter(() => getToken())
     return () => setTokenGetter(null)
   }, [getToken])
+  // Signed out: nothing of the person's stays in this browser.
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      try {
+        indexedDB.deleteDatabase(OUTBOX_DB)
+      } catch {
+        // storage blocked: there is nothing to clear
+      }
+    }
+  }, [isLoaded, isSignedIn])
   const value = useMemo(
     () => ({ enabled: true, loaded: isLoaded, signedIn: !!isSignedIn, userKey: userId ?? 'signed-out' }),
     [isLoaded, isSignedIn, userId],

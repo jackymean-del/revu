@@ -6,9 +6,13 @@ import (
 	"bytes"
 	"encoding/csv"
 	"errors"
+	"io"
 	"strings"
 	"unicode"
 
+	"github.com/gofiber/fiber/v3"
+	"github.com/jackymean-del/revu/internal/api"
+	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -55,4 +59,36 @@ func Read(name string, data []byte) ([][]string, error) {
 		return nil, errors.New("this file could not be read as CSV: " + err.Error())
 	}
 	return rows, nil
+}
+
+// Routes serves reading an uploaded file as text, for previews built in the
+// app. Nothing is stored.
+func Routes(g fiber.Router) {
+	g.Post("/tables/read", read)
+}
+
+func read(c fiber.Ctx) error {
+	fh, err := c.FormFile("file")
+	if err != nil {
+		return problem.Invalid(api.FieldError{Field: "file", Code: "required", Message: "Choose a .csv or .xlsx file."})
+	}
+	file, err := fh.Open()
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, 5<<20))
+	if err != nil {
+		return err
+	}
+	rows, err := Read(fh.Filename, data)
+	if err != nil {
+		return problem.Invalid(api.FieldError{Field: "file", Code: "format", Message: err.Error() + "."})
+	}
+	out := api.TableText{Header: []string{}, Rows: [][]string{}}
+	if len(rows) > 0 {
+		out.Header = rows[0]
+		out.Rows = rows[1:]
+	}
+	return c.JSON(out)
 }

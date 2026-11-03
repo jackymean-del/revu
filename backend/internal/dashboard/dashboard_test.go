@@ -138,6 +138,12 @@ func TestDashboards(t *testing.T) {
 	student("A-004", "Nila", sectionC, false)
 	student("A-005", "Sam", "", false)
 
+	// An open Mathematics test for 6 B with one column: Kiran and Leela to enter.
+	test := one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Unit test 2', 'total') RETURNING id`,
+		a.ID, a.YearID, a.PeriodID, a.LevelID, a.SubjectID)
+	one(`INSERT INTO assessment_scopes (org_id, assessment_id, section_id) VALUES ($1, $2, $3) RETURNING section_id`, a.ID, test, sectionB)
+	one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 40) RETURNING id`, a.ID, test)
+
 	as := func(user string) caller { return caller{t, app, user, a.ID} }
 	admin := as(a.UserID)
 	taraC, omarC, coord, viewer := as("tara-"+a.UserID), as("omar-"+a.UserID), as("coord-"+a.UserID), as("viewer-"+a.UserID)
@@ -191,6 +197,14 @@ func TestDashboards(t *testing.T) {
 		}
 		if got := taraC.titles("my_classes"); !slices.Equal(got, []string{"Grade 6 B", "Grade 6 B"}) {
 			t.Fatalf("Tara's classes %v", got)
+		}
+		var pending api.DashboardList
+		taraC.get(200, "/v1/dashboard/marks_pending", &pending)
+		if len(pending.Rows) != 1 || pending.Rows[0].Title != "Unit test 2, Grade 6 B" || pending.Rows[0].Detail != "2 to enter" {
+			t.Fatalf("Tara's marks to enter %+v", pending.Rows)
+		}
+		if got := omarC.titles("marks_pending"); len(got) != 0 {
+			t.Fatalf("Omar has marks to enter in another section: %v", got)
 		}
 		if got := taraC.titles("my_students"); !slices.Equal(got, []string{"Kiran", "Leela"}) {
 			t.Fatalf("Tara's students %v", got)

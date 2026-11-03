@@ -8,7 +8,7 @@
  * AT-GR-03: a blank is never zero; AB, EX and NA are states, not marks.
  * AT-GR-07: paste follows the same rules as upload.
  */
-import { parseCell, showCell, type CellValue } from './src/components/DataGrid/cells.ts'
+import { parseCell, plain, showCell, type CellValue } from './src/components/DataGrid/cells.ts'
 import { planPaste, planUpload, type GridColumn, type GridStudent } from './src/components/DataGrid/bulk.ts'
 
 let fail = 0
@@ -24,6 +24,7 @@ const cell = (raw: string, max = '10') => {
 }
 ok(cell('7') === 'scored:7' && cell('07.5') === 'scored:7.5' && cell('9.25') === 'scored:9.25', 'marks are kept as exact decimal strings')
 ok(cell('10') === 'scored:10' && cell('10.01').startsWith('error:Above'), 'the maximum is compared exactly, to the hundredth')
+ok(cell('21', '20.00') === 'error:Above the maximum of 20' && plain('12.50') === '12.5' && plain('100') === '100', 'the maximum reads as a teacher writes it')
 ok(cell('0.1', '0.1') === 'scored:0.1' && cell('0.2', '0.1').startsWith('error'), 'no floating-point drift at small maxima')
 ok(cell('') === 'pending' && cell('   ') === 'pending', 'a blank is pending, never zero')
 ok(cell('ab') === 'absent' && cell('EX') === 'exempt' && cell('na') === 'not_applicable', 'AB, EX and NA are states (D16, Part 74)')

@@ -104,21 +104,7 @@ func offers(ctx context.Context, tx pgx.Tx, groupID, subjectID string) (bool, er
 
 // actor is the person with the sections they teach, for the class
 // teacher's own-section rule.
-func actor(c fiber.Ctx, tx pgx.Tx) (policy.Actor, error) {
-	m, _ := tenant.MemberFrom(c)
-	a := m.Actor()
-	rows, err := tx.Query(c.Context(), `
-		SELECT DISTINCT a.section_id::text, coalesce(a.subject_id::text, '')
-		  FROM teaching_assignments a JOIN memberships m ON m.staff_id = a.staff_id
-		 WHERE m.clerk_user_id = $1 AND a.deleted_at IS NULL`, m.UserID)
-	if err != nil {
-		return a, err
-	}
-	a.Assignments, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (as policy.Assignment, err error) {
-		return as, r.Scan(&as.SectionID, &as.SubjectID)
-	})
-	return a, err
-}
+func actor(c fiber.Ctx, _ pgx.Tx) (policy.Actor, error) { return tenant.Teaching(c) }
 
 func canWrite(a policy.Actor, p place) error {
 	return policy.Check(a, policy.SubjectChoices, policy.Target{BranchID: p.branchID, SectionID: p.sectionID})

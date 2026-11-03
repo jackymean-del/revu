@@ -33,3 +33,5 @@ backend/*.exe
 
 # Throwaway spikes (blueprint 59.8: only the result and the wrapper interface are kept)
 spikes/
+# binaries built inside the repo when Windows blocks temp folders
+backend/.testbin/

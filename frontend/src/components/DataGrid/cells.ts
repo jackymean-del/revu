@@ -24,6 +24,9 @@ const hundredths = (s: string) => {
   return Number(whole) * 100 + Number(frac.padEnd(2, '0'))
 }
 
+/** A decimal as a teacher writes it: 20.00 is 20, 12.50 is 12.5. */
+export const plain = (s: string) => (s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s)
+
 /** Reads what a teacher typed or uploaded for a cell out of max (a decimal string). */
 export function parseCell(raw: string, max: string): Parsed {
   const s = raw.trim().toUpperCase()
@@ -31,11 +34,11 @@ export function parseCell(raw: string, max: string): Parsed {
   const code = CODES[s]
   if (code) return { ok: true, cell: { state: code } }
   if (!DECIMAL.test(s)) return { ok: false, reason: 'Use a number with up to 2 decimals, AB, EX or NA' }
-  if (hundredths(s) > hundredths(max)) return { ok: false, reason: `Above the maximum of ${max}` }
+  if (hundredths(s) > hundredths(max)) return { ok: false, reason: `Above the maximum of ${plain(max)}` }
   const whole = s.split('.')[0].replace(/^0+(?=\d)/, '')
   const frac = s.split('.')[1]
   return { ok: true, cell: { state: 'scored', value: frac === undefined ? whole : `${whole}.${frac}` } }
 }
 
 /** How a cell reads in the grid: the mark, a code, or nothing while pending. */
-export const showCell = (c: CellValue | undefined) => (!c ? '' : c.state === 'scored' ? (c.value ?? '') : (LABELS[c.state] ?? ''))
+export const showCell = (c: CellValue | undefined) => (!c ? '' : c.state === 'scored' ? plain(c.value ?? '') : (LABELS[c.state] ?? ''))

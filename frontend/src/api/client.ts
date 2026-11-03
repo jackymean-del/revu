@@ -179,3 +179,60 @@ export async function importSubjectChoices(orgId: string, file: File, apply: boo
   if (apply) form.append('apply', 'true')
   return call<ChoiceImportReport>('/v1/subject-choices/import', { orgId, method: 'POST', form })
 }
+
+export type Assessment = components['schemas']['Assessment']
+export type AssessmentInput = components['schemas']['AssessmentInput']
+export type MarksGridData = components['schemas']['MarksGrid']
+export type GridCellData = components['schemas']['GridCell']
+export type EvidenceOp = components['schemas']['EvidenceOp']
+export type OpResult = components['schemas']['OpResult']
+export type BulkInput = components['schemas']['BulkInput']
+export type BulkResult = components['schemas']['BulkResult']
+export type BulkWrite = components['schemas']['BulkWrite']
+export type UndoResult = components['schemas']['UndoResult']
+export type Layout = components['schemas']['Layout']
+export type LayoutInput = components['schemas']['LayoutInput']
+export type TableText = components['schemas']['TableText']
+export type ParticipationInput = components['schemas']['ParticipationInput']
+export type Period = components['schemas']['Period']
+
+export const listAssessments = (orgId: string, params: Record<string, string>, signal?: AbortSignal) =>
+  call<Assessment[]>(`/v1/assessments?${new URLSearchParams(params)}`, { orgId, signal })
+
+export const createAssessment = (orgId: string, body: AssessmentInput) => call<Assessment>('/v1/assessments', { orgId, method: 'POST', body })
+
+export const lockAssessment = (orgId: string, id: string) => call<Assessment>(`/v1/assessments/${id}/lock`, { orgId, method: 'POST' })
+
+export const unlockAssessment = (orgId: string, id: string, reason: string) =>
+  call<Assessment>(`/v1/assessments/${id}/unlock`, { orgId, method: 'POST', body: { reason } })
+
+export const getMarksGrid = (orgId: string, id: string, sectionId: string, signal?: AbortSignal) =>
+  call<MarksGridData>(`/v1/assessments/${id}/grid?${new URLSearchParams({ sectionId })}`, { orgId, signal })
+
+export const setParticipation = (orgId: string, id: string, studentId: string, body: ParticipationInput) =>
+  call<unknown>(`/v1/assessments/${id}/participation/${studentId}`, { orgId, method: 'PUT', body })
+
+export const syncEvidence = (orgId: string, deviceId: string, ops: EvidenceOp[]) =>
+  call<{ results: OpResult[] }>('/v1/sync/evidence', { orgId, method: 'POST', body: { deviceId, ops } })
+
+export const applyBulk = (orgId: string, id: string, body: BulkInput) => call<BulkResult>(`/v1/assessments/${id}/bulk`, { orgId, method: 'POST', body })
+
+export const listBulkWrites = (orgId: string, id: string, sectionId: string, signal?: AbortSignal) =>
+  call<BulkWrite[]>(`/v1/assessments/${id}/bulk-writes?${new URLSearchParams({ sectionId })}`, { orgId, signal })
+
+export const undoBulk = (orgId: string, id: string) => call<UndoResult>(`/v1/bulk-writes/${id}/undo`, { orgId, method: 'POST' })
+
+export const marksTemplate = (orgId: string, id: string, sectionId: string, columns: string[], filename: string) =>
+  download(orgId, `/v1/assessments/${id}/template.xlsx?${new URLSearchParams({ sectionId, columns: columns.join(',') })}`, filename)
+
+/** Reads an uploaded spreadsheet as text for a preview; nothing is stored. */
+export async function readTable(orgId: string, file: File): Promise<TableText> {
+  const form = new FormData()
+  form.append('file', file)
+  return call<TableText>('/v1/tables/read', { orgId, method: 'POST', form })
+}
+
+export const resolveLayout = (orgId: string, scopeId: string, signal?: AbortSignal) =>
+  call<Layout>(`/v1/layouts/resolve?${new URLSearchParams({ surface: 'entry_grid', scopeId })}`, { orgId, signal })
+
+export const saveLayout = (orgId: string, body: LayoutInput) => call<Layout>('/v1/layouts/mine', { orgId, method: 'PUT', body })

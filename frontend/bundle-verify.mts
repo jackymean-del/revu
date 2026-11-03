@@ -3,8 +3,10 @@
  * under 200 KB gzip. Run after `npx vite build`: npx tsx bundle-verify.mts
  *
  * "Initial" means the entry script in dist/index.html plus every chunk it
- * preloads. Code split out with import() (grids, charts) does not count until
- * a route asks for it, which is how the budget is meant to be met.
+ * preloads. Each screen loaded with import() is a route: its budget is the
+ * initial JavaScript plus its own chunk and every chunk that chunk imports
+ * statically. Code a screen loads later with import() (the offline store,
+ * charts) does not count until it is asked for.
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -33,5 +35,33 @@ for (const s of new Set(scripts)) {
   console.log(`     ${s}: ${(size / 1024).toFixed(1)} KB gzip`)
 }
 ok(total <= BUDGET, `initial JavaScript under ${BUDGET / 1024} KB gzip`, `${(total / 1024).toFixed(1)} KB`)
+
+// Every route: initial plus the screen's chunk and what it imports statically.
+const gz = new Map<string, number>()
+const size = (f: string) => gz.get(f) ?? gz.set(f, gzipSync(readFileSync(join(DIST, f))).length).get(f)!
+const initial = new Set(scripts)
+const statics = (f: string, seen: Set<string>): Set<string> => {
+  for (const m of readFileSync(join(DIST, f), 'utf8').matchAll(/(?:import|from)\s*["']\.\/([^"']+\.js)["']/g)) {
+    const dep = `assets/${m[1]}`
+    if (!seen.has(dep) && !initial.has(dep)) {
+      seen.add(dep)
+      statics(dep, seen)
+    }
+  }
+  return seen
+}
+const entry = readFileSync(join(DIST, scripts[0]), 'utf8')
+// Screens are the chunks the entry imports on demand: import("./Marks-x.js").
+const screens = [...new Set([...entry.matchAll(/import\(["'`]\.\/([A-Z][\w-]*\.js)["'`]\)/g)].map((m) => `assets/${m[1]}`))]
+const lazy = (readFileSync(join('src', 'router.tsx'), 'utf8').match(/lazyRouteComponent\(/g) ?? []).length
+ok(screens.length === lazy, 'every lazy screen in the router is measured', `${screens.length} of ${lazy}`)
+let worst = { name: '', size: 0 }
+for (const s of screens) {
+  const chunks = statics(s, new Set([s]))
+  const route = total + [...chunks].reduce((n, c) => n + size(c), 0)
+  if (route > worst.size) worst = { name: s.replace(/^assets\/|-[\w-]+\.js$/g, ''), size: route }
+  ok(route <= BUDGET, `${s.replace(/^assets\/|-[\w-]+\.js$/g, '')} route under ${BUDGET / 1024} KB gzip`, `${(route / 1024).toFixed(1)} KB`)
+}
+console.log(`     largest route: ${worst.name}, ${(worst.size / 1024).toFixed(1)} KB gzip`)
 
 if (fail) process.exit(1)

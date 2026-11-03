@@ -2003,6 +2003,381 @@ paths:
                 $ref: "#/components/schemas/ChoiceCompleteness"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/assessments:
+    get:
+      operationId: listAssessments
+      summary: Assessments the person may see, newest first.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          description: Only those covering this section.
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          description: Only those in this period.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assessment"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createAssessment
+      summary: Add an assessment for some sections, with its entry columns.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssessmentInput"
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}:
+    put:
+      operationId: updateAssessment
+      summary: Change an assessment. A column holding marks cannot be removed, and a maximum cannot fall below a mark entered.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssessmentInput"
+      responses:
+        "200":
+          description: Changed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: removeAssessment
+      summary: Remove an assessment that holds no marks yet.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/lock:
+    post:
+      operationId: lockAssessment
+      summary: Lock an assessment, so marks change after this only with a reason.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Locked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/unlock:
+    post:
+      operationId: unlockAssessment
+      summary: Open a locked assessment again, saying why.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReasonInput"
+      responses:
+        "200":
+          description: Open.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/grid:
+    get:
+      operationId: getMarksGrid
+      summary: The entry grid for one section, with its students, columns, every cell with its state and version, and row status.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: sectionId
+          in: query
+          required: true
+          description: The section.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The grid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarksGrid"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/participation/{studentId}:
+    put:
+      operationId: setParticipation
+      summary: Set or clear a row status for one student. Marks under a status are hidden, never deleted.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParticipationInput"
+      responses:
+        "200":
+          description: The row as it now is.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Participation"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/template.xlsx:
+    get:
+      operationId: downloadMarksTemplate
+      summary: A spreadsheet pre-filled with admission numbers, names and the entry columns in the order asked for, to fill in any row order.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: sectionId
+          in: query
+          required: true
+          description: The section.
+          schema:
+            type: string
+            format: uuid
+        - name: columns
+          in: query
+          description: Part ids in the order to show, comma separated; all, in paper order, when left out.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The spreadsheet.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/bulk:
+    post:
+      operationId: applyBulkWrite
+      summary: Apply many cells as one undoable step (an upload, a paste, blanks marked not applicable, a component absent). Cells the person may not change are listed, not applied.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkInput"
+      responses:
+        "200":
+          description: What was applied.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/bulk-writes:
+    get:
+      operationId: listBulkWrites
+      summary: The bulk writes of one section, newest first.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: sectionId
+          in: query
+          required: true
+          description: The section.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BulkWrite"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/bulk-writes/{id}/undo:
+    post:
+      operationId: undoBulkWrite
+      summary: Undo a bulk write in one step. A cell changed since is kept as it is and counted.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: What was restored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UndoResult"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/sync/evidence:
+    post:
+      operationId: syncEvidence
+      summary: Apply saved edits in order, each through the evidence rules. An edit whose cell moved on returns as a conflict with the current cell; a replayed op id returns its first answer.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncInput"
+      responses:
+        "200":
+          description: One result per edit, in order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/tables/read:
+    post:
+      operationId: readTable
+      summary: Read the first sheet of an uploaded .csv or .xlsx file as text, so the app can preview it. Nothing is stored.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  x-go-type: string
+      responses:
+        "200":
+          description: The heading row and the rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableText"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/layouts/resolve:
+    get:
+      operationId: resolveLayout
+      summary: The layout in force for the person on a surface and scope, their own view or the default.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: surface
+          in: query
+          required: true
+          description: For now entry_grid.
+          schema:
+            type: string
+        - name: scopeId
+          in: query
+          required: true
+          description: For an entry grid, the assessment.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The layout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Layout"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/layouts/mine:
+    put:
+      operationId: saveMyLayout
+      summary: Save the person's own view of a surface. It changes no calculation and nobody else's view.
+      tags: [marks]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LayoutInput"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Layout"
+        default:
+          $ref: "#/components/responses/Problem"
   /api/health:
     get:
       operationId: getHealth
@@ -3185,6 +3560,459 @@ components:
         chosen:
           type: integer
           description: How many options of the group the student has, below the minimum.
+    ValueState:
+      type: string
+      enum: [scored, absent, exempt, not_applicable, pending, not_assessed]
+      description: A blank is pending and never zero. Only scored carries a value (decision D16).
+    Decimal:
+      type: string
+      pattern: '^\d{1,6}(\.\d{1,2})?$'
+      description: An exact decimal with up to 2 places, sent as text so it is never a float.
+    AssessmentPart:
+      type: object
+      required: [id, seq, name, kind, countsInTotal, maxMarks]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [main, additional]
+        componentCode:
+          type: string
+          description: Required for an additional part, such as PRAC for a practical.
+        countsInTotal:
+          type: boolean
+        maxMarks:
+          $ref: "#/components/schemas/Decimal"
+    AssessmentPartInput:
+      type: object
+      additionalProperties: false
+      required: [name, maxMarks, countsInTotal]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: An existing part to keep; left out for a new one.
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [main, additional]
+        componentCode:
+          type: string
+        countsInTotal:
+          type: boolean
+        maxMarks:
+          $ref: "#/components/schemas/Decimal"
+    Assessment:
+      type: object
+      required: [id, yearId, periodId, levelId, subjectId, title, kind, entryMode, status, sectionIds, parts]
+      properties:
+        id:
+          type: string
+          format: uuid
+        yearId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        kind:
+          type: string
+        entryMode:
+          type: string
+          enum: [total, sections]
+          description: total is one mark per student; sections is one per paper section.
+        status:
+          type: string
+          enum: [draft, published, open, locked]
+        heldOn:
+          type: string
+          format: date
+        sectionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssessmentPart"
+    AssessmentInput:
+      type: object
+      additionalProperties: false
+      required: [periodId, levelId, subjectId, title, entryMode, sectionIds, parts]
+      properties:
+        periodId:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        kind:
+          type: string
+        entryMode:
+          type: string
+          enum: [total, sections]
+        heldOn:
+          type: string
+          format: date
+        sectionIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        parts:
+          type: array
+          minItems: 1
+          maxItems: 40
+          description: Total marks mode takes exactly one main part.
+          items:
+            $ref: "#/components/schemas/AssessmentPartInput"
+    ReasonInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+    GridStudent:
+      type: object
+      required: [id, admissionNo, name, rollNo, applicable]
+      properties:
+        id:
+          type: string
+          format: uuid
+        admissionNo:
+          type: string
+        name:
+          type: string
+        rollNo:
+          type: string
+        applicable:
+          type: boolean
+          description: false when the subject is chosen by some students and this one did not choose it.
+        status:
+          type: string
+          enum: [not_applicable, absent, exempt, left]
+          description: The row status, when set. Its cells are locked and its marks hidden.
+    GridCell:
+      type: object
+      required: [studentId, partId, state, version]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        state:
+          $ref: "#/components/schemas/ValueState"
+        value:
+          $ref: "#/components/schemas/Decimal"
+        version:
+          type: integer
+          description: 0 for a cell never saved.
+    MarksGrid:
+      type: object
+      required: [assessment, sectionId, students, cells, canEdit, applicability]
+      properties:
+        assessment:
+          $ref: "#/components/schemas/Assessment"
+        sectionId:
+          type: string
+          format: uuid
+        applicability:
+          type: string
+          enum: [all, selected]
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/GridStudent"
+        cells:
+          type: array
+          description: Saved cells only; a missing cell is pending at version 0.
+          items:
+            $ref: "#/components/schemas/GridCell"
+        canEdit:
+          type: boolean
+        canLock:
+          type: boolean
+        canSetLeft:
+          type: boolean
+          description: Whether this person may mark a student as left (TC).
+    Participation:
+      type: object
+      required: [assessmentId, studentId]
+      properties:
+        assessmentId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [not_applicable, absent, exempt, left]
+          description: Absent when the status was cleared.
+        reasonCode:
+          type: string
+        note:
+          type: string
+    ParticipationInput:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: ["", not_applicable, absent, exempt, left]
+          description: Empty clears the status and brings the marks back.
+        reasonCode:
+          type: string
+        note:
+          type: string
+        effectiveFrom:
+          type: string
+          format: date
+    EvidenceOp:
+      type: object
+      additionalProperties: false
+      required: [opId, studentId, partId, state, baseVersion]
+      properties:
+        opId:
+          type: string
+          minLength: 8
+          maxLength: 80
+        studentId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        state:
+          $ref: "#/components/schemas/ValueState"
+        value:
+          $ref: "#/components/schemas/Decimal"
+        baseVersion:
+          type: integer
+          description: The version the edit was made on; 0 for a cell never saved.
+        reason:
+          type: string
+          description: Needed to change a locked assessment.
+    SyncInput:
+      type: object
+      additionalProperties: false
+      required: [ops]
+      properties:
+        deviceId:
+          type: string
+        ops:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/EvidenceOp"
+    OpResult:
+      type: object
+      required: [opId, outcome]
+      properties:
+        opId:
+          type: string
+        outcome:
+          type: string
+          enum: [applied, conflict, refused]
+        code:
+          type: string
+        message:
+          type: string
+        cell:
+          $ref: "#/components/schemas/GridCell"
+    SyncResult:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpResult"
+    BulkCell:
+      type: object
+      additionalProperties: false
+      required: [studentId, partId, state]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        state:
+          $ref: "#/components/schemas/ValueState"
+        value:
+          $ref: "#/components/schemas/Decimal"
+    BulkInput:
+      type: object
+      additionalProperties: false
+      required: [sectionId, kind, cells]
+      properties:
+        sectionId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [upload, paste, blanks_not_applicable, component_absent]
+        cells:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items:
+            $ref: "#/components/schemas/BulkCell"
+        reason:
+          type: string
+    BulkResult:
+      type: object
+      required: [id, applied, refused]
+      properties:
+        id:
+          type: string
+          format: uuid
+        applied:
+          type: integer
+        refused:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkRefusal"
+    BulkRefusal:
+      type: object
+      required: [studentId, partId, message]
+      properties:
+        studentId:
+          type: string
+        partId:
+          type: string
+        message:
+          type: string
+    BulkWrite:
+      type: object
+      required: [id, kind, cells, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+        cells:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        undoneAt:
+          type: string
+          format: date-time
+    UndoResult:
+      type: object
+      required: [restored, kept]
+      properties:
+        restored:
+          type: integer
+        kept:
+          type: integer
+          description: Cells changed after the bulk write, left as they are.
+    TableText:
+      type: object
+      required: [header, rows]
+      properties:
+        header:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+    LayoutItem:
+      type: object
+      additionalProperties: false
+      required: [itemId, position, visible, pinned]
+      properties:
+        itemId:
+          type: string
+        position:
+          type: integer
+        visible:
+          type: boolean
+        pinned:
+          type: boolean
+    SortRule:
+      type: object
+      additionalProperties: false
+      required: [field, direction]
+      properties:
+        field:
+          type: string
+          enum: [roll_no, admission_no, name]
+        direction:
+          type: string
+          enum: [asc, desc]
+    Layout:
+      type: object
+      required: [surface, scopeId, items, sort, personal]
+      properties:
+        surface:
+          type: string
+        scopeId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LayoutItem"
+        sort:
+          type: array
+          items:
+            $ref: "#/components/schemas/SortRule"
+        personal:
+          type: boolean
+          description: true when this is the person's own saved view.
+    LayoutInput:
+      type: object
+      additionalProperties: false
+      required: [surface, scopeId, items, sort]
+      properties:
+        surface:
+          type: string
+          enum: [entry_grid]
+        scopeId:
+          type: string
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/LayoutItem"
+        sort:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/SortRule"
     Me:
       type: object
       required: [userId, orgs]
