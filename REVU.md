@@ -221,7 +221,10 @@ A rule nothing checks comes back.
   `go test -c -o .testbin/x.test.exe ./internal/x/` or
   `go build -o .testbin/server.exe ./cmd/server`, and run it from the
   package folder. If that binary is blocked too, change its hash with
-  `-ldflags=-buildid=anything`. .testbin is ignored.
+  `-ldflags=-buildid=anything`. .testbin is ignored. To run the API when
+  every local build is blocked, run it in Docker, which the policy does not
+  reach: `docker compose up --build api` (it reads CLERK_SECRET_KEY from
+  .env).
 
 
 - `make up` (or `docker compose up --build -d`) starts PostgreSQL 18, MinIO, Gotenberg and the server on :8080. The server applies database/migrations at start.

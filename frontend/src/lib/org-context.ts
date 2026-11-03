@@ -10,10 +10,12 @@ export type OrgState = {
   choose: (id: string) => void
   loading: boolean
   error: ApiError | null
+  /** The server could not be reached or failed, so who the person is stays unknown. */
+  unreachable: boolean
   /** The signed-in person's sign-in id, once known. */
   userId: string | null
 }
 
-export const OrgContext = createContext<OrgState>({ orgs: [], current: null, choose: () => {}, loading: true, error: null, userId: null })
+export const OrgContext = createContext<OrgState>({ orgs: [], current: null, choose: () => {}, loading: true, error: null, unreachable: false, userId: null })
 
 export const useOrg = () => useContext(OrgContext)

@@ -91,3 +91,11 @@ test('on a phone the tiles sit two to a row with no sideways scrolling', async (
   expect(c!.y).toBeGreaterThan(a!.y)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
 })
+
+// A server that does not answer is never mistaken for belonging nowhere.
+test('when the server cannot be reached, Home says so', async ({ page }) => {
+  await page.route('**/v1/me', (r) => r.abort('connectionrefused'))
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'revU cannot be reached' })).toBeVisible()
+  await expect(page.getByText(/do not belong to any/)).toHaveCount(0)
+})

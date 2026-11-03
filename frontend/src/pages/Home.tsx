@@ -13,7 +13,7 @@ const card = 'rounded-xl border border-line bg-white p-5'
 export function Home() {
   const t = useT()
   const auth = useAuthState()
-  const { current, orgs, loading, error, userId } = useOrg()
+  const { current, orgs, loading, error, unreachable, userId } = useOrg()
   const orgId = current?.id ?? ''
   const roles = current?.roles ?? []
   const isAdmin = roles.includes('admin')
@@ -32,6 +32,16 @@ export function Home() {
     )
   if (loading) return shell(<p className="text-muted">Loading</p>)
   if (error?.status === 401) return shell(<p className="text-muted">Your sign-in was not accepted. Sign out and sign in again.</p>)
+  if (unreachable)
+    return shell(
+      <div role="alert" className={card}>
+        <h1 className="text-xl font-extrabold">revU cannot be reached</h1>
+        <p className="mt-2 text-muted">Your sign-in worked, but the revU server did not answer. Check your connection, then try again.</p>
+        <button type="button" onClick={() => window.location.reload()} className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
+          Try again
+        </button>
+      </div>,
+    )
   if (!current)
     return shell(
       <div className={card}>

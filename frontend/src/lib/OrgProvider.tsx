@@ -39,7 +39,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       }
     }
     const error = mine.error instanceof ApiError ? mine.error : null
-    return { orgs, current, choose, loading: auth.signedIn && mine.isPending, error, userId: mine.data?.userId ?? null }
+    // Anything but a refused sign-in means we do not know yet, never that they belong nowhere.
+    const unreachable = !!mine.error && error?.status !== 401
+    return { orgs, current, choose, loading: auth.signedIn && mine.isPending, error, unreachable, userId: mine.data?.userId ?? null }
   }, [mine.data, mine.error, mine.isPending, chosen, auth.signedIn])
 
   return <OrgContext value={value}>{children}</OrgContext>
