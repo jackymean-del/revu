@@ -1,4 +1,4 @@
-import { Link, Outlet } from '@tanstack/react-router'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useOrg } from '../lib/org-context'
 import { Account } from './Account'
 import { BrandLockup } from './BrandLockup'
@@ -43,9 +43,14 @@ function useNav() {
   return items
 }
 
+const AUTH_PAGES = ['/sign-in', '/sign-up', '/sso-callback']
+
 /** The frame every screen sits in: brand, navigation by role, the organisation picker and the account. */
 export function Shell() {
   const nav = useNav()
+  // Sign-in and sign-up draw their own page, with no menu around them.
+  const path = useRouterState({ select: (s) => s.location.pathname })
+  if (AUTH_PAGES.includes(path)) return <Outlet />
   return (
     <div className="flex min-h-screen flex-col">
       <a href="#main" className="sr-only z-50 rounded-md print:hidden bg-ink px-3 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-3 focus:top-3">

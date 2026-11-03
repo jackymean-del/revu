@@ -1,4 +1,5 @@
-import { Show, SignInButton, UserButton } from '@clerk/react'
+import { Link } from '@tanstack/react-router'
+import { Show, UserButton } from '@clerk/react'
 import { useAuthState } from '../lib/auth-context'
 
 const signInClass = 'rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600'
@@ -13,11 +14,9 @@ export function Account() {
         <UserButton />
       </Show>
       <Show when="signed-out">
-        <SignInButton mode="modal">
-          <button type="button" className={signInClass}>
-            Sign in
-          </button>
-        </SignInButton>
+        <Link to="/sign-in" className={signInClass}>
+          Sign in
+        </Link>
       </Show>
     </>
   )
@@ -28,10 +27,13 @@ export function SignInPrompt() {
   const { enabled } = useAuthState()
   if (!enabled) return null
   return (
-    <SignInButton mode="modal">
-      <button type="button" className={`mt-3 ${signInClass}`}>
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <Link to="/sign-in" className={signInClass}>
         Sign in
-      </button>
-    </SignInButton>
+      </Link>
+      <Link to="/sign-up" className="text-sm font-semibold text-brand hover:text-brand-700">
+        Create an account
+      </Link>
+    </div>
   )
 }

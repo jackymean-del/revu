@@ -12,6 +12,23 @@ const system = createRoute({
   path: '/system',
   component: lazyRouteComponent(() => import('./pages/SystemCheck'), 'SystemCheck'),
 })
+// Sign-in and sign-up are revU's own pages on Clerk; Google and single
+// sign-on return through /sso-callback.
+const signIn = createRoute({
+  getParentRoute: () => root,
+  path: '/sign-in',
+  component: lazyRouteComponent(() => import('./pages/SignIn'), 'SignIn'),
+})
+const signUp = createRoute({
+  getParentRoute: () => root,
+  path: '/sign-up',
+  component: lazyRouteComponent(() => import('./pages/SignUp'), 'SignUp'),
+})
+const ssoCallback = createRoute({
+  getParentRoute: () => root,
+  path: '/sso-callback',
+  component: lazyRouteComponent(() => import('./pages/SsoCallback'), 'SsoCallback'),
+})
 const setup = createRoute({
   getParentRoute: () => root,
   path: '/setup',
@@ -48,7 +65,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, setup, people, marks, choices, structure, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, setup, people, marks, choices, structure, words, history])
 
 export const router = createRouter({ routeTree })
 

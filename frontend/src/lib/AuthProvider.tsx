@@ -38,7 +38,7 @@ function ClerkBridge({ children }: { children: ReactNode }) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   if (!KEY) return children
   return (
-    <ClerkProvider publishableKey={KEY} afterSignOutUrl="/">
+    <ClerkProvider publishableKey={KEY} afterSignOutUrl="/" signInUrl="/sign-in" signUpUrl="/sign-up">
       <ClerkBridge>{children}</ClerkBridge>
     </ClerkProvider>
   )
