@@ -4,13 +4,15 @@
  * Clerk's calls. Email and password, a code when Clerk asks for one (a new
  * browser, two-step verification), a password reset by emailed code, Google,
  * and an institution's own single sign-on found from the email's domain.
+ *
+ * Nobody is signed in here, so no institution's words are known yet: the
+ * copy uses neutral words that fit every institution, never a preset's.
  */
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@clerk/react'
 import { useSignIn } from '@clerk/react/legacy'
 import { useAuthState } from '../lib/auth-context'
-import { useT } from '../lib/terminology/terms-context'
 import { AuthFrame, GoogleMark, Lockup, NotConfigured, Or, Problem, Spinner } from './auth/parts'
 import { authErrorMessage, input, label, linkButton, looksLikeEmail, outline, primary } from './auth/style'
 
@@ -27,7 +29,6 @@ type Handlers = {
 }
 
 function SignInCard({ handlers }: { handlers?: Handlers }) {
-  const t = useT()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -39,7 +40,6 @@ function SignInCard({ handlers }: { handlers?: Handlers }) {
   const [reset, setReset] = useState<ResetChallenge | null>(null)
   const [ssoOpen, setSsoOpen] = useState(false)
   const off = !handlers
-  const institution = t('org.institution', { lower: true })
 
   const back = () => {
     setForgot(false)
@@ -116,7 +116,7 @@ function SignInCard({ handlers }: { handlers?: Handlers }) {
     <div className="w-full max-w-[400px] rounded-[14px] border border-line bg-white px-8 pb-7 pt-9 shadow-[0_4px_24px_rgba(19,17,30,0.07)]">
       <div className="mb-7 text-center">
         <Lockup />
-        <p className="mt-2 text-[13px] text-subtle">Assessment, results and progress, in your own words</p>
+        <p className="mt-2 text-[13px] text-subtle">Assessment, results and holistic progress, for every institution</p>
       </div>
       {off && <NotConfigured />}
       <h1 className="mb-5 text-[22px] font-bold tracking-tight">{forgot || reset ? 'Reset your password' : 'Welcome back'}</h1>
@@ -212,7 +212,7 @@ function SignInCard({ handlers }: { handlers?: Handlers }) {
           <div className="mt-4 rounded-lg border border-line bg-canvas px-3.5 py-2.5 text-xs text-muted">
             {!ssoOpen ? (
               <p>
-                Your {institution} signs in with Microsoft, Google or Okta?{' '}
+                Your institution signs in with Microsoft, Google or Okta?{' '}
                 <button type="button" disabled={off} onClick={() => setSsoOpen(true)} className="font-semibold text-brand hover:text-brand-700">
                   Sign in with SSO
                 </button>
@@ -220,7 +220,7 @@ function SignInCard({ handlers }: { handlers?: Handlers }) {
             ) : (
               <div className="flex flex-col gap-2">
                 <label htmlFor="sso-email" className="font-semibold text-ink">
-                  Sign in with your {institution} account
+                  Sign in with your institution's account
                 </label>
                 <input id="sso-email" className={input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.org" autoComplete="email" />
                 <button

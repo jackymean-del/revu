@@ -3,18 +3,27 @@
  * creates an institution by signing up: an administrator invites people by
  * email, and an account made with the invited address joins that institution
  * the first time it opens revU (Part 56.5). So this page makes the account
- * only, and says which address to use.
+ * only, and says which address to use. Nobody is signed in yet, so the copy
+ * uses neutral words that fit every institution, never a preset's.
  */
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@clerk/react'
 import { useSignUp } from '@clerk/react/legacy'
 import { useAuthState } from '../lib/auth-context'
-import { useT } from '../lib/terminology/terms-context'
 import { AuthFrame, GoogleMark, Lockup, NotConfigured, Or, Problem, Spinner } from './auth/parts'
 import { authErrorMessage, input, label, looksLikeEmail, outline, primary } from './auth/style'
 
 type Fields = { firstName: string; lastName: string; email: string; password: string }
+
+/** What revU does that a spreadsheet and a report template do not (Parts 6, 59, 60, 74, 77). */
+const BRIEFING = [
+  { title: 'Marks that never guess', text: 'Absent, exempt and not applicable are recorded as what they are. A blank stays pending: never a zero, never a guess.' },
+  { title: 'Entry that keeps up with a staff room', text: 'A whole class by keyboard, a spreadsheet matched row by row to the right person, or one at a time on a phone. Offline edits wait and sync.' },
+  { title: 'Results you can explain', text: 'Your own scheme and board rules, with every total opening to the marks behind it.' },
+  { title: 'Progress cards families read', text: 'Scholastic, co-scholastic and competency progress on one card, sent to families by link.' },
+  { title: 'Private by default', text: 'Marks and remarks stay with the staff who own them; leaders see what their role allows.' },
+]
 
 type Handlers = {
   onCreate: (f: Fields) => Promise<'verify' | 'done'>
@@ -24,7 +33,6 @@ type Handlers = {
 }
 
 function SignUpCard({ handlers }: { handlers?: Handlers }) {
-  const t = useT()
   const [f, setF] = useState<Fields>({ firstName: '', lastName: '', email: '', password: '' })
   const [phase, setPhase] = useState<'form' | 'verify'>('form')
   const [code, setCode] = useState('')
@@ -62,25 +70,14 @@ function SignUpCard({ handlers }: { handlers?: Handlers }) {
     void run('form', () => handlers.onVerify(code.trim()), 'That code did not work. Check it and try again.')
   }
 
-  const points = [
-    { title: 'Marks, entered once', text: 'Type them, upload a spreadsheet, or enter one at a time on a phone. A blank is never zero.' },
-    {
-      title: 'In your own words',
-      text: `Every screen says ${t('person.student', { count: 2, lower: true })}, ${t('group.section', { count: 2, lower: true })} and ${t('period.term', { count: 2, lower: true })} the way your ${t('org.institution', { lower: true })} does.`,
-    },
-    {
-      title: `Each ${t('person.teacher', { lower: true })}, their own classes`,
-      text: `Marks and remarks stay with the ${t('person.teacher', { count: 2, lower: true })} and leaders who work with them.`,
-    },
-  ]
-
   return (
     <div className="flex w-full max-w-4xl overflow-hidden rounded-[14px] border border-line bg-white shadow-[0_4px_24px_rgba(19,17,30,0.07)]">
-      <aside className="hidden w-[42%] flex-col justify-between bg-canvas p-9 md:flex">
+      <aside className="hidden w-[44%] flex-col justify-between bg-canvas p-9 md:flex">
         <div>
           <Lockup />
-          <ul className="mt-10 space-y-6">
-            {points.map((p) => (
+          <h2 className="mt-8 text-lg font-extrabold leading-snug tracking-tight">Assessment that never guesses, and progress families understand</h2>
+          <ul className="mt-6 space-y-5">
+            {BRIEFING.map((p) => (
               <li key={p.title} className="flex gap-3">
                 <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-gold" />
                 <span>
@@ -91,7 +88,7 @@ function SignUpCard({ handlers }: { handlers?: Handlers }) {
             ))}
           </ul>
         </div>
-        <p className="mt-8 text-xs leading-relaxed text-subtle">{t('person.teacher', { count: 2 })} review and approve everything revU drafts.</p>
+        <p className="mt-8 text-xs leading-relaxed text-subtle">Remarks revU drafts are reviewed and approved by the staff who sign them.</p>
       </aside>
 
       <div className="flex-1 px-6 py-9 sm:px-10">
@@ -137,7 +134,7 @@ function SignUpCard({ handlers }: { handlers?: Handlers }) {
           <>
             <h1 className="text-[26px] font-bold tracking-tight">Create your account</h1>
             <p className="mt-1.5 text-sm text-muted">
-              Invited by your {t('org.institution', { lower: true })}? Use the email address the invitation went to, and you join it as soon as you are in.
+              Invited by your institution? Use the email address the invitation went to, and you join it as soon as you are in.
             </p>
             <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
