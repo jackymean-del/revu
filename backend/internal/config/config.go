@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -66,6 +67,17 @@ func Load(getenv func(string) string) (Config, error) {
 	c.AppURL = strings.TrimRight(strings.TrimSpace(getenv("APP_URL")), "/")
 	if c.AppURL == "" {
 		c.AppURL = c.AllowedOrigins[0]
+	}
+
+	// Without DATABASE_URL, the app account is the owner's address signed in
+	// as revu_app with APP_DB_PASSWORD, so a host needs one address only.
+	if c.DatabaseURL == "" && c.MigrateURL != "" && c.AppDBPassword != "" {
+		u, err := url.Parse(c.MigrateURL)
+		if err != nil || u.Host == "" {
+			return Config{}, fmt.Errorf("MIGRATE_DATABASE_URL is not a database address")
+		}
+		u.User = url.UserPassword("revu_app", c.AppDBPassword)
+		c.DatabaseURL = u.String()
 	}
 
 	if c.Production && c.DatabaseURL == "" {

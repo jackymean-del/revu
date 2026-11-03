@@ -14,6 +14,13 @@ func TestLoad(t *testing.T) {
 				t.Fatalf("unexpected defaults: %+v", c)
 			}
 		}},
+		{name: "the app address is the owner's, signed in as revu_app", env: map[string]string{
+			"MIGRATE_DATABASE_URL": "postgresql://postgres:owner@db.internal:5432/railway?sslmode=disable", "APP_DB_PASSWORD": "pass word/with:odd@chars"},
+			check: func(t *testing.T, c Config) {
+				if c.DatabaseURL != "postgresql://revu_app:pass%20word%2Fwith%3Aodd%40chars@db.internal:5432/railway?sslmode=disable" {
+					t.Fatalf("DatabaseURL %q", c.DatabaseURL)
+				}
+			}},
 		{name: "origins are split and trimmed", env: map[string]string{"ALLOWED_ORIGINS": " https://a.test , https://b.test ,"}, check: func(t *testing.T, c Config) {
 			if len(c.AllowedOrigins) != 2 || c.AllowedOrigins[1] != "https://b.test" {
 				t.Fatalf("origins: %v", c.AllowedOrigins)

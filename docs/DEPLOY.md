@@ -12,18 +12,21 @@ person and never committed.
    PostgreSQL (Add, Database, PostgreSQL). Check the image tag in the
    database's Settings, Source ends in `:18`: the migrations use `uuidv7()`.
 2. A service from the GitHub repository `jackymean-del/revu` (give the
-   Railway GitHub app access to it). Railway reads `railway.json` at the
-   repository root: it builds `backend/Dockerfile` from the root, checks
-   `/api/health`, and rebuilds only when backend, migrations, the contract or
-   that file change. Root directory stays empty.
-3. Settings: region Singapore; Networking, Generate Domain.
-4. Variables (Raw Editor), with the database card named `Postgres`:
+   Railway GitHub app access to it). Root directory stays empty. Railway's
+   config files stop working on 1 December 2026, so set these on the
+   service itself (`railway.json` repeats them until then):
+   - Build: builder Dockerfile, Dockerfile path `backend/Dockerfile` (or
+     the variable `RAILWAY_DOCKERFILE_PATH=backend/Dockerfile`).
+   - Watch paths: `/backend/**`, `/database/migrations/**`, `/contracts/**`.
+   - Deploy: healthcheck path `/api/health`, restart on failure, region
+     Singapore (the database too).
+   - Networking: Generate Domain, port 8080.
+3. Variables (Raw Editor), with the database card named `Postgres`:
 
    ```
    APP_ENV=production
    MIGRATE_DATABASE_URL=${{Postgres.DATABASE_URL}}
    APP_DB_PASSWORD=<32 letters and digits, generated on your machine>
-   DATABASE_URL=postgresql://revu_app:${{APP_DB_PASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
    CLERK_SECRET_KEY=<a key made for this service in Clerk>
    ALLOWED_ORIGINS=https://app.revu.bhusku.com
    APP_URL=https://app.revu.bhusku.com
@@ -31,9 +34,11 @@ person and never committed.
 
    The server migrates as the owner account, sets the `revu_app` password,
    and serves through `revu_app`, which every table's row-level security
-   applies to. In production it refuses to start without a database or a
-   Clerk key, or with `DEV_USER_ID` set.
-5. Deploy. `https://<domain>/api/health` answers
+   applies to. Without `DATABASE_URL` it signs in as `revu_app` at the
+   owner's address with `APP_DB_PASSWORD`; set `DATABASE_URL` only when the
+   app account lives elsewhere. In production it refuses to start without a
+   database or a Clerk key, or with `DEV_USER_ID` set.
+4. Deploy. `https://<domain>/api/health` answers
    `{"database":true,"status":"ok",...}`.
 
 A password for `APP_DB_PASSWORD`, in PowerShell:
