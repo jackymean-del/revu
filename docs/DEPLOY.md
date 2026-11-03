@@ -74,7 +74,13 @@ A password for `APP_DB_PASSWORD`, in PowerShell:
 
 ## The first institution
 
-Run once against the production database, as the owner account:
+On Windows, from the repository root, run `powershell -File
+scripts/create-org.ps1`. It asks for the database's public address, the
+revu service's APP_DB_PASSWORD and Clerk key without showing them, and runs
+the command below in Docker. Use the same APP_DB_PASSWORD as the live
+server: the command sets the revu_app password.
+
+Elsewhere, run once against the production database, as the owner account:
 
 ```
 server create-org "<name>" <school|college|university> <administrator email>
