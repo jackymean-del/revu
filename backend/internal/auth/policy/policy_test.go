@@ -183,3 +183,25 @@ func TestChangeAfterLockNeedsAGrantAndAReason(t *testing.T) {
 		t.Fatal("counts-only access passed a full-access check")
 	}
 }
+
+// The owner console shows Actions: every action of the matrix is listed
+// once, and every rule has a name.
+func TestActionsCoverTheMatrix(t *testing.T) {
+	seen := map[Action]bool{}
+	for _, a := range Actions {
+		if seen[a] {
+			t.Fatalf("%s listed twice", a)
+		}
+		seen[a] = true
+	}
+	for a := range Matrix {
+		if !seen[a] {
+			t.Errorf("%s is in the matrix but not in Actions", a)
+		}
+	}
+	for r := Deny; r <= GroupAdmin; r++ {
+		if r.String() == "" {
+			t.Errorf("rule %d has no name", r)
+		}
+	}
+}

@@ -20,8 +20,8 @@ export type OrgState = {
   groups: Me['groups']
   /** The role an administrator is previewing in the current institution, or null. */
   previewing: string | null
-  /** Start (a role) or stop (null) a preview; the server enforces it. */
-  preview: (role: string | null) => void
+  /** Start (a role) or stop (null) a preview, here or in the institution named; the server enforces it. */
+  preview: (role: string | null, orgId?: string) => void
   /** The person's own roles in the current institution, whatever is previewed. */
   ownRoles: MyOrg['roles']
 }

@@ -90,6 +90,21 @@ const (
 	GroupAdmin                   // a group administrator only, never an institution role
 )
 
+// Actions are every action of the matrix, in the blueprint's order, so the
+// owner console can show the whole of it.
+var Actions = []Action{
+	StructureWrite, TerminologyWrite, SchemeWrite, AssessmentEdit, AssessmentPublish, AssessmentLock, EvidenceEnter, EvidenceChangeLocked,
+	ResultsRead, RemarksEdit, RemarksApprove, ReportsPublish, Insight, AuditRead, APIKeysManage, LayoutInstitution, LayoutPersonal,
+	HistoricalImport, ParentMessaging, DataRequestsRead, DataRequestsManage, SubjectChoices, RowStatus, RowStatusLeft,
+	PaperViewFinalised, PaperPrint, PaperRevise, VisibilityPolicy, GroupSharingPolicy, DeductionReasons, ContentGrants, OwnershipReassign,
+}
+
+var ruleNames = [...]string{"deny", "allow", "own_subject", "own_sections", "own_section", "section_remark", "by_grant",
+	"by_grant_with_reason", "counts_only", "counts_reports_at_approval", "by_policy", "group_admin"}
+
+// String is the rule's stable name, as the API reports it.
+func (r Rule) String() string { return ruleNames[r] }
+
 // Matrix is the blueprint's permission matrix. A missing cell is Deny.
 var Matrix = map[Action]map[Role]Rule{
 	StructureWrite:       {Admin: Allow},

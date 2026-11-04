@@ -5,6 +5,7 @@ import {
 } from '../api/client'
 import { ApiError } from '../api/problem'
 import { useOrg } from '../lib/org-context'
+import { RolesAndAccess } from './owner/RolesAndAccess'
 
 const card = 'rounded-xl border border-line bg-white p-5'
 const input = 'rounded-md border border-line bg-white px-2.5 py-1.5 text-sm'
@@ -88,6 +89,8 @@ export function Owner() {
           {note.text}
         </p>
       )}
+
+      <RolesAndAccess />
 
       <section aria-labelledby="new-org" className={card}>
         <h2 id="new-org" className="font-extrabold">

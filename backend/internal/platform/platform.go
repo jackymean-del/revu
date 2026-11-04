@@ -28,6 +28,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/auth"
+	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/httpx"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/seed"
@@ -128,6 +129,7 @@ func Routes(g fiber.Router, o Options) {
 	owner.Post("/groups/:id/admins", o.addAdmin)
 	owner.Delete("/groups/:id/admins", o.removeAdmin)
 	owner.Post("/demo", o.demo)
+	owner.Get("/access", access)
 	g.Get("/groups", o.myGroups)
 }
 
@@ -353,6 +355,22 @@ func (o Options) removeAdmin(c fiber.Ctx) error {
 		_, err := tx.Exec(ctx, `DELETE FROM group_admins WHERE group_id::text = $1 AND email = $2`, id, email)
 		return err
 	})
+}
+
+// access is the permission matrix exactly as the server enforces it.
+func access(c fiber.Ctx) error {
+	out := api.AccessMatrix{Roles: []string{}, Rows: []api.AccessRow{}}
+	for _, r := range policy.Roles {
+		out.Roles = append(out.Roles, string(r))
+	}
+	for _, a := range policy.Actions {
+		row := api.AccessRow{Action: string(a)}
+		for _, r := range policy.Roles {
+			row.Rules = append(row.Rules, api.AccessRowRules(policy.Matrix[a][r].String()))
+		}
+		out.Rows = append(out.Rows, row)
+	}
+	return c.JSON(out)
 }
 
 // demo gives the owner the sample institutions, with every role there, in a

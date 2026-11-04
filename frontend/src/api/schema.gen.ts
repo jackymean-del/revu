@@ -1457,6 +1457,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/owner/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The permission matrix the server enforces, every action against every role, for the owner to review. */
+        get: operations["getAccessMatrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/owner/demo": {
         parameters: {
             query?: never;
@@ -2396,6 +2413,15 @@ export interface components {
             scopeId: string;
             items: components["schemas"]["LayoutItem"][];
             sort: components["schemas"]["SortRule"][];
+        };
+        AccessMatrix: {
+            roles: string[];
+            rows: components["schemas"]["AccessRow"][];
+        };
+        AccessRow: {
+            action: string;
+            /** @description One rule per role, in the order of roles. */
+            rules: ("deny" | "allow" | "own_subject" | "own_sections" | "own_section" | "section_remark" | "by_grant" | "by_grant_with_reason" | "counts_only" | "counts_reports_at_approval" | "by_policy" | "group_admin")[];
         };
         OwnerOrg: {
             /** Format: uuid */
@@ -5898,6 +5924,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OwnerGroup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAccessMatrix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The matrix. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessMatrix"];
                 };
             };
             default: components["responses"]["Problem"];

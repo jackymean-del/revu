@@ -273,3 +273,5 @@ export const removeGroupAdmin = (groupId: string, email: string) =>
 export const createOwnerDemo = () => call<OwnerGroup>('/v1/owner/demo', { method: 'POST' })
 
 export const listMyGroups = (signal?: AbortSignal) => call<MyGroup[]>('/v1/groups', { signal })
+
+export const getAccessMatrix = (signal?: AbortSignal) => call<components['schemas']['AccessMatrix']>('/v1/owner/access', { signal })

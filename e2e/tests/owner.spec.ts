@@ -49,6 +49,14 @@ function fakeApi(page: Page) {
       ],
     })
   })
+  void page.route('**/v1/owner/access', (r) =>
+    r.fulfill({
+      json: {
+        roles: ['admin', 'principal', 'coordinator', 'teacher', 'class_teacher', 'viewer'],
+        rows: [{ action: 'evidence.enter', rules: ['allow', 'deny', 'by_grant', 'own_sections', 'own_sections', 'deny'] }],
+      },
+    }),
+  )
   void page.route('**/v1/owner/groups', (r) => r.fulfill({ json: [{ id: GROUP, name: 'Demo group', admins: ['owner@bhusku.test'], orgIds: [ORG] }] }))
   void page.route('**/v1/groups', (r) =>
     r.fulfill({
@@ -113,4 +121,16 @@ test('the owner and group pages use no preset vocabulary', async ({ page }) => {
     expect(found, `${path} shows ${found.join(', ')}`).toEqual([])
   }
   expect(presetWords('Learners and staff, by section')).toEqual(expect.arrayContaining(['Learners', 'Section']))
+})
+
+test('from the owner console, one click opens an institution as a role', async ({ page }) => {
+  const seen = fakeApi(page)
+  await page.goto('/owner')
+  const access = page.getByRole('region', { name: 'What each role can reach' })
+  await expect(access.getByRole('row', { name: 'Enter marks Yes No With a grant Classes they teach Classes they teach No' })).toBeVisible()
+  const views = page.getByRole('region', { name: 'See it as each role' })
+  await views.getByRole('listitem').filter({ hasText: 'Riverside Public School' }).getByRole('button', { name: 'View only' }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByText(/Previewing as View only/)).toBeVisible()
+  expect(seen.viewAs.at(-1)).toBe('viewer')
 })

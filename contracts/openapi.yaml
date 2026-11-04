@@ -2547,6 +2547,20 @@ paths:
                 $ref: "#/components/schemas/OwnerGroup"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/owner/access:
+    get:
+      operationId: getAccessMatrix
+      summary: The permission matrix the server enforces, every action against every role, for the owner to review.
+      tags: [platform]
+      responses:
+        "200":
+          description: The matrix.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessMatrix"
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/owner/demo:
     post:
       operationId: createOwnerDemo
@@ -4212,6 +4226,30 @@ components:
           maxItems: 3
           items:
             $ref: "#/components/schemas/SortRule"
+    AccessMatrix:
+      type: object
+      required: [roles, rows]
+      properties:
+        roles:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessRow"
+    AccessRow:
+      type: object
+      required: [action, rules]
+      properties:
+        action:
+          type: string
+        rules:
+          type: array
+          description: One rule per role, in the order of roles.
+          items:
+            type: string
+            enum: [deny, allow, own_subject, own_sections, own_section, section_remark, by_grant, by_grant_with_reason, counts_only, counts_reports_at_approval, by_policy, group_admin]
     OwnerOrg:
       type: object
       required: [id, name, type, preset, createdAt, admins, pendingAdmins, students, staff, demo]

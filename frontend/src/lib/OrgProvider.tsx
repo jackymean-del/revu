@@ -59,8 +59,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     // Only an administrator of this institution can preview, and only here.
     const previewing = previewState && current && previewState.org === current.id && ownRoles.includes('admin') ? previewState.role : null
     setPreviewRole(previewing)
-    const preview = (role: string | null) => {
-      const next = role && current ? { org: current.id, role } : null
+    const preview = (role: string | null, orgId?: string) => {
+      const org = orgId ?? current?.id
+      const next = role && org ? { org, role } : null
       setPreviewState(next)
       setPreviewRole(next?.role ?? null)
       try {

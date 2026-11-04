@@ -197,6 +197,16 @@ func TestPlatform(t *testing.T) {
 		}
 	})
 
+	t.Run("the owner reads the matrix the server enforces", func(t *testing.T) {
+		m := into[api.AccessMatrix](ownerC.do(200, "GET", "/v1/owner/access", nil))
+		teacher := slices.Index(m.Roles, "teacher")
+		i := slices.IndexFunc(m.Rows, func(r api.AccessRow) bool { return r.Action == "evidence.enter" })
+		if teacher < 0 || i < 0 || m.Rows[i].Rules[teacher] != "own_sections" || len(m.Rows[i].Rules) != len(m.Roles) {
+			t.Fatalf("matrix %+v", m)
+		}
+		adminA.do(403, "GET", "/v1/owner/access", nil)
+	})
+
 	// Part 31: a permission preview, enforced by the server and read-only.
 	t.Run("an administrator previews a role, honestly and without changing anything", func(t *testing.T) {
 		admin := adminA
