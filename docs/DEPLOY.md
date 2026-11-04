@@ -1,12 +1,10 @@
 # Deploying revU
 
 revU runs like schedU (blueprint Part 65): the API and its own PostgreSQL 18
-on Railway, the app on Cloudflare Pages, sign-in through the bhusku Clerk
-instance. The app lives at revu.bhusku.com (the Pages project that served
-the prototype now builds the app; the prototype stays in prototype/).
-The blueprint's later layout puts the app at app.revu.bhusku.com once the
-marketing site takes revu.bhusku.com. Secrets are typed into Railway, Cloudflare and Clerk by a
-person and never committed.
+on Railway, the app and the marketing site on Cloudflare Pages, sign-in
+through the bhusku Clerk instance. The marketing site lives at
+revu.bhusku.com and the app at app.revu.bhusku.com. Secrets are typed into
+Railway, Cloudflare and Clerk by a person and never committed.
 
 ## Railway: the API and its database
 
@@ -31,8 +29,8 @@ person and never committed.
    APP_DB_PASSWORD=<32 letters and digits, generated on your machine>
    CLERK_SECRET_KEY=<a key made for this service in Clerk>
    PLATFORM_OWNER_EMAILS=<the owner's verified email addresses, comma separated>
-   ALLOWED_ORIGINS=https://revu.bhusku.com,https://revu-cmf.pages.dev
-   APP_URL=https://revu.bhusku.com
+   ALLOWED_ORIGINS=https://app.revu.bhusku.com,https://revu-cmf.pages.dev
+   APP_URL=https://app.revu.bhusku.com
    ```
 
    The server migrates as the owner account, sets the `revu_app` password,
@@ -56,7 +54,7 @@ A password for `APP_DB_PASSWORD`, in PowerShell:
   for example `revu-railway`), so one can be replaced without touching
   schedU. A secret key is shown once; if it is lost, make another.
 - The live instance's primary domain is bhusku.com and allowed subdomains
-  are off, so revu.bhusku.com signs in with no change. Leave both as they
+  are off, so app.revu.bhusku.com signs in with no change. Leave both as they
   are: schedU depends on them. A live key does not sign in on .pages.dev.
 - The server also accepts a session only from an address in
   ALLOWED_ORIGINS.
@@ -71,7 +69,30 @@ A password for `APP_DB_PASSWORD`, in PowerShell:
 - Variables: `VITE_API_URL=https://revu-production.up.railway.app`,
   `VITE_CLERK_PUBLISHABLE_KEY=<the same instance's publishable key>` and
   `NODE_VERSION=24`.
-- Custom domain revu.bhusku.com.
+- Custom domain app.revu.bhusku.com (a CNAME `app.revu` to
+  `revu-cmf.pages.dev` at Hostinger).
+
+## Cloudflare Pages: the marketing site
+
+- A project `revu-marketing` from the same repository: root directory
+  `marketing`, framework preset None, build command `npm run build`, output
+  `out`, variable `NODE_VERSION=24`.
+- Custom domain revu.bhusku.com. CI builds the site and runs its content
+  rules on every push (`marketing/content-verify.mts`).
+
+## Moving the app to app.revu.bhusku.com
+
+Do it in this order, so the app is never unreachable:
+
+1. Railway, revu service: set `ALLOWED_ORIGINS` to
+   `https://revu.bhusku.com,https://app.revu.bhusku.com,https://revu-cmf.pages.dev`
+   for the move, and `APP_URL=https://app.revu.bhusku.com`. Deploy.
+2. Cloudflare, project `revu`: add the custom domain app.revu.bhusku.com and
+   the CNAME at Hostinger. Wait until it is Active, then sign in there once.
+3. Cloudflare: create `revu-marketing` as above and let it build.
+4. Cloudflare, project `revu`: remove the domain revu.bhusku.com; then add it
+   to `revu-marketing`.
+5. Railway: drop `https://revu.bhusku.com` from `ALLOWED_ORIGINS`. Deploy.
 
 ## The first institution
 

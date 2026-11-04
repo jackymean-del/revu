@@ -50,6 +50,27 @@ jobs:
           npx vite build
           npx tsx bundle-verify.mts
 
+  marketing:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: marketing
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: marketing/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npx eslint
+      - name: Build (type check and static export)
+        run: npx next build
+      - name: Content rules
+        run: npx tsx content-verify.mts
+
   backend:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
