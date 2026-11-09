@@ -19,6 +19,8 @@ services:
       # Verified addresses that run the platform (the owner console).
       PLATFORM_OWNER_EMAILS: "${PLATFORM_OWNER_EMAILS:-}"
       APP_URL: "http://localhost:5173"
+      # The PDF renderer below; without it, reports print from the browser.
+      GOTENBERG_URL: "http://gotenberg:3000"
     depends_on:
       db: { condition: service_healthy }
     restart: unless-stopped

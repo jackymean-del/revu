@@ -38,6 +38,7 @@ function useNav() {
   const items: { to: string; label: string; exact?: boolean }[] = [{ to: '/', label: 'Home', exact: true }]
   if (admin || roles.some((r) => ['coordinator', 'teacher', 'class_teacher'].includes(r))) items.push({ to: '/marks', label: 'Marks' })
   if (admin || roles.some((r) => ['coordinator', 'principal', 'teacher', 'class_teacher'].includes(r))) items.push({ to: '/results', label: 'Results' })
+  if (admin || roles.includes('class_teacher')) items.push({ to: '/reports', label: 'Reports' })
   if (admin || roles.includes('coordinator')) items.push({ to: '/schemes', label: 'Schemes' })
   if (admin) items.push({ to: '/people', label: 'People' })
   if (admin || roles.includes('coordinator') || roles.includes('class_teacher')) items.push({ to: '/choices', label: 'Choices' })

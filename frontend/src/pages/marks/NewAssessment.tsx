@@ -179,7 +179,7 @@ export function NewAssessment({ orgId, yearId, onMade, onCancel }: { orgId: stri
                 {p.kind === 'additional' && (
                   <label className="flex w-28 flex-col gap-1 text-xs font-semibold text-muted">
                     Code
-                    <input className={input} value={p.componentCode} placeholder="PRAC" onChange={(e) => setParts(parts.map((x, j) => (j === i ? { ...x, componentCode: e.target.value } : x)))} />
+                    <input className={input} spellCheck={false} value={p.componentCode} placeholder="PRAC" onChange={(e) => setParts(parts.map((x, j) => (j === i ? { ...x, componentCode: e.target.value } : x)))} />
                   </label>
                 )}
                 {parts.length > 1 && (

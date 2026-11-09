@@ -2934,6 +2934,274 @@ paths:
                 $ref: "#/components/schemas/RecomputeDone"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/report-template:
+    get:
+      operationId: getReportTemplate
+      summary: The institution's report template, or the default when none was saved.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The template.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportTemplate"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putReportTemplate
+      summary: Save the report template. Each save is a new version; reports already made keep theirs.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportTemplateInput"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportTemplate"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/branding:
+    get:
+      operationId: getBranding
+      summary: The institution's details as documents show them, at the latest version.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The branding.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branding"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putBranding
+      summary: Save the institution's details as a new branding version, keeping the logo.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandingInput"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branding"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/branding/logo:
+    get:
+      operationId: getBrandingLogo
+      summary: The logo of the latest branding version.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putBrandingLogo
+      summary: Replace the logo (PNG or JPEG, at most 256 KB) as a new branding version.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [logo]
+              properties:
+                logo:
+                  type: string
+                  format: binary
+                  x-go-type: string
+                  description: A PNG or JPEG image of at most 256 KB.
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branding"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteBrandingLogo
+      summary: Remove the logo, as a new branding version.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Removed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branding"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/reports/status:
+    get:
+      operationId: reportStatus
+      summary: A section's students and how ready their results are for reports.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportStatus"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/reports/html:
+    get:
+      operationId: reportHtml
+      summary: A preview of one student's report, or the whole section's, as the HTML the PDF is made from. It also prints from the browser.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: studentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The page.
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/reports/pdf:
+    post:
+      operationId: reportPdf
+      summary: Make the reports of a section, or of some of its students, as one PDF. Results are worked out afresh first, and each report's facts are stored so it can be shown again exactly.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportPdfInput"
+      responses:
+        "200":
+          description: The PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/marksheets.xlsx:
+    get:
+      operationId: marksheet
+      summary: A section's marksheet for a period, in the report template's subject order, with a summary of class averages.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The spreadsheet.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/report-items/{id}/html:
+    get:
+      operationId: reportItemHtml
+      summary: One report exactly as it was made, for its QR code.
+      tags: [reports]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The page.
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -5462,3 +5730,168 @@ components:
         computed:
           type: integer
           description: How many subject results were stored.
+    ReportSection:
+      type: object
+      additionalProperties: false
+      required: [key, "on"]
+      properties:
+        key:
+          type: string
+          enum: [identity, marks, components, overall, legend, signoff]
+        "on":
+          type: boolean
+    ReportPaper:
+      type: object
+      additionalProperties: false
+      required: [size, orientation]
+      properties:
+        size:
+          type: string
+          enum: [A4, Letter, A5, custom]
+        widthMm:
+          type: number
+          description: For a custom size, 90 to 600.
+        heightMm:
+          type: number
+          description: For a custom size, 90 to 600.
+        orientation:
+          type: string
+          enum: [portrait, landscape]
+    ReportConfig:
+      type: object
+      additionalProperties: false
+      required: [title, sections, subjectOrder, signoff, paper, booklet, padEven, qr]
+      properties:
+        title:
+          type: string
+          maxLength: 80
+        sections:
+          type: array
+          description: Every section once, in print order; the student's details always show.
+          items:
+            $ref: "#/components/schemas/ReportSection"
+        subjectOrder:
+          type: array
+          description: Subject ids in print order; subjects not listed follow by name.
+          items:
+            type: string
+            format: uuid
+        signoff:
+          type: array
+          description: Sign-off lines, as terminology keys.
+          items:
+            type: string
+            enum: [person.class_teacher, person.principal, person.guardian]
+        paper:
+          $ref: "#/components/schemas/ReportPaper"
+        booklet:
+          type: boolean
+          description: Fold each report as a booklet, two pages to a side of the next sheet size up.
+        padEven:
+          type: boolean
+          description: In a PDF of several reports, add a blank page after any report with an odd number of pages.
+        qr:
+          type: boolean
+          description: Print a QR code that opens the stored report after sign-in; it carries no personal data.
+    ReportTemplate:
+      type: object
+      required: [version, config]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Absent while the default has not been saved.
+        version:
+          type: integer
+        config:
+          $ref: "#/components/schemas/ReportConfig"
+    ReportTemplateInput:
+      type: object
+      additionalProperties: false
+      required: [config]
+      properties:
+        config:
+          $ref: "#/components/schemas/ReportConfig"
+    Branding:
+      type: object
+      required: [version, displayName, hasLogo]
+      properties:
+        version:
+          type: integer
+          description: 0 until the details are first saved.
+        displayName:
+          type: string
+        address:
+          type: string
+        contact:
+          type: string
+        affiliation:
+          type: string
+        headerNote:
+          type: string
+        hasLogo:
+          type: boolean
+    BrandingInput:
+      type: object
+      additionalProperties: false
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        address:
+          type: string
+          maxLength: 300
+        contact:
+          type: string
+          maxLength: 200
+        affiliation:
+          type: string
+          maxLength: 200
+        headerNote:
+          type: string
+          maxLength: 200
+    ReportStudent:
+      type: object
+      required: [id, name, admissionNo]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        admissionNo:
+          type: string
+        rollNo:
+          type: string
+    ReportStatus:
+      type: object
+      required: [students, counts, pdf]
+      properties:
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportStudent"
+        counts:
+          $ref: "#/components/schemas/ResultCounts"
+        pdf:
+          type: boolean
+          description: Whether PDFs can be made here; when not, reports print from the browser.
+    ReportPdfInput:
+      type: object
+      additionalProperties: false
+      required: [sectionId, periodId]
+      properties:
+        sectionId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+          format: uuid
+        studentIds:
+          type: array
+          description: Some students only; all the section's students when left out.
+          items:
+            type: string
+            format: uuid

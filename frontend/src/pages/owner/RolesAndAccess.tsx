@@ -33,6 +33,7 @@ const ACTIONS: Record<string, string> = {
   'remarks.edit': 'Draft and edit remarks',
   'remarks.approve': 'Approve remarks',
   'reports.publish': 'Approve and publish reports',
+  'reports.build': 'Make draft reports and results sheets',
   insight: 'Insight and support plans',
   'audit.read': 'Read the history',
   'api_keys.manage': 'Manage API keys',

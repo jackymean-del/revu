@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{.Config.Title}}</title>
+<style>
+  @page { size: {{printf "%.1f" .WidthMM}}mm {{printf "%.1f" .HeightMM}}mm; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Noto Sans", "Segoe UI", Arial, sans-serif; color: #13111e; font-size: 10.5pt; line-height: 1.35; }
+  .report { break-after: page; page-break-after: always; }
+  .report.last { break-after: auto; page-break-after: auto; }
+  header { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #685dbc; padding-bottom: 8px; margin-bottom: 10px; }
+  header img.logo { max-height: 56px; max-width: 80px; object-fit: contain; }
+  header .who { flex: 1; }
+  header h1 { margin: 0; font-size: 15pt; }
+  header p { margin: 1px 0; color: #4b5275; font-size: 9pt; }
+  h2 { font-size: 12pt; margin: 12px 0 6px; }
+  .title { text-align: center; font-weight: 700; font-size: 12.5pt; margin: 4px 0 10px; letter-spacing: .02em; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #c9c4ef; padding: 4px 6px; text-align: left; vertical-align: top; }
+  th { background: #f1effc; font-size: 9pt; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  .identity td { border: none; padding: 2px 6px 2px 0; }
+  .identity b { display: inline-block; min-width: 9em; color: #4b5275; font-weight: 600; }
+  .muted { color: #4b5275; }
+  .state { font-size: 8.5pt; color: #4b5275; }
+  .overall { margin-top: 8px; padding: 6px 8px; border: 1px solid #c9c4ef; background: #faf9ff; }
+  .legend { font-size: 8.5pt; color: #4b5275; margin-top: 8px; }
+  .legend span { margin-right: 10px; white-space: nowrap; }
+  .signoff { display: flex; gap: 18px; margin-top: 28px; break-inside: avoid; }
+  .signoff div { flex: 1; border-top: 1px solid #13111e; padding-top: 4px; text-align: center; font-size: 9pt; }
+  .foot { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 14px; font-size: 8pt; color: #4b5275; }
+  .qr img { width: 22mm; height: 22mm; }
+  .qr .slot { width: 22mm; height: 22mm; border: 1px dashed #b3acd9; display: flex; align-items: center; justify-content: center; font-size: 7pt; text-align: center; }
+  .note { font-size: 8.5pt; color: #8a5a00; }
+  @media screen { body { background: #ece9f8; } .report { background: #fff; width: {{printf "%.1f" .WidthMM}}mm; min-height: {{printf "%.1f" .HeightMM}}mm; margin: 12px auto; padding: 12mm; box-shadow: 0 1px 4px rgba(0,0,0,.15); } }
+</style>
+</head>
+<body>
+{{- $c := .Config }}{{ $logo := .Logo }}{{ $preview := .Preview }}{{ $n := len .Reports }}
+{{- range $i, $r := .Reports }}
+<section class="report{{if last $i $n}} last{{end}}">
+  <header>
+    {{- if $logo }}<img class="logo" src="{{$logo}}" alt="">{{end}}
+    <div class="who">
+      <h1>{{$r.Institution.DisplayName}}</h1>
+      {{- with $r.Institution.Address }}<p>{{.}}</p>{{end}}
+      {{- with $r.Institution.Contact }}<p>{{.}}</p>{{end}}
+      {{- with $r.Institution.Affiliation }}<p>{{.}}</p>{{end}}
+      {{- with $r.Institution.HeaderNote }}<p>{{.}}</p>{{end}}
+    </div>
+  </header>
+  <div class="title">{{$c.Title}}</div>
+  {{- range $c.Sections }}{{ if .On }}
+  {{- if eq .Key "identity" }}
+  <table class="identity">
+    <tr><td><b>{{word $r "person.student"}}</b> {{$r.Student.Name}}</td><td><b>{{word $r "person.admission_no"}}</b> {{$r.Student.AdmissionNo}}</td></tr>
+    <tr><td><b>{{word $r "group.level"}}, {{word $r "group.section"}}</b> {{$r.Level}} {{$r.Section}}</td><td><b>{{word $r "person.roll_no"}}</b> {{$r.Student.RollNo}}</td></tr>
+    <tr><td><b>{{word $r "period.year"}}</b> {{$r.Year}}</td><td><b>{{word $r "period.term"}}</b> {{$r.Period}}</td></tr>
+  </table>
+  {{- else if eq .Key "marks" }}
+  <h2>Results</h2>
+  <table>
+    <thead><tr><th>{{word $r "course.subject"}}</th>{{if on $c "components"}}<th>Parts</th>{{end}}<th class="n">Marks</th><th class="n">%</th><th>Band</th></tr></thead>
+    <tbody>
+    {{- range $r.Subjects }}
+      <tr>
+        <td>{{.Name}}{{if ne .State "complete"}}<div class="state">{{stateLabel .State}}</div>{{end}}</td>
+        {{- if on $c "components" }}<td class="muted">{{range $j, $p := .Components}}{{if $j}}; {{end}}{{$p.Name}} {{if $p.Value}}{{plain $p.Value}}/{{$p.Max}}{{else}}-{{end}}{{end}}</td>{{end}}
+        <td class="n">{{if .Value}}{{plain .Value}} / {{.Max}}{{else}}-{{end}}</td>
+        <td class="n">{{if .Pct}}{{plain .Pct}}{{else}}-{{end}}</td>
+        <td>{{.Grade}}{{with .GradeDescriptor}} <span class="muted">{{.}}</span>{{end}}</td>
+      </tr>
+    {{- else }}
+      <tr><td colspan="5" class="muted">No results yet.</td></tr>
+    {{- end }}
+    </tbody>
+  </table>
+  {{- else if eq .Key "overall" }}
+  <div class="overall">
+    <b>Overall:</b>
+    {{- if $r.Overall.Value }} {{plain $r.Overall.Value}} of {{$r.Overall.Max}} ({{plain $r.Overall.Pct}}%){{if ne $r.Overall.State "complete"}} <span class="state">{{stateLabel $r.Overall.State}}: so far</span>{{end}}
+    {{- else }} <span class="state">{{stateLabel $r.Overall.State}}</span>{{end}}
+  </div>
+  {{- else if eq .Key "legend" }}
+  {{- range $r.Legends }}
+  <div class="legend">{{if gt (len $r.Legends) 1}}<b>{{.Scheme}}:</b> {{end}}{{range .Bands}}<span><b>{{.Label}}</b> from {{.MinPct}}%{{with .Descriptor}} {{.}}{{end}}</span>{{end}}</div>
+  {{- end }}
+  {{- else if eq .Key "signoff" }}
+  {{- if $c.Signoff }}
+  <div class="signoff">{{range $c.Signoff}}<div>{{word $r .}}</div>{{end}}</div>
+  {{- end }}
+  {{- end }}
+  {{- end }}{{ end }}
+  <div class="foot">
+    <span>{{$r.Institution.DisplayName}} &middot; {{$r.Period}} &middot; {{$r.Year}}</span>
+    {{- if $c.QR }}<span class="qr">{{if $r.QR}}<img src="{{$r.QR}}" alt="QR code to view this report">{{else if $preview}}<span class="slot">QR code<br>on the PDF</span>{{end}}</span>{{end}}
+  </div>
+</section>
+{{- end }}
+</body>
+</html>

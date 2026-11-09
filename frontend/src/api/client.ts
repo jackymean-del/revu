@@ -328,3 +328,71 @@ export const explainResult = (orgId: string, q: { studentId: string; periodId: s
 
 export const recomputeResults = (orgId: string, body: components['schemas']['RecomputeInput']) =>
   call<components['schemas']['RecomputeDone']>('/v1/results/recompute', { orgId, method: 'POST', body })
+
+export type ReportTemplate = components['schemas']['ReportTemplate']
+export type ReportConfig = components['schemas']['ReportConfig']
+export type Branding = components['schemas']['Branding']
+export type BrandingInput = components['schemas']['BrandingInput']
+export type ReportStatus = components['schemas']['ReportStatus']
+
+/** Headers for a call inside an institution, as call() sends them. */
+async function orgHeaders(orgId: string): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'X-Org-Id': orgId }
+  if (previewRole) headers['X-View-As'] = previewRole
+  const token = tokenGetter ? await tokenGetter() : null
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+export const getReportTemplate = (orgId: string, signal?: AbortSignal) => call<ReportTemplate>('/v1/report-template', { orgId, signal })
+
+export const putReportTemplate = (orgId: string, config: ReportConfig) =>
+  call<ReportTemplate>('/v1/report-template', { orgId, method: 'PUT', body: { config } })
+
+export const getBranding = (orgId: string, signal?: AbortSignal) => call<Branding>('/v1/branding', { orgId, signal })
+
+export const putBranding = (orgId: string, body: BrandingInput) => call<Branding>('/v1/branding', { orgId, method: 'PUT', body })
+
+export async function putLogo(orgId: string, file: File): Promise<Branding> {
+  const form = new FormData()
+  form.append('logo', file)
+  return call<Branding>('/v1/branding/logo', { orgId, method: 'PUT', form })
+}
+
+export const deleteLogo = (orgId: string) => call<Branding>('/v1/branding/logo', { orgId, method: 'DELETE' })
+
+/** The logo as an object URL for showing, or null when there is none. */
+export async function logoURL(orgId: string): Promise<string | null> {
+  const res = await fetch(BASE + '/v1/branding/logo', { headers: await orgHeaders(orgId) })
+  if (res.status === 404) return null
+  if (!res.ok) throw await toApiError(res)
+  return URL.createObjectURL(await res.blob())
+}
+
+export const getReportStatus = (orgId: string, q: { sectionId: string; periodId: string }, signal?: AbortSignal) =>
+  call<ReportStatus>(`/v1/reports/status?${new URLSearchParams(q)}`, { orgId, signal })
+
+/** A report page as HTML: one student's, or the section's when no student is given. */
+export async function getReportHtml(orgId: string, q: { sectionId: string; periodId: string; studentId?: string }, signal?: AbortSignal): Promise<string> {
+  const params = new URLSearchParams({ sectionId: q.sectionId, periodId: q.periodId, ...(q.studentId ? { studentId: q.studentId } : {}) })
+  const res = await fetch(`${BASE}/v1/reports/html?${params}`, { headers: await orgHeaders(orgId), signal })
+  if (!res.ok) throw await toApiError(res)
+  return res.text()
+}
+
+/** Makes reports as one PDF and hands it to the person. */
+export async function downloadReportPdf(orgId: string, body: { sectionId: string; periodId: string; studentIds?: string[] }, filename: string) {
+  const res = await fetch(BASE + '/v1/reports/pdf', {
+    method: 'POST',
+    headers: { ...(await orgHeaders(orgId)), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw await toApiError(res)
+  saveBlob(await res.blob(), filename)
+}
+
+export async function getReportItemHtml(orgId: string, id: string, signal?: AbortSignal): Promise<string> {
+  const res = await fetch(`${BASE}/v1/report-items/${id}/html`, { headers: await orgHeaders(orgId), signal })
+  if (!res.ok) throw await toApiError(res)
+  return res.text()
+}

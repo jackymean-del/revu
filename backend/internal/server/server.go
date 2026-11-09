@@ -27,6 +27,7 @@ import (
 	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/platform"
 	"github.com/jackymean-del/revu/internal/problem"
+	"github.com/jackymean-del/revu/internal/reports"
 	"github.com/jackymean-del/revu/internal/results"
 	"github.com/jackymean-del/revu/internal/schemes"
 	"github.com/jackymean-del/revu/internal/setup"
@@ -103,6 +104,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	layout.Routes(inOrg)
 	schemes.Routes(inOrg)
 	results.Routes(inOrg)
+	reports.Routes(inOrg, reports.Options{Renderer: reports.Renderer{URL: cfg.GotenbergURL}, AppURL: cfg.AppURL, Now: d.Now})
 	tables.Routes(inOrg)
 	audit.Routes(inOrg)
 	return app

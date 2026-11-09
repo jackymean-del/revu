@@ -26,6 +26,7 @@ type Config struct {
 	// (Part 56.2): the owner console, never an institution's content.
 	PlatformOwners []string
 	AppURL         string // where invitation links land; defaults to the first allowed origin
+	GotenbergURL   string // the PDF renderer; empty means reports print from the browser
 }
 
 // Load reads the environment through getenv (os.Getenv in production, a map in tests).
@@ -74,6 +75,7 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 
 	c.AppURL = strings.TrimRight(strings.TrimSpace(getenv("APP_URL")), "/")
+	c.GotenbergURL = strings.TrimRight(strings.TrimSpace(getenv("GOTENBERG_URL")), "/")
 	if c.AppURL == "" {
 		c.AppURL = c.AllowedOrigins[0]
 	}

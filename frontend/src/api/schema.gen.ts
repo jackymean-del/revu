@@ -1733,6 +1733,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/report-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The institution's report template, or the default when none was saved. */
+        get: operations["getReportTemplate"];
+        /** Save the report template. Each save is a new version; reports already made keep theirs. */
+        put: operations["putReportTemplate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The institution's details as documents show them, at the latest version. */
+        get: operations["getBranding"];
+        /** Save the institution's details as a new branding version, keeping the logo. */
+        put: operations["putBranding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The logo of the latest branding version. */
+        get: operations["getBrandingLogo"];
+        /** Replace the logo (PNG or JPEG, at most 256 KB) as a new branding version. */
+        put: operations["putBrandingLogo"];
+        post?: never;
+        /** Remove the logo, as a new branding version. */
+        delete: operations["deleteBrandingLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A section's students and how ready their results are for reports. */
+        get: operations["reportStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A preview of one student's report, or the whole section's, as the HTML the PDF is made from. It also prints from the browser. */
+        get: operations["reportHtml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make the reports of a section, or of some of its students, as one PDF. Results are worked out afresh first, and each report's facts are stored so it can be shown again exactly. */
+        post: operations["reportPdf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/marksheets.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A section's marksheet for a period, in the report template's subject order, with a summary of class averages. */
+        get: operations["marksheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/report-items/{id}/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One report exactly as it was made, for its QR code. */
+        get: operations["reportItemHtml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3108,6 +3248,87 @@ export interface components {
         RecomputeDone: {
             /** @description How many subject results were stored. */
             computed: number;
+        };
+        ReportSection: {
+            /** @enum {string} */
+            key: "identity" | "marks" | "components" | "overall" | "legend" | "signoff";
+            on: boolean;
+        };
+        ReportPaper: {
+            /** @enum {string} */
+            size: "A4" | "Letter" | "A5" | "custom";
+            /** @description For a custom size, 90 to 600. */
+            widthMm?: number;
+            /** @description For a custom size, 90 to 600. */
+            heightMm?: number;
+            /** @enum {string} */
+            orientation: "portrait" | "landscape";
+        };
+        ReportConfig: {
+            title: string;
+            /** @description Every section once, in print order; the student's details always show. */
+            sections: components["schemas"]["ReportSection"][];
+            /** @description Subject ids in print order; subjects not listed follow by name. */
+            subjectOrder: string[];
+            /** @description Sign-off lines, as terminology keys. */
+            signoff: ("person.class_teacher" | "person.principal" | "person.guardian")[];
+            paper: components["schemas"]["ReportPaper"];
+            /** @description Fold each report as a booklet, two pages to a side of the next sheet size up. */
+            booklet: boolean;
+            /** @description In a PDF of several reports, add a blank page after any report with an odd number of pages. */
+            padEven: boolean;
+            /** @description Print a QR code that opens the stored report after sign-in; it carries no personal data. */
+            qr: boolean;
+        };
+        ReportTemplate: {
+            /**
+             * Format: uuid
+             * @description Absent while the default has not been saved.
+             */
+            id?: string;
+            version: number;
+            config: components["schemas"]["ReportConfig"];
+        };
+        ReportTemplateInput: {
+            config: components["schemas"]["ReportConfig"];
+        };
+        Branding: {
+            /** @description 0 until the details are first saved. */
+            version: number;
+            displayName: string;
+            address?: string;
+            contact?: string;
+            affiliation?: string;
+            headerNote?: string;
+            hasLogo: boolean;
+        };
+        BrandingInput: {
+            displayName: string;
+            address?: string;
+            contact?: string;
+            affiliation?: string;
+            headerNote?: string;
+        };
+        ReportStudent: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            admissionNo: string;
+            rollNo?: string;
+        };
+        ReportStatus: {
+            students: components["schemas"]["ReportStudent"][];
+            counts: components["schemas"]["ResultCounts"];
+            /** @description Whether PDFs can be made here; when not, reports print from the browser. */
+            pdf: boolean;
+        };
+        ReportPdfInput: {
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: uuid */
+            periodId: string;
+            /** @description Some students only; all the section's students when left out. */
+            studentIds?: string[];
         };
     };
     responses: {
@@ -6973,6 +7194,329 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecomputeDone"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getReportTemplate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The template. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportTemplate"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putReportTemplate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportTemplate"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBranding: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The branding. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Branding"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putBranding: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandingInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Branding"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandingLogo: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putBrandingLogo: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description A PNG or JPEG image of at most 256 KB.
+                     */
+                    logo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Branding"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteBrandingLogo: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Branding"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    reportStatus: {
+        parameters: {
+            query: {
+                sectionId: string;
+                periodId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    reportHtml: {
+        parameters: {
+            query: {
+                sectionId: string;
+                periodId: string;
+                studentId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    reportPdf: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportPdfInput"];
+            };
+        };
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    marksheet: {
+        parameters: {
+            query: {
+                sectionId: string;
+                periodId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The spreadsheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    reportItemHtml: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
                 };
             };
             default: components["responses"]["Problem"];

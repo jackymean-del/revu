@@ -7,20 +7,25 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/jackc/pgx/v5 v5.12.0
+	github.com/pdfcpu/pdfcpu v0.16.4
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/xuri/excelize/v2 v2.11.1
 	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/gofiber/schema v1.8.8 // indirect
 	github.com/gofiber/utils/v2 v2.6.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/hhrutter/tiff v1.0.7 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.31 // indirect
 	github.com/molecule-man/go-brrr v1.3.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/richardlehane/mscfb v1.0.9 // indirect
@@ -29,9 +34,11 @@ require (
 	github.com/tinylib/msgp v1.6.5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.75.0 // indirect
+	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/image v0.47.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect

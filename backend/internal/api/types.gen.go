@@ -711,6 +711,99 @@ func (e PromotionMoveOutcome) Valid() bool {
 	}
 }
 
+// Defines values for ReportConfigSignoff.
+const (
+	PersonClassTeacher ReportConfigSignoff = "person.class_teacher"
+	PersonGuardian     ReportConfigSignoff = "person.guardian"
+	PersonPrincipal    ReportConfigSignoff = "person.principal"
+)
+
+// Valid indicates whether the value is a known member of the ReportConfigSignoff enum.
+func (e ReportConfigSignoff) Valid() bool {
+	switch e {
+	case PersonClassTeacher:
+		return true
+	case PersonGuardian:
+		return true
+	case PersonPrincipal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReportPaperOrientation.
+const (
+	Landscape ReportPaperOrientation = "landscape"
+	Portrait  ReportPaperOrientation = "portrait"
+)
+
+// Valid indicates whether the value is a known member of the ReportPaperOrientation enum.
+func (e ReportPaperOrientation) Valid() bool {
+	switch e {
+	case Landscape:
+		return true
+	case Portrait:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReportPaperSize.
+const (
+	A4     ReportPaperSize = "A4"
+	A5     ReportPaperSize = "A5"
+	Custom ReportPaperSize = "custom"
+	Letter ReportPaperSize = "Letter"
+)
+
+// Valid indicates whether the value is a known member of the ReportPaperSize enum.
+func (e ReportPaperSize) Valid() bool {
+	switch e {
+	case A4:
+		return true
+	case A5:
+		return true
+	case Custom:
+		return true
+	case Letter:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReportSectionKey.
+const (
+	ReportSectionKeyComponents ReportSectionKey = "components"
+	ReportSectionKeyIdentity   ReportSectionKey = "identity"
+	ReportSectionKeyLegend     ReportSectionKey = "legend"
+	ReportSectionKeyMarks      ReportSectionKey = "marks"
+	ReportSectionKeyOverall    ReportSectionKey = "overall"
+	ReportSectionKeySignoff    ReportSectionKey = "signoff"
+)
+
+// Valid indicates whether the value is a known member of the ReportSectionKey enum.
+func (e ReportSectionKey) Valid() bool {
+	switch e {
+	case ReportSectionKeyComponents:
+		return true
+	case ReportSectionKeyIdentity:
+		return true
+	case ReportSectionKeyLegend:
+		return true
+	case ReportSectionKeyMarks:
+		return true
+	case ReportSectionKeyOverall:
+		return true
+	case ReportSectionKeySignoff:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ResultCellState.
 const (
 	ResultCellStateBlocked     ResultCellState = "blocked"
@@ -1430,6 +1523,28 @@ type Branch struct {
 type BranchInput struct {
 	Address string `json:"address,omitempty"`
 	Name    string `json:"name"`
+}
+
+// Branding defines model for Branding.
+type Branding struct {
+	Address     string `json:"address,omitempty"`
+	Affiliation string `json:"affiliation,omitempty"`
+	Contact     string `json:"contact,omitempty"`
+	DisplayName string `json:"displayName"`
+	HasLogo     bool   `json:"hasLogo"`
+	HeaderNote  string `json:"headerNote,omitempty"`
+
+	// Version 0 until the details are first saved.
+	Version int `json:"version"`
+}
+
+// BrandingInput defines model for BrandingInput.
+type BrandingInput struct {
+	Address     string `json:"address,omitempty"`
+	Affiliation string `json:"affiliation,omitempty"`
+	Contact     string `json:"contact,omitempty"`
+	DisplayName string `json:"displayName"`
+	HeaderNote  string `json:"headerNote,omitempty"`
 }
 
 // BulkCell defines model for BulkCell.
@@ -2234,6 +2349,98 @@ type RecomputeInput struct {
 
 	// SubjectId One subject; absent means every subject the level teaches.
 	SubjectId string `json:"subjectId,omitempty"`
+}
+
+// ReportConfig defines model for ReportConfig.
+type ReportConfig struct {
+	// Booklet Fold each report as a booklet, two pages to a side of the next sheet size up.
+	Booklet bool `json:"booklet"`
+
+	// PadEven In a PDF of several reports, add a blank page after any report with an odd number of pages.
+	PadEven bool        `json:"padEven"`
+	Paper   ReportPaper `json:"paper"`
+
+	// Qr Print a QR code that opens the stored report after sign-in; it carries no personal data.
+	Qr bool `json:"qr"`
+
+	// Sections Every section once, in print order; the student's details always show.
+	Sections []ReportSection `json:"sections"`
+
+	// Signoff Sign-off lines, as terminology keys.
+	Signoff []ReportConfigSignoff `json:"signoff"`
+
+	// SubjectOrder Subject ids in print order; subjects not listed follow by name.
+	SubjectOrder []string `json:"subjectOrder"`
+	Title        string   `json:"title"`
+}
+
+// ReportConfigSignoff defines model for ReportConfig.Signoff.
+type ReportConfigSignoff string
+
+// ReportPaper defines model for ReportPaper.
+type ReportPaper struct {
+	// HeightMm For a custom size, 90 to 600.
+	HeightMm    float32                `json:"heightMm,omitempty"`
+	Orientation ReportPaperOrientation `json:"orientation"`
+	Size        ReportPaperSize        `json:"size"`
+
+	// WidthMm For a custom size, 90 to 600.
+	WidthMm float32 `json:"widthMm,omitempty"`
+}
+
+// ReportPaperOrientation defines model for ReportPaper.Orientation.
+type ReportPaperOrientation string
+
+// ReportPaperSize defines model for ReportPaper.Size.
+type ReportPaperSize string
+
+// ReportPdfInput defines model for ReportPdfInput.
+type ReportPdfInput struct {
+	PeriodId  string `json:"periodId"`
+	SectionId string `json:"sectionId"`
+
+	// StudentIds Some students only; all the section's students when left out.
+	StudentIds []string `json:"studentIds,omitempty"`
+}
+
+// ReportSection defines model for ReportSection.
+type ReportSection struct {
+	Key ReportSectionKey `json:"key"`
+	On  bool             `json:"on"`
+}
+
+// ReportSectionKey defines model for ReportSection.Key.
+type ReportSectionKey string
+
+// ReportStatus defines model for ReportStatus.
+type ReportStatus struct {
+	Counts ResultCounts `json:"counts"`
+
+	// Pdf Whether PDFs can be made here; when not, reports print from the browser.
+	Pdf      bool            `json:"pdf"`
+	Students []ReportStudent `json:"students"`
+}
+
+// ReportStudent defines model for ReportStudent.
+type ReportStudent struct {
+	AdmissionNo string `json:"admissionNo"`
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	RollNo      string `json:"rollNo,omitempty"`
+}
+
+// ReportTemplate defines model for ReportTemplate.
+type ReportTemplate struct {
+	Config ReportConfig `json:"config"`
+
+	// Id Absent while the default has not been saved.
+	Id      string `json:"id,omitempty"`
+	Version int    `json:"version"`
+}
+
+// ReportTemplateInput defines model for ReportTemplateInput.
+type ReportTemplateInput struct {
+	Config ReportConfig `json:"config"`
 }
 
 // ResultCell defines model for ResultCell.
@@ -3065,6 +3272,42 @@ type RestoreBranchParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// GetBrandingParams defines parameters for GetBranding.
+type GetBrandingParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutBrandingParams defines parameters for PutBranding.
+type PutBrandingParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DeleteBrandingLogoParams defines parameters for DeleteBrandingLogo.
+type DeleteBrandingLogoParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetBrandingLogoParams defines parameters for GetBrandingLogo.
+type GetBrandingLogoParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutBrandingLogoMultipartBody defines parameters for PutBrandingLogo.
+type PutBrandingLogoMultipartBody struct {
+	// Logo A PNG or JPEG image of at most 256 KB.
+	Logo string `json:"logo"`
+}
+
+// PutBrandingLogoParams defines parameters for PutBrandingLogo.
+type PutBrandingLogoParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // UndoBulkWriteParams defines parameters for UndoBulkWrite.
 type UndoBulkWriteParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -3290,6 +3533,15 @@ type RestoreLevelParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// MarksheetParams defines parameters for Marksheet.
+type MarksheetParams struct {
+	SectionId string `form:"sectionId" json:"sectionId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListMembershipsParams defines parameters for ListMemberships.
 type ListMembershipsParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -3351,6 +3603,49 @@ type UpdatePeriodParams struct {
 
 // RestorePeriodParams defines parameters for RestorePeriod.
 type RestorePeriodParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ReportItemHtmlParams defines parameters for ReportItemHtml.
+type ReportItemHtmlParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetReportTemplateParams defines parameters for GetReportTemplate.
+type GetReportTemplateParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutReportTemplateParams defines parameters for PutReportTemplate.
+type PutReportTemplateParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ReportHtmlParams defines parameters for ReportHtml.
+type ReportHtmlParams struct {
+	SectionId string `form:"sectionId" json:"sectionId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+	StudentId string `form:"studentId,omitempty" json:"studentId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ReportPdfParams defines parameters for ReportPdf.
+type ReportPdfParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ReportStatusParams defines parameters for ReportStatus.
+type ReportStatusParams struct {
+	SectionId string `form:"sectionId" json:"sectionId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -3893,6 +4188,12 @@ type CreateBranchJSONRequestBody = BranchInput
 // UpdateBranchJSONRequestBody defines body for UpdateBranch for application/json ContentType.
 type UpdateBranchJSONRequestBody = BranchInput
 
+// PutBrandingJSONRequestBody defines body for PutBranding for application/json ContentType.
+type PutBrandingJSONRequestBody = BrandingInput
+
+// PutBrandingLogoMultipartRequestBody defines body for PutBrandingLogo for multipart/form-data ContentType.
+type PutBrandingLogoMultipartRequestBody PutBrandingLogoMultipartBody
+
 // CreateEnrolmentJSONRequestBody defines body for CreateEnrolment for application/json ContentType.
 type CreateEnrolmentJSONRequestBody = EnrolmentInput
 
@@ -3946,6 +4247,12 @@ type CreatePeriodJSONRequestBody = PeriodInput
 
 // UpdatePeriodJSONRequestBody defines body for UpdatePeriod for application/json ContentType.
 type UpdatePeriodJSONRequestBody = PeriodInput
+
+// PutReportTemplateJSONRequestBody defines body for PutReportTemplate for application/json ContentType.
+type PutReportTemplateJSONRequestBody = ReportTemplateInput
+
+// ReportPdfJSONRequestBody defines body for ReportPdf for application/json ContentType.
+type ReportPdfJSONRequestBody = ReportPdfInput
 
 // RecomputeResultsJSONRequestBody defines body for RecomputeResults for application/json ContentType.
 type RecomputeResultsJSONRequestBody = RecomputeInput

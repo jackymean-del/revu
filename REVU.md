@@ -1,16 +1,16 @@
 # revU engineering rules
 
-- Product: revU by Bhusku. Assessment, results and holistic progress platform. Read docs/blueprint before any task.
+- Product: revU by Bhusku. Assessment, results and holistic progress platform. Read docs/blueprint before any task. The current edition is blueprint-v23.md, organised by module (Parts A to F); its Part F4 maps edition 22 part numbers, which older code comments cite, to their new sections.
 - Stack: React 19 with Vite, TanStack Router and Query, TypeScript strict and Tailwind 4 in frontend. Go 1.26 with Fiber v3 and pgx in backend. PostgreSQL 18. Clerk auth. Cloudflare R2 storage. Cloudflare Pages for the sites, Railway for the server and database.
-- Grid: screens import only the Bhusku DataGrid wrapper, never a grid library directly. The editable grid is chosen by the spike in Part 59.8 (react-data-grid is the leading candidate). AG Grid Enterprise is never used.
-- Order: subject, column, row and section order is configuration held in layout profiles, never code. Order never changes a calculation (Part 73).
-- Tenant: org_id is the institution tenant, one institution or branch location per org. A group is a virtual container with its own group_id and is never a tenant (Part 65, D2).
-- Privacy: this is data about children. No student names, marks or remark text in logs, analytics or AI prompts beyond the minimum facts (Part 70).
-- Names: v1 to v10 are product releases. Part 65 is the decisions register and wins where parts disagree. Build the pilot slice P0 first (Part 66).
+- Grid: screens use only the components in src/components/DataGrid, never a grid library directly. The marks grid is revU's own thin grid on TanStack Table and Virtual (decision D20). AG Grid Enterprise is never used.
+- Order: subject, column, row and section order is configuration held in layout profiles, never code. Order never changes a calculation (blueprint D5, decision D13).
+- Tenant: org_id is the institution tenant, one institution or branch location per org. A group is a virtual container with its own group_id and is never a tenant (decision D2).
+- Privacy: this is data about children. No student names, marks or remark text in logs, analytics or AI prompts beyond the minimum facts (blueprint C3).
+- Names: v1 to v10 are product releases. The decisions register (blueprint F1) wins where parts disagree. Build the pilot slice P0 first (blueprint E1).
 - Spec-first API: edit contracts/openapi.yaml first, then regenerate the TypeScript client and Go types. Never hand-edit generated code.
 - Database: every change is a numbered SQL file in database/migrations, applied by the server at start under an advisory lock, forward-only in production. Queries are plain SQL through pgx, kept in each module's repository file. Every table that holds tenant data, including join, history and computed tables, has org_id and row-level security.
 - No hard-coded institution words in the UI, PDFs, emails or generated text. Use the terminology resolver t().
-- Marks are exact decimals: numeric(8,2) in the database and a decimal type in Go. Never float.
+- Marks are exact decimals: numeric(8,2) in the database; hundredths or math/big rationals in Go, decimal strings in TypeScript (decision D21). Never float.
 - Missing is never zero. Evidence has a state: scored, absent, exempt, not_applicable, pending, not_assessed.
 - All operational state lives in PostgreSQL. Browser storage is only an offline cache that syncs.
 - AI output is always a draft, carries its evidence, passes the verifier, and is approved by a person.
@@ -77,22 +77,22 @@ A rule nothing checks comes back.
   not in the spec, or in the spec but not served. Feature endpoints live
   under /v1; /api/health stays where it is.
 
-## Decisions in force (blueprint v22, Part 65)
+## Decisions in force (blueprint v23, Part F1)
 
 - Fiber v3 and TanStack Router (D3), matching schedU. Chi and React Router
   were tried and removed. frontend/deps-verify.mts fails the build if Chi,
   React Router, goose, Vitest or AG Grid Enterprise appears in a dependency
   file, or a screen imports a grid library outside src/components/DataGrid
   (AT-D-01).
-- D20, marks-entry grid (spike of Part 59.8, docs/decisions/D20-marks-grid.md):
+- D20, marks-entry grid (the grid spike, docs/decisions/D20-marks-grid.md):
   a thin custom grid on TanStack Table and Virtual behind
   frontend/src/components/DataGrid. react-data-grid and AG Grid Community
   were measured and not chosen. The cell rules and upload or paste planning
   in that folder are proven by datagrid-verify.mts.
-- Libraries named in Part 38 (Zustand, Zod, OpenTelemetry, Sentry) are added
+- Libraries named in blueprint D2 (Zustand, Zod, OpenTelemetry, Sentry) are added
   with the first feature that uses them: knip and go mod tidy fail on unused
   dependencies.
-- Confidential by default (D19, Part 77): the permission matrix in
+- Confidential by default (D19, blueprint C2): the permission matrix in
   backend/internal/auth/policy is the most a role can receive; coordinators,
   principals and view-only roles get counts and status unless an
   administrator grants more.
@@ -119,7 +119,7 @@ A rule nothing checks comes back.
 - Every change goes through audit.Record in the same transaction, with the
   record before and after. GET /v1/audit lists it newest first with filters;
   administrators and principals read it (audit.read).
-- Confidential content (papers, answer keys, marks, remarks; Part 77.4) is
+- Confidential content (papers, answer keys, marks, remarks; blueprint C2) is
   logged by id only, never its content. Modules from v2 on pass ids, not
   documents, for those.
 
@@ -146,7 +146,7 @@ A rule nothing checks comes back.
 - Teachers count only what is assigned to them (AT-DB-02); a role over some
   branches counts only those branches, and tiles about things in no branch
   (unplaced students, setup, staff sign-in) go to roles over the whole
-  organisation. View-only gets numbers and no lists (Part 77): the list answers
+  organisation. View-only gets numbers and no lists (blueprint C2): the list answers
   403 auth.forbidden. A tile someone does not get answers 404 dashboard.unknown.
 - Leaders can print Home; the print view drops the header, buttons and lists.
 
@@ -181,7 +181,7 @@ A rule nothing checks comes back.
   one in Total marks mode, one per paper part in Section-wise mode. An
   additional part is a component with a code (AT-v2-02).
 - Marks change only through the evidence write service
-  (backend/internal/evidence, Part 6.1). It checks the person (EvidenceEnter
+  (backend/internal/evidence, blueprint D5). It checks the person (EvidenceEnter
   for the section and subject), the status (a locked assessment needs a
   reason and EvidenceChangeLocked), the row status, whether the student takes
   the subject, and the value (exact decimals, never above the maximum; only
@@ -198,7 +198,7 @@ A rule nothing checks comes back.
   marks: it hides them and locks the row; clearing it shows them again.
 - The grid is MarksGrid in src/components/DataGrid (decision D20). Screens
   never import a grid library. A person's column order, shown and pinned
-  columns and student sort are their own layout profile (Part 73); they
+  columns and student sort are their own layout profile (blueprint D5); they
   never change a calculation.
 - bundle-verify.mts measures every lazy screen, not only the entry.
 
@@ -211,7 +211,7 @@ A rule nothing checks comes back.
   administrators, and makes the owner's demo group. The owner gets no access
   to any institution's records (Parts 56.5, 70.1 and 77): a client's data is
   reached only through a membership there.
-- A group (Part 49) is a name over institutions and never a tenant. groups,
+- A group (blueprint B1.1) is a name over institutions and never a tenant. groups,
   group_admins and platform_audit are platform tables the application role
   cannot touch at all; the owner and group handlers reach them through the
   owner account (Deps.Owner), returning names and counts only.

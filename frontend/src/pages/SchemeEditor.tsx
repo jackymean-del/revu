@@ -206,7 +206,7 @@ export function SchemeEditor() {
             <div className="grid gap-3 sm:grid-cols-[6rem_1fr_7rem]">
               <label className={label}>
                 Code
-                <input className={input} value={c.code} onChange={(e) => setComponent(i, { ...c, code: e.target.value.toUpperCase() })} />
+                <input className={input} spellCheck={false} value={c.code} onChange={(e) => setComponent(i, { ...c, code: e.target.value.toUpperCase() })} />
               </label>
               <label className={label}>
                 Name
@@ -251,7 +251,7 @@ export function SchemeEditor() {
               {c.from.part_kind === 'additional' && (
                 <label className={label}>
                   Its code
-                  <input className={small} value={c.from.component_code ?? ''} onChange={(e) => setComponent(i, { ...c, from: { ...c.from, component_code: e.target.value.toUpperCase() } })} />
+                  <input className={small} spellCheck={false} value={c.from.component_code ?? ''} onChange={(e) => setComponent(i, { ...c, from: { ...c.from, component_code: e.target.value.toUpperCase() } })} />
                 </label>
               )}
               <label className={label}>
@@ -317,6 +317,7 @@ export function SchemeEditor() {
           <label className={label}>
             How the components combine
             <input
+              spellCheck={false}
               className={`${input} font-mono`}
               value={def.subject.expr}
               disabled={!editable}
