@@ -279,8 +279,6 @@ export const getAccessMatrix = (signal?: AbortSignal) => call<components['schema
 export type SchemeSummary = components['schemas']['SchemeSummary']
 export type Scheme = components['schemas']['Scheme']
 export type SchemeDefinition = components['schemas']['SchemeDefinition']
-export type SchemeComponent = components['schemas']['SchemeComponent']
-export type SchemeBand = components['schemas']['SchemeBand']
 export type SchemePack = components['schemas']['SchemePack']
 export type SchemeAssignment = components['schemas']['SchemeAssignment']
 export type SchemeAssignmentInput = components['schemas']['SchemeAssignmentInput']
@@ -288,9 +286,7 @@ export type DryRun = components['schemas']['DryRun']
 export type SectionResults = components['schemas']['SectionResults']
 export type StudentResult = components['schemas']['StudentResult']
 export type ResultExplanation = components['schemas']['ResultExplanation']
-export type ResultDetail = components['schemas']['ResultDetail']
 export type ResultComponent = components['schemas']['ResultComponent']
-export type ResultEvent = components['schemas']['ResultEvent']
 
 export const listSchemes = (orgId: string, signal?: AbortSignal) => call<SchemeSummary[]>('/v1/schemes', { orgId, signal })
 
