@@ -3,6 +3,7 @@ package assessment
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -14,6 +15,7 @@ import (
 	"github.com/jackymean-del/revu/internal/httpx"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/records"
+	"github.com/jackymean-del/revu/internal/stale"
 	"github.com/jackymean-del/revu/internal/tenant"
 	"github.com/xuri/excelize/v2"
 )
@@ -55,21 +57,21 @@ func openSection(c fiber.Ctx, sectionID string) (section, error) {
 	return s, nil
 }
 
-func students(c fiber.Ctx, s section) ([]api.GridStudent, error) {
-	rows, err := s.tx.Query(c.Context(), `
+// studentsSQL lists a section's students for an assessment, in roll
+// order, with whether each takes the subject and their row status.
+// Arguments: the assessment, the section.
+var studentsSQL = `
 		SELECT st.id::text, st.admission_no, st.name, coalesce(e.roll_no, ''),
-		       `+fmt.Sprintf(evidence.Applicable, evidence.Selected, "st.id")+`,
+		       ` + fmt.Sprintf(evidence.Applicable, evidence.Selected, "st.id") + `,
 		       coalesce(p.status, '')
 		  FROM assessments a
 		  JOIN enrolments e ON e.section_id = $2::uuid AND e.year_id = a.year_id AND e.deleted_at IS NULL
 		  JOIN students st ON st.id = e.student_id AND st.deleted_at IS NULL
 		  LEFT JOIN assessment_participation p ON p.assessment_id = a.id AND p.student_id = st.id
 		 WHERE a.id = $1::uuid AND (st.status = 'active' OR p.status IS NOT NULL)
-		 ORDER BY nullif(regexp_replace(coalesce(e.roll_no, ''), '\D', '', 'g'), '')::bigint NULLS LAST, st.admission_no`,
-		s.as.Id, s.target.SectionID)
-	if err != nil {
-		return nil, err
-	}
+		 ORDER BY nullif(regexp_replace(coalesce(e.roll_no, ''), '\D', '', 'g'), '')::bigint NULLS LAST, st.admission_no`
+
+func scanStudents(rows pgx.Rows) ([]api.GridStudent, error) {
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (g api.GridStudent, err error) {
 		var status string
 		err = r.Scan(&g.Id, &g.AdmissionNo, &g.Name, &g.RollNo, &g.Applicable, &status)
@@ -82,28 +84,62 @@ func students(c fiber.Ctx, s section) ([]api.GridStudent, error) {
 	return list, err
 }
 
+func students(c fiber.Ctx, s section) ([]api.GridStudent, error) {
+	rows, err := s.tx.Query(c.Context(), studentsSQL, s.as.Id, s.target.SectionID)
+	if err != nil {
+		return nil, err
+	}
+	return scanStudents(rows)
+}
+
+// grid is one section's entry grid. Everything after the assessment is
+// read in one batch, so opening a grid costs two round trips to the
+// database however far away it is.
 func grid(c fiber.Ctx) error {
-	s, err := openSection(c, c.Query("sectionId"))
+	tx, err := tenant.Tx(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Context()
-	out := api.MarksGrid{Assessment: s.as, SectionId: s.target.SectionID, Cells: []api.GridCell{}, Applicability: "all"}
-	var selected bool
-	if err := s.tx.QueryRow(ctx, `SELECT `+evidence.Selected+` FROM assessments a WHERE a.id = $1::uuid`, s.as.Id).Scan(&selected); err != nil {
+	sectionID := c.Query("sectionId")
+	as, err := load(ctx, tx, c.Params("id"))
+	if err != nil {
 		return err
 	}
-	if selected {
-		out.Applicability = "selected"
+	if !slices.Contains(as.SectionIds, sectionID) {
+		return problem.New(http.StatusNotFound, "assessment.not_found", "This assessment does not cover that section.")
 	}
-	if out.Students, err = students(c, s); err != nil {
-		return err
-	}
-	rows, err := s.tx.Query(ctx, `
+	var b pgx.Batch
+	b.Queue(`SELECT branch_id::text FROM sections WHERE id = $1::uuid`, sectionID)
+	b.Queue(`SELECT `+evidence.Selected+` FROM assessments a WHERE a.id = $1::uuid`, as.Id)
+	b.Queue(studentsSQL, as.Id, sectionID)
+	b.Queue(`
 		SELECT ev.student_id::text, ev.part_id::text, ev.state::text, coalesce(ev.value::text, ''), ev.version
 		  FROM evidence ev JOIN assessment_parts p ON p.id = ev.part_id AND p.deleted_at IS NULL
 		  JOIN enrolments e ON e.student_id = ev.student_id AND e.section_id = $2::uuid AND e.deleted_at IS NULL
-		 WHERE ev.assessment_id = $1::uuid`, s.as.Id, s.target.SectionID)
+		 WHERE ev.assessment_id = $1::uuid`, as.Id, sectionID)
+	br := tx.SendBatch(ctx, &b)
+	defer br.Close()
+	target := policy.Target{SectionID: sectionID, SubjectID: as.SubjectId}
+	var selected bool
+	if err := br.QueryRow().Scan(&target.BranchID); err != nil {
+		return err
+	}
+	if err := br.QueryRow().Scan(&selected); err != nil {
+		return err
+	}
+	out := api.MarksGrid{Assessment: as, SectionId: sectionID, Cells: []api.GridCell{}, Applicability: "all"}
+	if selected {
+		out.Applicability = "selected"
+	}
+	rows, err := br.Query()
+	if err != nil {
+		return err
+	}
+	if out.Students, err = scanStudents(rows); err != nil {
+		return err
+	}
+	rows, err = br.Query()
 	if err != nil {
 		return err
 	}
@@ -112,12 +148,24 @@ func grid(c fiber.Ctx) error {
 	}); err != nil {
 		return err
 	}
+	if err := br.Close(); err != nil {
+		return err
+	}
 	if out.Cells == nil {
 		out.Cells = []api.GridCell{}
 	}
-	out.CanEdit = policy.Decide(s.actor, policy.EvidenceEnter, s.target) == policy.Full && s.as.Status == "open"
-	out.CanLock = policy.Decide(s.actor, policy.AssessmentLock, s.target) == policy.Full
-	out.CanSetLeft = policy.Decide(s.actor, policy.RowStatusLeft, s.target) == policy.Full
+	actor, err := tenant.Teaching(c)
+	if err != nil {
+		return err
+	}
+	// The marks are read before this check only to save a round trip;
+	// nothing is sent unless the person may see them.
+	if policy.Decide(actor, policy.EvidenceEnter, target) != policy.Full && policy.Decide(actor, policy.ResultsRead, target) != policy.Full {
+		return problem.New(http.StatusForbidden, "auth.forbidden", "These marks belong to the teachers of this section.")
+	}
+	out.CanEdit = policy.Decide(actor, policy.EvidenceEnter, target) == policy.Full && as.Status == "open"
+	out.CanLock = policy.Decide(actor, policy.AssessmentLock, target) == policy.Full
+	out.CanSetLeft = policy.Decide(actor, policy.RowStatusLeft, target) == policy.Full
 	return c.JSON(out)
 }
 
@@ -188,6 +236,9 @@ func participation(c fiber.Ctx) error {
 			m.OrgID, s.as.Id, studentID, status, in.ReasonCode, in.Note, in.EffectiveFrom, m.UserID)
 	}
 	if err != nil {
+		return err
+	}
+	if err := stale.Student(ctx, tx, studentID, s.as.PeriodId, s.as.SubjectId); err != nil {
 		return err
 	}
 	if err := audit.Record(c, audit.Entry{Action: "update", Entity: "assessment_participation", EntityID: s.as.Id,

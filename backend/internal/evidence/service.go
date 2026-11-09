@@ -5,7 +5,8 @@
 // subject, validates the value against the column's maximum exactly, and
 // refuses an edit made on a version that has since moved. In the same
 // transaction it bumps the version, writes the history row and an audit
-// entry, and records that the student's result must be recomputed.
+// entry, records that the student's result must be recomputed and marks
+// the stored result stale.
 package evidence
 
 import (
@@ -21,6 +22,7 @@ import (
 	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth/policy"
+	"github.com/jackymean-del/revu/internal/stale"
 	"github.com/jackymean-del/revu/internal/tenant"
 )
 
@@ -296,9 +298,7 @@ func (s *Service) Apply(w Write) (api.GridCell, error) {
 		m.OrgID, id, after.Version, value, w.State, source, w.BulkID, w.UndoOf, s.user, strings.TrimSpace(w.Reason)); err != nil {
 		return api.GridCell{}, err
 	}
-	if _, err := s.tx.Exec(s.ctx(), `
-		INSERT INTO result_stale_intents (org_id, student_id, period_id, subject_id) VALUES ($1, $2::uuid, $3::uuid, $4::uuid)
-		ON CONFLICT (student_id, period_id, subject_id) DO UPDATE SET marked_at = now()`, m.OrgID, w.StudentID, p.periodID, p.subjectID); err != nil {
+	if err := stale.Student(s.ctx(), s.tx, w.StudentID, p.periodID, p.subjectID); err != nil {
 		return api.GridCell{}, err
 	}
 	// The audit log names the cell and its versions only; the marks

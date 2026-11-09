@@ -2606,6 +2606,334 @@ paths:
                 $ref: "#/components/schemas/Health"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/schemes:
+    get:
+      operationId: listSchemes
+      summary: Every version of every scheme, newest first. Any member may read them.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchemeSummary"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createScheme
+      summary: Start a draft scheme from a definition.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchemeInput"
+      responses:
+        "201":
+          description: The draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scheme"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/schemes/{id}:
+    get:
+      operationId: getScheme
+      summary: One scheme version with its definition.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The scheme.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scheme"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: updateScheme
+      summary: Change a draft. A published scheme never changes (scheme.immutable), so make a new version instead. A definition that breaks a rule is refused with one field error per line.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchemeInput"
+      responses:
+        "200":
+          description: Saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scheme"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteScheme
+      summary: Discard a draft. Published versions stay, for the results computed with them.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Discarded.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/schemes/{id}/publish:
+    post:
+      operationId: publishScheme
+      summary: Publish a draft. The previous published version retires, and every result the scheme reaches is marked stale and recomputed.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Published.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemeChange"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/schemes/{id}/versions:
+    post:
+      operationId: newSchemeVersion
+      summary: Start the next version of a published scheme as a draft copy of it. If a draft exists already, that draft is returned.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scheme"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/schemes/{id}/dry-run:
+    post:
+      operationId: dryRunScheme
+      summary: Work out a section's results under this version and under the scheme in force, and show the difference. Nothing is saved.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DryRunInput"
+      responses:
+        "200":
+          description: The difference.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DryRun"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/scheme-packs:
+    get:
+      operationId: listSchemePacks
+      summary: The board packs revU ships, and whether each was imported here.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The packs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchemePack"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/scheme-packs/{key}/import:
+    post:
+      operationId: importSchemePack
+      summary: Make a draft scheme from a board pack. Importing it again returns the scheme made the first time.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The scheme.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemeImport"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/scheme-assignments:
+    get:
+      operationId: listSchemeAssignments
+      summary: Where each scheme applies.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The assignments.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchemeAssignment"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: assignScheme
+      summary: Apply a scheme to a level, period and subject, each optional. It replaces the scheme already assigned there and marks the results it reaches stale.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchemeAssignmentInput"
+      responses:
+        "200":
+          description: Assigned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemeAssignmentChange"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/scheme-assignments/{id}:
+    delete:
+      operationId: unassignScheme
+      summary: Stop applying a scheme there. The results it reaches are worked out again under whatever applies next.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/results:
+    get:
+      operationId: sectionResults
+      summary: A section's results in one subject and period, with each component. Roles that see counts only get the counts.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subjectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionResults"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/results/explain:
+    get:
+      operationId: explainResult
+      summary: How one result was worked out, input by input, with the scheme version and the rounding applied.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: studentId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subjectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The explanation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultExplanation"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/results/recompute:
+    post:
+      operationId: recomputeResults
+      summary: Work out a section's results again now, for one subject or every subject.
+      tags: [results]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecomputeInput"
+      responses:
+        "200":
+          description: Done.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecomputeDone"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -4520,3 +4848,617 @@ components:
         version:
           type: string
           description: The deployed build, or "dev" locally.
+    SchemeDecimal:
+      type: string
+      pattern: '^\d{1,7}(\.\d{1,4})?$'
+      description: An exact decimal, written as text so it is never a float.
+    SchemeDefinition:
+      type: object
+      description: >
+        A scheme as the engine reads it (blueprint Part 4.1). Components read
+        the marks of assessments of some kinds; the subject expression
+        combines them with the whitelisted functions only (sum, avg, min,
+        max, best_n, scale, clamp, round_half_up, pct, coalesce).
+      additionalProperties: false
+      required: [schema, rounding, components, subject]
+      properties:
+        schema:
+          type: integer
+          enum: [1]
+        rounding:
+          $ref: "#/components/schemas/SchemeRounding"
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemeComponent"
+        subject:
+          $ref: "#/components/schemas/SchemeSubjectRule"
+        grading:
+          $ref: "#/components/schemas/SchemeGrading"
+        pass:
+          $ref: "#/components/schemas/SchemePass"
+    SchemeRounding:
+      type: object
+      additionalProperties: false
+      required: [mode, places, at]
+      properties:
+        mode:
+          type: string
+          enum: [half_up]
+        places:
+          type: integer
+          minimum: 0
+          maximum: 2
+        at:
+          type: string
+          enum: [components, subject]
+          description: components rounds each component before the subject is worked out, so the shown parts add up; subject rounds once at the end.
+    SchemeComponent:
+      type: object
+      additionalProperties: false
+      required: [code, name, from, aggregate, scale_to, on_absent]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{0,15}$'
+        name:
+          type: string
+        from:
+          $ref: "#/components/schemas/SchemeFrom"
+        aggregate:
+          $ref: "#/components/schemas/SchemeAggregate"
+        scale_to:
+          $ref: "#/components/schemas/SchemeDecimal"
+        on_absent:
+          type: string
+          enum: [wait_makeup, zero, exclude, carry_forward]
+    SchemeFrom:
+      type: object
+      additionalProperties: false
+      required: [kinds, part_kind]
+      properties:
+        kinds:
+          type: array
+          items:
+            type: string
+            enum: [periodic_test, midterm, term_end]
+        part_kind:
+          type: string
+          enum: [main, additional]
+        component_code:
+          type: string
+          description: For additional columns, the code the column carries.
+    SchemeAggregate:
+      type: object
+      additionalProperties: false
+      required: [fn]
+      properties:
+        fn:
+          type: string
+          enum: [sum, avg, best_n, max, min]
+        "n":
+          type: integer
+          minimum: 1
+    SchemeSubjectRule:
+      type: object
+      additionalProperties: false
+      required: [expr, max]
+      properties:
+        expr:
+          type: string
+        max:
+          $ref: "#/components/schemas/SchemeDecimal"
+    SchemeGrading:
+      type: object
+      additionalProperties: false
+      required: [from, bands]
+      properties:
+        from:
+          type: string
+          enum: [rounded, unrounded]
+        bands:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemeBand"
+    SchemeBand:
+      type: object
+      additionalProperties: false
+      required: [label, min_pct]
+      properties:
+        label:
+          type: string
+        min_pct:
+          $ref: "#/components/schemas/SchemeDecimal"
+        descriptor:
+          type: string
+    SchemePass:
+      type: object
+      additionalProperties: false
+      required: [subject_min_pct]
+      properties:
+        subject_min_pct:
+          $ref: "#/components/schemas/SchemeDecimal"
+        components:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/SchemeDecimal"
+    SchemeSummary:
+      type: object
+      required: [id, familyId, name, version, status, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        familyId:
+          type: string
+          format: uuid
+          description: The id of version 1, shared by every version.
+        name:
+          type: string
+        board:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [draft, published, retired]
+        packKey:
+          type: string
+          description: The board pack it was imported from, as board-stage@version.
+        publishedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Scheme:
+      type: object
+      required: [id, familyId, name, version, status, updatedAt, definition]
+      properties:
+        id:
+          type: string
+          format: uuid
+        familyId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        board:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [draft, published, retired]
+        packKey:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        definition:
+          $ref: "#/components/schemas/SchemeDefinition"
+    SchemeInput:
+      type: object
+      additionalProperties: false
+      required: [name, definition]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        definition:
+          $ref: "#/components/schemas/SchemeDefinition"
+    SchemeChange:
+      type: object
+      required: [scheme, marked]
+      properties:
+        scheme:
+          $ref: "#/components/schemas/Scheme"
+        marked:
+          type: integer
+          description: How many results were marked to be worked out again.
+    SchemeRef:
+      type: object
+      required: [id, name, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: integer
+    SchemePack:
+      type: object
+      required: [key, name, board, stage, version, description]
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        board:
+          type: string
+        stage:
+          type: string
+        version:
+          type: integer
+        description:
+          type: string
+        schemeId:
+          type: string
+          format: uuid
+          description: Set when this pack was imported here already.
+    SchemeImport:
+      type: object
+      required: [scheme, created]
+      properties:
+        scheme:
+          $ref: "#/components/schemas/Scheme"
+        created:
+          type: boolean
+          description: False when the pack had been imported before.
+    SchemeAssignment:
+      type: object
+      required: [id, familyId, schemeName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        familyId:
+          type: string
+          format: uuid
+        schemeName:
+          type: string
+        publishedVersion:
+          type: integer
+          description: The version in force; absent while the scheme has no published version.
+        levelId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+    SchemeAssignmentInput:
+      type: object
+      additionalProperties: false
+      required: [familyId]
+      properties:
+        familyId:
+          type: string
+          format: uuid
+        levelId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+    SchemeAssignmentChange:
+      type: object
+      required: [assignment, marked]
+      properties:
+        assignment:
+          $ref: "#/components/schemas/SchemeAssignment"
+        marked:
+          type: integer
+    DryRunInput:
+      type: object
+      additionalProperties: false
+      required: [sectionId, periodId, subjectId]
+      properties:
+        sectionId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+    DryRun:
+      type: object
+      required: [students, changed, nowBlocked, rows]
+      properties:
+        current:
+          $ref: "#/components/schemas/SchemeRef"
+        students:
+          type: integer
+        changed:
+          type: integer
+        nowBlocked:
+          type: integer
+          description: Results that would become blocked.
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DryRunRow"
+    DryRunRow:
+      type: object
+      required: [studentId, name, changed]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        before:
+          $ref: "#/components/schemas/ResultCell"
+        after:
+          $ref: "#/components/schemas/ResultCell"
+        changed:
+          type: boolean
+        delta:
+          type: string
+          description: The change in percentage, when both have one.
+    ResultCell:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [complete, provisional, blocked, not_assessed]
+        reason:
+          type: string
+        value:
+          type: string
+        max:
+          type: string
+        pct:
+          type: string
+        grade:
+          type: string
+    ResultColumn:
+      type: object
+      required: [code, name, max]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        max:
+          type: string
+    ResultCounts:
+      type: object
+      required: [complete, provisional, blocked, notAssessed, stale]
+      properties:
+        complete:
+          type: integer
+        provisional:
+          type: integer
+        blocked:
+          type: integer
+        notAssessed:
+          type: integer
+        stale:
+          type: integer
+    ComponentCell:
+      type: object
+      required: [code, state]
+      properties:
+        code:
+          type: string
+        state:
+          type: string
+          enum: [complete, provisional, blocked, not_assessed]
+        reason:
+          type: string
+        value:
+          type: string
+    StudentResult:
+      type: object
+      required: [studentId, name, admissionNo, stale, components]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        admissionNo:
+          type: string
+        rollNo:
+          type: string
+        stale:
+          type: boolean
+          description: Marks changed since this was worked out; a fresh result follows within seconds.
+        result:
+          $ref: "#/components/schemas/ResultCell"
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentCell"
+    SectionResults:
+      type: object
+      required: [access, components, counts, rows]
+      properties:
+        access:
+          type: string
+          enum: [full, counts]
+          description: counts means the person sees how many results are in each state, never a student's result.
+        scheme:
+          $ref: "#/components/schemas/SchemeRef"
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResultColumn"
+        counts:
+          $ref: "#/components/schemas/ResultCounts"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentResult"
+    ResultExplanation:
+      type: object
+      required: [studentId, name, periodId, subjectId, scheme, stale, computedAt, detail]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        periodId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        scheme:
+          $ref: "#/components/schemas/SchemeRef"
+        stale:
+          type: boolean
+        computedAt:
+          type: string
+          format: date-time
+        detail:
+          $ref: "#/components/schemas/ResultDetail"
+    ResultDetail:
+      type: object
+      description: Every input used, every policy decision and the arithmetic, as the engine recorded them.
+      required: [state, expr, rounding, components]
+      properties:
+        state:
+          type: string
+          enum: [complete, provisional, blocked, not_assessed]
+        reason:
+          type: string
+          description: Why a result is not complete, for example choice_missing, component_blocked:TE or pending:TE.
+        value:
+          type: string
+        max:
+          type: string
+        pct:
+          type: string
+        grade:
+          type: string
+        gradeDescriptor:
+          type: string
+        passed:
+          type: boolean
+        basis:
+          type: string
+          enum: [full, renormalised, so_far]
+          description: renormalised when a component was left out and the rest scaled up; so_far while a component is still to come.
+        expr:
+          type: string
+        working:
+          type: array
+          items:
+            type: string
+        rounding:
+          $ref: "#/components/schemas/SchemeRounding"
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResultComponent"
+    ResultComponent:
+      type: object
+      required: [code, name, aggregate, onAbsent, state, max, events]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        aggregate:
+          type: string
+          description: sum, avg, max, min, or best_n:N.
+        onAbsent:
+          type: string
+        state:
+          type: string
+          enum: [complete, provisional, blocked, left_out, not_assessed]
+        reason:
+          type: string
+        value:
+          type: string
+        exact:
+          type: string
+          description: The value before rounding, when it differs.
+        max:
+          type: string
+        pct:
+          type: string
+        working:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResultEvent"
+    ResultEvent:
+      type: object
+      required: [assessmentId, title, kind, use, parts]
+      properties:
+        assessmentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        kind:
+          type: string
+        heldOn:
+          type: string
+          format: date
+        use:
+          type: string
+          enum: [used, dropped, carried, left_out, pending, blocked]
+        reason:
+          type: string
+        carriedFrom:
+          type: string
+          format: uuid
+        value:
+          type: string
+        max:
+          type: string
+        pct:
+          type: string
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResultPart"
+    ResultPart:
+      type: object
+      required: [partId, name, state, max, use]
+      properties:
+        partId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        state:
+          type: string
+        value:
+          type: string
+        max:
+          type: string
+        use:
+          type: string
+          enum: [counted, zero, left_out, pending, absent]
+    RecomputeInput:
+      type: object
+      additionalProperties: false
+      required: [sectionId, periodId]
+      properties:
+        sectionId:
+          type: string
+          format: uuid
+        periodId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+          description: One subject; absent means every subject the level teaches.
+    RecomputeDone:
+      type: object
+      required: [computed]
+      properties:
+        computed:
+          type: integer
+          description: How many subject results were stored.

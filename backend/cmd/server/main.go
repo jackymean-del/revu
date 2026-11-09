@@ -16,6 +16,7 @@ import (
 	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/db"
+	"github.com/jackymean-del/revu/internal/results"
 	"github.com/jackymean-del/revu/internal/seed"
 	"github.com/jackymean-del/revu/internal/server"
 )
@@ -110,6 +111,12 @@ func main() {
 		}
 		defer owner.Close()
 		deps.Owner = owner
+	}
+
+	// Results waiting to be worked out again are recomputed in the
+	// background, a couple of seconds after the last change (Part 6.2).
+	if deps.DB != nil {
+		go results.Loop(ctx, deps.DB, time.Second)
 	}
 
 	app := server.New(cfg, deps)

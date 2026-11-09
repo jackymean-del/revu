@@ -1,0 +1,10 @@
+# A board pack (blueprint Part 4.8): a scheme and grade bands as data. This
+# one is fictional, an example to start from, and follows no real board.
+board: example
+name: Example board (fictional)
+stage: secondary
+version: 1
+description: Periodic tests (best two, worth 10), a notebook mark with each test (worth 10) and the term exam (worth 80), with eight grades.
+files:
+  scheme: scheme.yaml
+  bands: bands.yaml

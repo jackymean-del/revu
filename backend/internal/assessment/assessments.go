@@ -8,9 +8,9 @@ package assessment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -22,6 +22,8 @@ import (
 	"github.com/jackymean-del/revu/internal/httpx"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/records"
+	"github.com/jackymean-del/revu/internal/scheme"
+	"github.com/jackymean-del/revu/internal/stale"
 	"github.com/jackymean-del/revu/internal/tenant"
 )
 
@@ -42,31 +44,68 @@ var errNotFound = problem.New(http.StatusNotFound, "assessment.not_found", "No a
 
 // load reads an assessment with its sections and parts.
 func load(ctx context.Context, tx pgx.Tx, id string) (api.Assessment, error) {
-	var a api.Assessment
 	if !records.UUIDShape.MatchString(id) {
-		return a, errNotFound
+		return api.Assessment{}, errNotFound
 	}
-	err := tx.QueryRow(ctx, `
+	list, err := loadMany(ctx, tx, `id = $1::uuid`, id)
+	if err != nil {
+		return api.Assessment{}, err
+	}
+	if len(list) == 0 {
+		return api.Assessment{}, errNotFound
+	}
+	return list[0], nil
+}
+
+// loadMany reads the live assessments matching where, newest first, with
+// their sections and parts, in one round trip to the database.
+func loadMany(ctx context.Context, tx pgx.Tx, where string, args ...any) ([]api.Assessment, error) {
+	var b pgx.Batch
+	b.Queue(`
 		SELECT id::text, year_id::text, period_id::text, level_id::text, subject_id::text, title, kind, entry_mode, status::text, coalesce(held_on::text, ''),
 		       coalesce((SELECT array_agg(section_id::text ORDER BY section_id) FROM assessment_scopes WHERE assessment_id = a.id), '{}')
-		  FROM assessments a WHERE id = $1::uuid AND deleted_at IS NULL`, id).
-		Scan(&a.Id, &a.YearId, &a.PeriodId, &a.LevelId, &a.SubjectId, &a.Title, &a.Kind, &a.EntryMode, &a.Status, &a.HeldOn, &a.SectionIds)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return a, errNotFound
-	}
+		  FROM assessments a WHERE deleted_at IS NULL AND `+where+` ORDER BY created_at DESC LIMIT 200`, args...)
+	b.Queue(`
+		SELECT assessment_id::text, id::text, seq, name, kind::text, coalesce(component_code, ''), counts_in_total, max_marks::text
+		  FROM assessment_parts
+		 WHERE deleted_at IS NULL AND assessment_id IN (SELECT id FROM assessments a WHERE deleted_at IS NULL AND `+where+`)
+		 ORDER BY assessment_id, seq`, args...)
+	br := tx.SendBatch(ctx, &b)
+	defer br.Close()
+	rows, err := br.Query()
 	if err != nil {
-		return a, err
+		return nil, err
 	}
-	rows, err := tx.Query(ctx, `
-		SELECT id::text, seq, name, kind::text, coalesce(component_code, ''), counts_in_total, max_marks::text
-		  FROM assessment_parts WHERE assessment_id = $1::uuid AND deleted_at IS NULL ORDER BY seq`, id)
-	if err != nil {
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (a api.Assessment, err error) {
+		err = r.Scan(&a.Id, &a.YearId, &a.PeriodId, &a.LevelId, &a.SubjectId, &a.Title, &a.Kind, &a.EntryMode, &a.Status, &a.HeldOn, &a.SectionIds)
+		a.Parts = []api.AssessmentPart{}
 		return a, err
-	}
-	a.Parts, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (p api.AssessmentPart, err error) {
-		return p, r.Scan(&p.Id, &p.Seq, &p.Name, &p.Kind, &p.ComponentCode, &p.CountsInTotal, &p.MaxMarks)
 	})
-	return a, err
+	if err != nil {
+		return nil, err
+	}
+	at := map[string]int{}
+	for i, a := range list {
+		at[a.Id] = i
+	}
+	rows, err = br.Query()
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var aid string
+		var p api.AssessmentPart
+		if err := rows.Scan(&aid, &p.Id, &p.Seq, &p.Name, &p.Kind, &p.ComponentCode, &p.CountsInTotal, &p.MaxMarks); err != nil {
+			return nil, err
+		}
+		if i, ok := at[aid]; ok {
+			list[i].Parts = append(list[i].Parts, p)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return list, br.Close()
 }
 
 // sectionTarget is what the policy needs about one section of an assessment.
@@ -78,17 +117,15 @@ func sectionTarget(ctx context.Context, tx pgx.Tx, sectionID, subjectID string) 
 
 // visible says whether the person may see an assessment's marks: they may
 // enter them, or read results there (Part 77: confidential by default).
-func visible(ctx context.Context, tx pgx.Tx, a policy.Actor, as api.Assessment) (bool, error) {
+// branch maps each section to its branch.
+func visible(a policy.Actor, as api.Assessment, branch map[string]string) bool {
 	for _, s := range as.SectionIds {
-		t, err := sectionTarget(ctx, tx, s, as.SubjectId)
-		if err != nil {
-			return false, err
-		}
+		t := policy.Target{BranchID: branch[s], SectionID: s, SubjectID: as.SubjectId}
 		if policy.Decide(a, policy.EvidenceEnter, t) == policy.Full || policy.Decide(a, policy.ResultsRead, t) == policy.Full {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 func list(c fiber.Ctx) error {
@@ -97,7 +134,7 @@ func list(c fiber.Ctx) error {
 		return err
 	}
 	ctx := c.Context()
-	where, args := []string{"deleted_at IS NULL"}, []any{}
+	where, args := []string{"true"}, []any{}
 	for param, sql := range map[string]string{
 		"sectionId": "id IN (SELECT assessment_id FROM assessment_scopes WHERE section_id = $%d::uuid)",
 		"periodId":  "period_id = $%d::uuid",
@@ -110,12 +147,23 @@ func list(c fiber.Ctx) error {
 			where = append(where, fmt.Sprintf(sql, len(args)))
 		}
 	}
-	rows, err := tx.Query(ctx, `SELECT id::text FROM assessments WHERE `+strings.Join(where, " AND ")+` ORDER BY created_at DESC LIMIT 200`, args...)
+	all, err := loadMany(ctx, tx, strings.Join(where, " AND "), args...)
 	if err != nil {
 		return err
 	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	rows, err := tx.Query(ctx, `SELECT id::text, branch_id::text FROM sections`)
 	if err != nil {
+		return err
+	}
+	branch := map[string]string{}
+	for rows.Next() {
+		var id, b string
+		if err := rows.Scan(&id, &b); err != nil {
+			return err
+		}
+		branch[id] = b
+	}
+	if err := rows.Err(); err != nil {
 		return err
 	}
 	a, err := tenant.Teaching(c)
@@ -123,14 +171,8 @@ func list(c fiber.Ctx) error {
 		return err
 	}
 	out := []api.Assessment{}
-	for _, id := range ids {
-		as, err := load(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if ok, err := visible(ctx, tx, a, as); err != nil {
-			return err
-		} else if ok {
+	for _, as := range all {
+		if visible(a, as, branch) {
 			out = append(out, as)
 		}
 	}
@@ -146,6 +188,9 @@ func check(c fiber.Ctx, tx pgx.Tx, in *api.AssessmentInput) (yearID string, err 
 	f.Text("kind", &in.Kind, 0, 40)
 	if in.Kind == "" {
 		in.Kind = "periodic_test"
+	}
+	if !slices.Contains(scheme.Kinds, in.Kind) {
+		f.Add("kind", "unknown", "Choose the kind of assessment.")
 	}
 	for _, ref := range []struct{ field, table, id string }{{"periodId", "periods", in.PeriodId}, {"levelId", "levels", in.LevelId}, {"subjectId", "subjects", in.SubjectId}} {
 		if err := f.Live(ctx, tx, ref.field, ref.table, ref.id); err != nil {
@@ -325,6 +370,9 @@ func create(c fiber.Ctx) error {
 	if err := writeParts(c, tx, id, in.Parts, nil); err != nil {
 		return err
 	}
+	if err := stale.Assessment(c.Context(), tx, id); err != nil {
+		return err
+	}
 	out, err := load(c.Context(), tx, id)
 	if err != nil {
 		return err
@@ -358,6 +406,10 @@ func update(c fiber.Ctx) error {
 	if _, err := check(c, tx, &in); err != nil {
 		return err
 	}
+	// Results of students it covered before and after the change.
+	if err := stale.Assessment(ctx, tx, before.Id); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `UPDATE assessments SET title = $2, kind = $3, entry_mode = $4, held_on = nullif($5, '')::date WHERE id = $1::uuid`,
 		before.Id, in.Title, in.Kind, string(in.EntryMode), in.HeldOn); err != nil {
 		return err
@@ -366,6 +418,9 @@ func update(c fiber.Ctx) error {
 		return err
 	}
 	if err := writeParts(c, tx, before.Id, in.Parts, before.Parts); err != nil {
+		return err
+	}
+	if err := stale.Assessment(ctx, tx, before.Id); err != nil {
 		return err
 	}
 	after, err := load(ctx, tx, before.Id)
@@ -417,6 +472,9 @@ func remove(c fiber.Ctx) error {
 		return problem.New(http.StatusConflict, "assessment.in_use", "This assessment holds marks, so it stays.")
 	}
 	if _, err := tx.Exec(ctx, `UPDATE assessments SET deleted_at = now() WHERE id = $1::uuid`, as.Id); err != nil {
+		return err
+	}
+	if err := stale.Assessment(ctx, tx, as.Id); err != nil {
 		return err
 	}
 	if err := audit.Record(c, audit.Entry{Action: "delete", Entity: "assessments", EntityID: as.Id, Before: as}); err != nil {

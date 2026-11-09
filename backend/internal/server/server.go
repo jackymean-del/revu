@@ -27,6 +27,8 @@ import (
 	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/platform"
 	"github.com/jackymean-del/revu/internal/problem"
+	"github.com/jackymean-del/revu/internal/results"
+	"github.com/jackymean-del/revu/internal/schemes"
 	"github.com/jackymean-del/revu/internal/setup"
 	"github.com/jackymean-del/revu/internal/structure"
 	"github.com/jackymean-del/revu/internal/tables"
@@ -99,6 +101,8 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	assessment.Routes(inOrg)
 	evidence.Routes(inOrg)
 	layout.Routes(inOrg)
+	schemes.Routes(inOrg)
+	results.Routes(inOrg)
 	tables.Routes(inOrg)
 	audit.Routes(inOrg)
 	return app

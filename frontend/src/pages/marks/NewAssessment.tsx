@@ -4,6 +4,10 @@ import { createAssessment, listStructure, type Assessment, type Level, type Peri
 import { ApiError } from '../../api/problem'
 import { useT } from '../../lib/terminology/terms-context'
 
+/** The kinds a scheme reads marks by (Part 4.1). */
+const KINDS = ['periodic_test', 'midterm', 'term_end'] as const
+type Kind = (typeof KINDS)[number]
+
 type Part = { name: string; maxMarks: string; kind: 'main' | 'additional'; componentCode: string; countsInTotal: boolean }
 
 function useList<T>(orgId: string, path: 'periods' | 'levels' | 'subjects' | 'sections', params: Record<string, string> = {}) {
@@ -23,7 +27,9 @@ export function NewAssessment({ orgId, yearId, onMade, onCancel }: { orgId: stri
   const levels = useList<Level>(orgId, 'levels')
   const subjects = useList<Subject>(orgId, 'subjects')
   const sections = useList<Section>(orgId, 'sections', { yearId })
-  const [form, setForm] = useState({ title: '', periodId: '', levelId: '', subjectId: '', mode: 'total' as 'total' | 'sections', sectionIds: [] as string[] })
+  const [form, setForm] = useState({
+    title: '', kind: 'periodic_test' as Kind, heldOn: '', periodId: '', levelId: '', subjectId: '', mode: 'total' as 'total' | 'sections', sectionIds: [] as string[],
+  })
   const [parts, setParts] = useState<Part[]>([{ name: 'Total', maxMarks: '40', kind: 'main', componentCode: '', countsInTotal: true }])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -47,7 +53,7 @@ export function NewAssessment({ orgId, yearId, onMade, onCancel }: { orgId: stri
     try {
       onMade(
         await createAssessment(orgId, {
-          title: form.title, periodId: form.periodId, levelId: form.levelId, subjectId: form.subjectId, entryMode: form.mode, sectionIds: form.sectionIds,
+          title: form.title, kind: form.kind, ...(form.heldOn ? { heldOn: form.heldOn } : {}), periodId: form.periodId, levelId: form.levelId, subjectId: form.subjectId, entryMode: form.mode, sectionIds: form.sectionIds,
           parts: parts.map((p) => ({ name: p.name, maxMarks: p.maxMarks.trim(), kind: p.kind, countsInTotal: p.countsInTotal, ...(p.kind === 'additional' ? { componentCode: p.componentCode } : {}) })),
         }),
       )
@@ -68,6 +74,20 @@ export function NewAssessment({ orgId, yearId, onMade, onCancel }: { orgId: stri
         <label className={field}>
           Title
           <input className={input} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Unit test 1" />
+        </label>
+        <label className={field}>
+          Kind
+          <select className={input} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as Kind })}>
+            {KINDS.map((k) => (
+              <option key={k} value={k}>
+                {t(`assessment.${k}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={field}>
+          Held on
+          <input type="date" className={input} value={form.heldOn} onChange={(e) => setForm({ ...form, heldOn: e.target.value })} />
         </label>
         <label className={field}>
           {t('period.term')}

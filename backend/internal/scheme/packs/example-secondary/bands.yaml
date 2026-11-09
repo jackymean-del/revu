@@ -1,0 +1,10 @@
+from: rounded
+bands:
+  - { label: A1, min_pct: 91, descriptor: Outstanding }
+  - { label: A2, min_pct: 81, descriptor: Excellent }
+  - { label: B1, min_pct: 71, descriptor: Very good }
+  - { label: B2, min_pct: 61, descriptor: Good }
+  - { label: C1, min_pct: 51, descriptor: Fair }
+  - { label: C2, min_pct: 41, descriptor: Satisfactory }
+  - { label: D, min_pct: 33, descriptor: Needs support }
+  - { label: E, min_pct: 0, descriptor: Needs a plan }

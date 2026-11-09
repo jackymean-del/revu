@@ -1525,6 +1525,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/schemes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every version of every scheme, newest first. Any member may read them. */
+        get: operations["listSchemes"];
+        put?: never;
+        /** Start a draft scheme from a definition. */
+        post: operations["createScheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/schemes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One scheme version with its definition. */
+        get: operations["getScheme"];
+        /** Change a draft. A published scheme never changes (scheme.immutable), so make a new version instead. A definition that breaks a rule is refused with one field error per line. */
+        put: operations["updateScheme"];
+        post?: never;
+        /** Discard a draft. Published versions stay, for the results computed with them. */
+        delete: operations["deleteScheme"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/schemes/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish a draft. The previous published version retires, and every result the scheme reaches is marked stale and recomputed. */
+        post: operations["publishScheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/schemes/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the next version of a published scheme as a draft copy of it. If a draft exists already, that draft is returned. */
+        post: operations["newSchemeVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/schemes/{id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Work out a section's results under this version and under the scheme in force, and show the difference. Nothing is saved. */
+        post: operations["dryRunScheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scheme-packs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The board packs revU ships, and whether each was imported here. */
+        get: operations["listSchemePacks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scheme-packs/{key}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make a draft scheme from a board pack. Importing it again returns the scheme made the first time. */
+        post: operations["importSchemePack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scheme-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where each scheme applies. */
+        get: operations["listSchemeAssignments"];
+        put?: never;
+        /** Apply a scheme to a level, period and subject, each optional. It replaces the scheme already assigned there and marks the results it reaches stale. */
+        post: operations["assignScheme"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/scheme-assignments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stop applying a scheme there. The results it reaches are worked out again under whatever applies next. */
+        delete: operations["unassignScheme"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A section's results in one subject and period, with each component. Roles that see counts only get the counts. */
+        get: operations["sectionResults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/results/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How one result was worked out, input by input, with the scheme version and the rounding applied. */
+        get: operations["explainResult"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/results/recompute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Work out a section's results again now, for one subject or every subject. */
+        post: operations["recomputeResults"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2567,6 +2775,339 @@ export interface components {
             database: boolean;
             /** @description The deployed build, or "dev" locally. */
             version: string;
+        };
+        /** @description An exact decimal, written as text so it is never a float. */
+        SchemeDecimal: string;
+        /** @description A scheme as the engine reads it (blueprint Part 4.1). Components read the marks of assessments of some kinds; the subject expression combines them with the whitelisted functions only (sum, avg, min, max, best_n, scale, clamp, round_half_up, pct, coalesce). */
+        SchemeDefinition: {
+            /** @enum {integer} */
+            schema: 1;
+            rounding: components["schemas"]["SchemeRounding"];
+            components: components["schemas"]["SchemeComponent"][];
+            subject: components["schemas"]["SchemeSubjectRule"];
+            grading?: components["schemas"]["SchemeGrading"];
+            pass?: components["schemas"]["SchemePass"];
+        };
+        SchemeRounding: {
+            /** @enum {string} */
+            mode: "half_up";
+            places: number;
+            /**
+             * @description components rounds each component before the subject is worked out, so the shown parts add up; subject rounds once at the end.
+             * @enum {string}
+             */
+            at: "components" | "subject";
+        };
+        SchemeComponent: {
+            code: string;
+            name: string;
+            from: components["schemas"]["SchemeFrom"];
+            aggregate: components["schemas"]["SchemeAggregate"];
+            scale_to: components["schemas"]["SchemeDecimal"];
+            /** @enum {string} */
+            on_absent: "wait_makeup" | "zero" | "exclude" | "carry_forward";
+        };
+        SchemeFrom: {
+            kinds: ("periodic_test" | "midterm" | "term_end")[];
+            /** @enum {string} */
+            part_kind: "main" | "additional";
+            /** @description For additional columns, the code the column carries. */
+            component_code?: string;
+        };
+        SchemeAggregate: {
+            /** @enum {string} */
+            fn: "sum" | "avg" | "best_n" | "max" | "min";
+            n?: number;
+        };
+        SchemeSubjectRule: {
+            expr: string;
+            max: components["schemas"]["SchemeDecimal"];
+        };
+        SchemeGrading: {
+            /** @enum {string} */
+            from: "rounded" | "unrounded";
+            bands: components["schemas"]["SchemeBand"][];
+        };
+        SchemeBand: {
+            label: string;
+            min_pct: components["schemas"]["SchemeDecimal"];
+            descriptor?: string;
+        };
+        SchemePass: {
+            subject_min_pct: components["schemas"]["SchemeDecimal"];
+            components?: {
+                [key: string]: components["schemas"]["SchemeDecimal"];
+            };
+        };
+        SchemeSummary: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description The id of version 1, shared by every version.
+             */
+            familyId: string;
+            name: string;
+            board?: string;
+            version: number;
+            /** @enum {string} */
+            status: "draft" | "published" | "retired";
+            /** @description The board pack it was imported from, as board-stage@version. */
+            packKey?: string;
+            /** Format: date-time */
+            publishedAt?: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        Scheme: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            familyId: string;
+            name: string;
+            board?: string;
+            version: number;
+            /** @enum {string} */
+            status: "draft" | "published" | "retired";
+            packKey?: string;
+            /** Format: date-time */
+            publishedAt?: string;
+            /** Format: date-time */
+            updatedAt: string;
+            definition: components["schemas"]["SchemeDefinition"];
+        };
+        SchemeInput: {
+            name: string;
+            definition: components["schemas"]["SchemeDefinition"];
+        };
+        SchemeChange: {
+            scheme: components["schemas"]["Scheme"];
+            /** @description How many results were marked to be worked out again. */
+            marked: number;
+        };
+        SchemeRef: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            version: number;
+        };
+        SchemePack: {
+            key: string;
+            name: string;
+            board: string;
+            stage: string;
+            version: number;
+            description: string;
+            /**
+             * Format: uuid
+             * @description Set when this pack was imported here already.
+             */
+            schemeId?: string;
+        };
+        SchemeImport: {
+            scheme: components["schemas"]["Scheme"];
+            /** @description False when the pack had been imported before. */
+            created: boolean;
+        };
+        SchemeAssignment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            familyId: string;
+            schemeName: string;
+            /** @description The version in force; absent while the scheme has no published version. */
+            publishedVersion?: number;
+            /** Format: uuid */
+            levelId?: string;
+            /** Format: uuid */
+            periodId?: string;
+            /** Format: uuid */
+            subjectId?: string;
+        };
+        SchemeAssignmentInput: {
+            /** Format: uuid */
+            familyId: string;
+            /** Format: uuid */
+            levelId?: string;
+            /** Format: uuid */
+            periodId?: string;
+            /** Format: uuid */
+            subjectId?: string;
+        };
+        SchemeAssignmentChange: {
+            assignment: components["schemas"]["SchemeAssignment"];
+            marked: number;
+        };
+        DryRunInput: {
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: uuid */
+            periodId: string;
+            /** Format: uuid */
+            subjectId: string;
+        };
+        DryRun: {
+            current?: components["schemas"]["SchemeRef"];
+            students: number;
+            changed: number;
+            /** @description Results that would become blocked. */
+            nowBlocked: number;
+            rows: components["schemas"]["DryRunRow"][];
+        };
+        DryRunRow: {
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            before?: components["schemas"]["ResultCell"];
+            after?: components["schemas"]["ResultCell"];
+            changed: boolean;
+            /** @description The change in percentage, when both have one. */
+            delta?: string;
+        };
+        ResultCell: {
+            /** @enum {string} */
+            state: "complete" | "provisional" | "blocked" | "not_assessed";
+            reason?: string;
+            value?: string;
+            max?: string;
+            pct?: string;
+            grade?: string;
+        };
+        ResultColumn: {
+            code: string;
+            name: string;
+            max: string;
+        };
+        ResultCounts: {
+            complete: number;
+            provisional: number;
+            blocked: number;
+            notAssessed: number;
+            stale: number;
+        };
+        ComponentCell: {
+            code: string;
+            /** @enum {string} */
+            state: "complete" | "provisional" | "blocked" | "not_assessed";
+            reason?: string;
+            value?: string;
+        };
+        StudentResult: {
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            admissionNo: string;
+            rollNo?: string;
+            /** @description Marks changed since this was worked out; a fresh result follows within seconds. */
+            stale: boolean;
+            result?: components["schemas"]["ResultCell"];
+            components: components["schemas"]["ComponentCell"][];
+        };
+        SectionResults: {
+            /**
+             * @description counts means the person sees how many results are in each state, never a student's result.
+             * @enum {string}
+             */
+            access: "full" | "counts";
+            scheme?: components["schemas"]["SchemeRef"];
+            components: components["schemas"]["ResultColumn"][];
+            counts: components["schemas"]["ResultCounts"];
+            rows: components["schemas"]["StudentResult"][];
+        };
+        ResultExplanation: {
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            /** Format: uuid */
+            periodId: string;
+            /** Format: uuid */
+            subjectId: string;
+            scheme: components["schemas"]["SchemeRef"];
+            stale: boolean;
+            /** Format: date-time */
+            computedAt: string;
+            detail: components["schemas"]["ResultDetail"];
+        };
+        /** @description Every input used, every policy decision and the arithmetic, as the engine recorded them. */
+        ResultDetail: {
+            /** @enum {string} */
+            state: "complete" | "provisional" | "blocked" | "not_assessed";
+            /** @description Why a result is not complete, for example choice_missing, component_blocked:TE or pending:TE. */
+            reason?: string;
+            value?: string;
+            max?: string;
+            pct?: string;
+            grade?: string;
+            gradeDescriptor?: string;
+            passed?: boolean;
+            /**
+             * @description renormalised when a component was left out and the rest scaled up; so_far while a component is still to come.
+             * @enum {string}
+             */
+            basis?: "full" | "renormalised" | "so_far";
+            expr: string;
+            working?: string[];
+            rounding: components["schemas"]["SchemeRounding"];
+            components: components["schemas"]["ResultComponent"][];
+        };
+        ResultComponent: {
+            code: string;
+            name: string;
+            /** @description sum, avg, max, min, or best_n:N. */
+            aggregate: string;
+            onAbsent: string;
+            /** @enum {string} */
+            state: "complete" | "provisional" | "blocked" | "left_out" | "not_assessed";
+            reason?: string;
+            value?: string;
+            /** @description The value before rounding, when it differs. */
+            exact?: string;
+            max: string;
+            pct?: string;
+            working?: string;
+            events: components["schemas"]["ResultEvent"][];
+        };
+        ResultEvent: {
+            /** Format: uuid */
+            assessmentId: string;
+            title: string;
+            kind: string;
+            /** Format: date */
+            heldOn?: string;
+            /** @enum {string} */
+            use: "used" | "dropped" | "carried" | "left_out" | "pending" | "blocked";
+            reason?: string;
+            /** Format: uuid */
+            carriedFrom?: string;
+            value?: string;
+            max?: string;
+            pct?: string;
+            parts: components["schemas"]["ResultPart"][];
+        };
+        ResultPart: {
+            /** Format: uuid */
+            partId: string;
+            name: string;
+            state: string;
+            value?: string;
+            max: string;
+            /** @enum {string} */
+            use: "counted" | "zero" | "left_out" | "pending" | "absent";
+        };
+        RecomputeInput: {
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: uuid */
+            periodId: string;
+            /**
+             * Format: uuid
+             * @description One subject; absent means every subject the level teaches.
+             */
+            subjectId?: string;
+        };
+        RecomputeDone: {
+            /** @description How many subject results were stored. */
+            computed: number;
         };
     };
     responses: {
@@ -6008,6 +6549,430 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSchemes: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The list. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeSummary"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeInput"];
+            };
+        };
+        responses: {
+            /** @description The draft. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scheme"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The scheme. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scheme"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeInput"];
+            };
+        };
+        responses: {
+            /** @description Saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scheme"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discarded. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    publishScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeChange"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    newSchemeVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The draft. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scheme"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    dryRunScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DryRunInput"];
+            };
+        };
+        responses: {
+            /** @description The difference. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DryRun"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSchemePacks: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The packs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemePack"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    importSchemePack: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The scheme. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeImport"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSchemeAssignments: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The assignments. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeAssignment"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    assignScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchemeAssignmentInput"];
+            };
+        };
+        responses: {
+            /** @description Assigned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchemeAssignmentChange"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    unassignScheme: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    sectionResults: {
+        parameters: {
+            query: {
+                sectionId: string;
+                periodId: string;
+                subjectId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionResults"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    explainResult: {
+        parameters: {
+            query: {
+                studentId: string;
+                periodId: string;
+                subjectId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The explanation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultExplanation"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    recomputeResults: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecomputeInput"];
+            };
+        };
+        responses: {
+            /** @description Done. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecomputeDone"];
                 };
             };
             default: components["responses"]["Problem"];

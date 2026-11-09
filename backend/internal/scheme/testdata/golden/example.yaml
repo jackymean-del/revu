@@ -1,0 +1,305 @@
+# An example scheme, not any board's real rules: periodic tests (best 2,
+# worth 10), a notebook mark held with each test (average, worth 10) and
+# the term exam (worth 80). Every expected number below is worked out by
+# hand from these rules; the working is in each case's comment.
+scheme:
+  schema: 1
+  rounding: { mode: half_up, places: 2, at: components }
+  components:
+    - code: PT
+      name: Periodic tests
+      from: { kinds: [periodic_test], part_kind: main }
+      aggregate: { fn: best_n, n: 2 }
+      scale_to: 10
+      on_absent: wait_makeup
+    - code: NB
+      name: Notebook
+      from: { kinds: [periodic_test], part_kind: additional, component_code: NB }
+      aggregate: { fn: avg }
+      scale_to: 10
+      on_absent: exclude
+    - code: TE
+      name: Term exam
+      from: { kinds: [term_end], part_kind: main }
+      aggregate: { fn: sum }
+      scale_to: 80
+      on_absent: wait_makeup
+  subject: { expr: "PT + NB + TE", max: 100 }
+  grading:
+    from: rounded
+    bands:
+      - { label: A1, min_pct: 91 }
+      - { label: A2, min_pct: 81 }
+      - { label: B1, min_pct: 71 }
+      - { label: B2, min_pct: 61 }
+      - { label: C1, min_pct: 51 }
+      - { label: C2, min_pct: 41 }
+      - { label: D, min_pct: 33 }
+      - { label: E, min_pct: 0 }
+  pass: { subject_min_pct: 33, components: { TE: 33 } }
+
+cases:
+  # PT best 2 of 80%, 90%, 70% = 85% of 10 = 8.50. NB average of 80%, 90%,
+  # 70% = 80% of 10 = 8.00. TE 62/80 = 62.00. 8.50 + 8.00 + 62.00 = 78.50.
+  - name: every mark in
+    events: &full
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect:
+      state: complete
+      value: "78.50"
+      max: "100"
+      pct: "78.50"
+      grade: B1
+      passed: true
+      basis: full
+      components: { PT: complete 8.50, NB: complete 8.00, TE: complete 62.00 }
+      uses: { PT: "P1 used, P2 used, P3 dropped", NB: "P1 used, P2 used, P3 used", TE: "T used" }
+
+  # AT-v3-02: absent in the term exam under wait_makeup: no number at all.
+  - name: absent in the term exam waits for the makeup
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "AB/80" }
+    expect:
+      state: blocked
+      reason: component_blocked:TE
+      components: { TE: blocked, PT: complete 8.50 }
+      uses: { TE: "T blocked" }
+
+  # The makeup replaces the absence with a mark: the same as every mark in.
+  - name: the makeup mark completes the result
+    events: *full
+    expect: { state: complete, value: "78.50", pct: "78.50", grade: B1 }
+
+  # wait_makeup blocks even a test that best 2 would have dropped.
+  - name: absent in one periodic test blocks under wait_makeup
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "AB/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: blocked, reason: component_blocked:PT, components: { PT: blocked } }
+
+  - name: a row marked absent blocks the same way
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", row_status: absent, total: "36/40", extra: { NB: "9/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: blocked, reason: component_blocked:PT }
+
+  # NB under exclude: P3's notebook leaves the average. NB = avg(80%, 90%)
+  # = 85% of 10 = 8.50. 8.50 + 8.50 + 62.00 = 79.00.
+  - name: absent for one notebook only is left out of the notebook average
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "AB/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect:
+      state: complete
+      value: "79.00"
+      pct: "79.00"
+      components: { PT: complete 8.50, NB: complete 8.50 }
+      uses: { NB: "P1 used, P2 used, P3 left_out", PT: "P1 used, P2 used, P3 dropped" }
+
+  # Every notebook absent: NB leaves the subject and the weights renormalise.
+  # PT + TE = 8.50 + 62.00 = 70.50 of 90, scaled to 100 = 78.333.. = 78.33.
+  - name: every notebook absent renormalises the subject
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "AB/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "AB/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "AB/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: complete, value: "78.33", max: "100", pct: "78.33", grade: B1, basis: renormalised, components: { NB: left_out } }
+
+  # Exempt notebooks leave numerator and denominator the same way.
+  - name: exempt from every notebook renormalises the same way
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "EX/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "EX/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "EX/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: complete, value: "78.33", pct: "78.33", basis: renormalised, components: { NB: left_out } }
+
+  # AT-v3-04: P3 exempt for the whole row. PT = best 2 of 80%, 90% = 8.50;
+  # NB = avg(80%, 90%) = 8.50. 8.50 + 8.50 + 62.00 = 79.00, the same as if
+  # P3 had never been held (next case).
+  - name: an exempt row changes nothing
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", row_status: exempt, total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: complete, value: "79.00", pct: "79.00", uses: { PT: "P1 used, P2 used, P3 left_out" } }
+
+  - name: without the exempt test
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: complete, value: "79.00", pct: "79.00" }
+
+  # The term exam has not been held: so far, 8.50 + 8.00 = 16.50 of 20.
+  - name: before the term exam the result is provisional so far
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+    expect: { state: provisional, reason: pending:TE, value: "16.50", max: "20", pct: "82.50", basis: so_far, components: { TE: not_assessed } }
+
+  - name: a term exam mark still to enter is provisional the same way
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "-/80" }
+    expect: { state: provisional, reason: pending:TE, value: "16.50", max: "20", pct: "82.50", components: { TE: provisional } }
+
+  # A pending P2 leaves PT and NB with what is in: PT best 2 of 80%, 90% =
+  # 8.50; NB avg(80%, 90%) = 8.50. 8.50 + 8.50 + 62.00 = 79.00, provisional.
+  - name: a pending periodic test keeps the number provisional
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "-/40", extra: { NB: "-/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: provisional, reason: pending:PT, value: "79.00", max: "100", pct: "79.00", basis: full, uses: { PT: "P1 used, P2 pending, P3 used" } }
+
+  - name: nothing held yet
+    events: []
+    expect: { state: not_assessed, reason: no_evidence }
+
+  - name: a missing subject choice blocks, never guesses
+    choice_missing: true
+    events: *full
+    expect: { state: blocked, reason: choice_missing }
+
+  - name: not applicable everywhere has no result
+    events:
+      - { id: P1, held_on: "2026-05-01", row_status: not_applicable, total: "-/40", extra: { NB: "-/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", row_status: not_applicable, total: "-/80" }
+    expect: { state: not_assessed, reason: all_left_out }
+
+  # A pupil who left before the term exam: 8.50 + 8.00 = 16.50 of 20,
+  # scaled to 100 = 82.50.
+  - name: a row marked left leaves the exam out
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", row_status: left, total: "-/80" }
+    expect: { state: complete, value: "82.50", pct: "82.50", grade: A2, basis: renormalised, uses: { TE: "T left_out" } }
+
+  # Grade boundaries: 8.50 + 8.00 + 74.50 = 91.00 is A1; 90.99 is A2.
+  - name: exactly on a grade boundary takes that grade
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "74.5/80" }
+    expect: { state: complete, value: "91.00", pct: "91.00", grade: A1 }
+
+  - name: just below a grade boundary takes the grade under it
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "74.49/80" }
+    expect: { state: complete, value: "90.99", pct: "90.99", grade: A2 }
+
+  # Zero scored is a mark, not a missing one: 0.00, grade E, not passed.
+  - name: zero scored everywhere is a real zero
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "0/40", extra: { NB: "0/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "0/80" }
+    expect: { state: complete, value: "0.00", pct: "0.00", grade: E, passed: false }
+
+  # Pass rule on a component: TE 26/80 = 32.5% is under 33%.
+  # 8.50 + 8.00 + 26.00 = 42.50, grade C2, not passed.
+  - name: a component under its pass mark fails the subject
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "26/80" }
+    expect: { state: complete, value: "42.50", pct: "42.50", grade: C2, passed: false }
+
+  # Rounding at components: PT best 2 of 82.5%, 80% = 81.25% of 10 = 8.125,
+  # 8.13 half up; NB avg(70%, 80%, 80%) = 76.666..% of 10 = 7.67.
+  # 8.13 + 7.67 + 62.00 = 77.80.
+  - name: rounding at components adds the rounded parts
+    events: &rounding
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "7/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "33/40", extra: { NB: "8/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "20/40", extra: { NB: "8/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: complete, value: "77.80", pct: "77.80", components: { PT: complete 8.13, NB: complete 7.67 } }
+
+  # Rounding at subject: 8.125 + 7.6666.. + 62 = 77.7916.. = 77.79.
+  - name: rounding at subject rounds once at the end
+    rounding_at: subject
+    events: *rounding
+    expect: { state: complete, value: "77.79", pct: "77.79" }
+
+  # Policy zero: the absent exam counts 0 of 80, and the detail says so.
+  # 8.50 + 8.00 + 0.00 = 16.50.
+  - name: absent counted as zero by policy
+    on_absent: { TE: zero }
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "AB/80" }
+    expect: { state: complete, value: "16.50", pct: "16.50", grade: E, passed: false, components: { TE: complete 0.00 } }
+
+  # Absent for one section of the term exam only (Part 74.3), under exclude:
+  # 50/60 = 83.333..% of 80 = 66.67. 8.50 + 8.00 + 66.67 = 83.17.
+  - name: absent for one section, excluded
+    on_absent: { TE: exclude }
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", parts: ["50/60", "AB/20"] }
+    expect: { state: complete, value: "83.17", pct: "83.17", grade: A2, components: { TE: complete 66.67 }, event_value: { TE/T: "50" } }
+
+  # The same under zero: 50/80 = 62.5% of 80 = 50.00. 8.50 + 8.00 + 50.00.
+  - name: absent for one section, counted as zero
+    on_absent: { TE: zero }
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: P2, held_on: "2026-06-01", total: "36/40", extra: { NB: "9/10" } }
+      - { id: P3, held_on: "2026-07-01", total: "28/40", extra: { NB: "7/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", parts: ["50/60", "AB/20"] }
+    expect: { state: complete, value: "66.50", pct: "66.50", grade: B2, components: { TE: complete 50.00 } }
+
+  # Fewer tests held than best 2: the one there is used. 80% of 10 = 8.00.
+  # 8.00 + 8.00 + 62.00 = 78.00.
+  - name: best 2 with one test held uses that one
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40", extra: { NB: "8/10" } }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: complete, value: "78.00", pct: "78.00", components: { PT: complete 8.00 } }
+
+  # Highest: 90% of 10 = 9.00; 9.00 + 8.00 + 62.00 = 79.00.
+  - name: the highest test only
+    aggregate: { PT: max }
+    events: *full
+    expect: { state: complete, value: "79.00", pct: "79.00", uses: { PT: "P1 dropped, P2 used, P3 dropped" } }
+
+  # Lowest: 70% of 10 = 7.00; 7.00 + 8.00 + 62.00 = 77.00.
+  - name: the lowest test only
+    aggregate: { PT: min }
+    events: *full
+    expect: { state: complete, value: "77.00", pct: "77.00" }
+
+  # Sum: (32 + 36 + 28) of (40 + 40 + 40) = 80% of 10 = 8.00. 78.00.
+  - name: the sum of every test
+    aggregate: { PT: sum }
+    events: *full
+    expect: { state: complete, value: "78.00", pct: "78.00", components: { PT: complete 8.00 } }

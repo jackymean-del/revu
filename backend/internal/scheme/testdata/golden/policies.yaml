@@ -1,0 +1,60 @@
+# Carry forward and exact decimals, on two small schemes. The working of
+# each expected number is in its comment.
+scheme:
+  schema: 1
+  rounding: { places: 2 }
+  components:
+    - code: PT
+      name: Periodic tests
+      from: { kinds: [periodic_test] }
+      aggregate: { fn: avg }
+      scale_to: 20
+      on_absent: carry_forward
+    - code: TE
+      name: Term exam
+      from: { kinds: [term_end] }
+      aggregate: { fn: sum }
+      scale_to: 80
+      on_absent: wait_makeup
+  subject: { expr: "PT + TE", max: 100 }
+
+cases:
+  # P2 absent carries P1's 80%: avg(80%, 80%, 70%) = 76.666..% of 20 =
+  # 15.333.. = 15.33. TE 62/80 = 62.00. 15.33 + 62.00 = 77.33.
+  - name: an absence carries the last mark forward
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "32/40" }
+      - { id: P2, held_on: "2026-06-01", total: "AB/40" }
+      - { id: P3, held_on: "2026-07-01", total: "28/40" }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect:
+      state: complete
+      value: "77.33"
+      pct: "77.33"
+      components: { PT: complete 15.33 }
+      uses: { PT: "P1 used, P2 carried, P3 used" }
+      event_value: { PT/P2: "32" }
+
+  - name: an absence with nothing before it to carry is blocked
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "AB/40" }
+      - { id: P2, held_on: "2026-06-01", total: "36/40" }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "62/80" }
+    expect: { state: blocked, reason: component_blocked:PT, uses: { PT: "P1 blocked, P2 used" } }
+
+  # AT-v3-05: three section marks of 33.33 add to exactly 99.99. Out of 150,
+  # 66.66%; PT avg of one test = 66.66% of 20 = 13.332 = 13.33. TE 40/80 =
+  # 40.00. 13.33 + 40.00 = 53.33.
+  - name: three marks of 33.33 add to exactly 99.99
+    events:
+      - { id: P1, held_on: "2026-05-01", parts: ["33.33/50", "33.33/50", "33.33/50"] }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "40/80" }
+    expect: { state: complete, value: "53.33", pct: "53.33", event_value: { PT/P1: "99.99" }, components: { PT: complete 13.33 } }
+
+  # Half up: 99.99/120 = 83.325% of 20 = 16.665, rounded half up to 16.67
+  # (rounding half to even would give 16.66). 16.67 + 40.00 = 56.67.
+  - name: a half rounds up
+    events:
+      - { id: P1, held_on: "2026-05-01", total: "99.99/120" }
+      - { id: T, kind: term_end, held_on: "2026-09-20", total: "40/80" }
+    expect: { state: complete, value: "56.67", pct: "56.67", components: { PT: complete 16.67 } }

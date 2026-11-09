@@ -59,6 +59,21 @@ const marks = createRoute({
   path: '/marks',
   component: lazyRouteComponent(() => import('./pages/Marks'), 'Marks'),
 })
+const results = createRoute({
+  getParentRoute: () => root,
+  path: '/results',
+  component: lazyRouteComponent(() => import('./pages/Results'), 'Results'),
+})
+const schemes = createRoute({
+  getParentRoute: () => root,
+  path: '/schemes',
+  component: lazyRouteComponent(() => import('./pages/Schemes'), 'Schemes'),
+})
+const schemeEditor = createRoute({
+  getParentRoute: () => root,
+  path: '/schemes/$schemeId',
+  component: lazyRouteComponent(() => import('./pages/SchemeEditor'), 'SchemeEditor'),
+})
 const structure = createRoute({
   getParentRoute: () => root,
   path: '/settings/structure',
@@ -75,7 +90,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, marks, choices, structure, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, marks, results, schemes, schemeEditor, choices, structure, words, history])
 
 export const router = createRouter({ routeTree })
 

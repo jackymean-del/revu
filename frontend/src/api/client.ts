@@ -275,3 +275,60 @@ export const createOwnerDemo = () => call<OwnerGroup>('/v1/owner/demo', { method
 export const listMyGroups = (signal?: AbortSignal) => call<MyGroup[]>('/v1/groups', { signal })
 
 export const getAccessMatrix = (signal?: AbortSignal) => call<components['schemas']['AccessMatrix']>('/v1/owner/access', { signal })
+
+export type SchemeSummary = components['schemas']['SchemeSummary']
+export type Scheme = components['schemas']['Scheme']
+export type SchemeDefinition = components['schemas']['SchemeDefinition']
+export type SchemeComponent = components['schemas']['SchemeComponent']
+export type SchemeBand = components['schemas']['SchemeBand']
+export type SchemePack = components['schemas']['SchemePack']
+export type SchemeAssignment = components['schemas']['SchemeAssignment']
+export type SchemeAssignmentInput = components['schemas']['SchemeAssignmentInput']
+export type DryRun = components['schemas']['DryRun']
+export type SectionResults = components['schemas']['SectionResults']
+export type StudentResult = components['schemas']['StudentResult']
+export type ResultExplanation = components['schemas']['ResultExplanation']
+export type ResultDetail = components['schemas']['ResultDetail']
+export type ResultComponent = components['schemas']['ResultComponent']
+export type ResultEvent = components['schemas']['ResultEvent']
+
+export const listSchemes = (orgId: string, signal?: AbortSignal) => call<SchemeSummary[]>('/v1/schemes', { orgId, signal })
+
+export const getScheme = (orgId: string, id: string, signal?: AbortSignal) => call<Scheme>(`/v1/schemes/${id}`, { orgId, signal })
+
+export const createScheme = (orgId: string, name: string, definition: SchemeDefinition) =>
+  call<Scheme>('/v1/schemes', { orgId, method: 'POST', body: { name, definition } })
+
+export const updateScheme = (orgId: string, id: string, name: string, definition: SchemeDefinition) =>
+  call<Scheme>(`/v1/schemes/${id}`, { orgId, method: 'PUT', body: { name, definition } })
+
+export const deleteScheme = (orgId: string, id: string) => call<void>(`/v1/schemes/${id}`, { orgId, method: 'DELETE' })
+
+export const publishScheme = (orgId: string, id: string) =>
+  call<components['schemas']['SchemeChange']>(`/v1/schemes/${id}/publish`, { orgId, method: 'POST' })
+
+export const newSchemeVersion = (orgId: string, id: string) => call<Scheme>(`/v1/schemes/${id}/versions`, { orgId, method: 'POST' })
+
+export const dryRunScheme = (orgId: string, id: string, body: components['schemas']['DryRunInput']) =>
+  call<DryRun>(`/v1/schemes/${id}/dry-run`, { orgId, method: 'POST', body })
+
+export const listSchemePacks = (orgId: string, signal?: AbortSignal) => call<SchemePack[]>('/v1/scheme-packs', { orgId, signal })
+
+export const importSchemePack = (orgId: string, key: string) =>
+  call<components['schemas']['SchemeImport']>(`/v1/scheme-packs/${encodeURIComponent(key)}/import`, { orgId, method: 'POST' })
+
+export const listSchemeAssignments = (orgId: string, signal?: AbortSignal) => call<SchemeAssignment[]>('/v1/scheme-assignments', { orgId, signal })
+
+export const assignScheme = (orgId: string, body: SchemeAssignmentInput) =>
+  call<components['schemas']['SchemeAssignmentChange']>('/v1/scheme-assignments', { orgId, method: 'POST', body })
+
+export const unassignScheme = (orgId: string, id: string) => call<void>(`/v1/scheme-assignments/${id}`, { orgId, method: 'DELETE' })
+
+export const getSectionResults = (orgId: string, q: { sectionId: string; periodId: string; subjectId: string }, signal?: AbortSignal) =>
+  call<SectionResults>(`/v1/results?${new URLSearchParams(q)}`, { orgId, signal })
+
+export const explainResult = (orgId: string, q: { studentId: string; periodId: string; subjectId: string }, signal?: AbortSignal) =>
+  call<ResultExplanation>(`/v1/results/explain?${new URLSearchParams(q)}`, { orgId, signal })
+
+export const recomputeResults = (orgId: string, body: components['schemas']['RecomputeInput']) =>
+  call<components['schemas']['RecomputeDone']>('/v1/results/recompute', { orgId, method: 'POST', body })

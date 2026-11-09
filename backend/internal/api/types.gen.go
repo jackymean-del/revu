@@ -71,22 +71,22 @@ func (e AssessmentEntryMode) Valid() bool {
 
 // Defines values for AssessmentStatus.
 const (
-	Draft     AssessmentStatus = "draft"
-	Locked    AssessmentStatus = "locked"
-	Open      AssessmentStatus = "open"
-	Published AssessmentStatus = "published"
+	AssessmentStatusDraft     AssessmentStatus = "draft"
+	AssessmentStatusLocked    AssessmentStatus = "locked"
+	AssessmentStatusOpen      AssessmentStatus = "open"
+	AssessmentStatusPublished AssessmentStatus = "published"
 )
 
 // Valid indicates whether the value is a known member of the AssessmentStatus enum.
 func (e AssessmentStatus) Valid() bool {
 	switch e {
-	case Draft:
+	case AssessmentStatusDraft:
 		return true
-	case Locked:
+	case AssessmentStatusLocked:
 		return true
-	case Open:
+	case AssessmentStatusOpen:
 		return true
-	case Published:
+	case AssessmentStatusPublished:
 		return true
 	default:
 		return false
@@ -186,6 +186,30 @@ func (e ChoiceRule) Valid() bool {
 	case ExactlyOne:
 		return true
 	case Range:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ComponentCellState.
+const (
+	ComponentCellStateBlocked     ComponentCellState = "blocked"
+	ComponentCellStateComplete    ComponentCellState = "complete"
+	ComponentCellStateNotAssessed ComponentCellState = "not_assessed"
+	ComponentCellStateProvisional ComponentCellState = "provisional"
+)
+
+// Valid indicates whether the value is a known member of the ComponentCellState enum.
+func (e ComponentCellState) Valid() bool {
+	switch e {
+	case ComponentCellStateBlocked:
+		return true
+	case ComponentCellStateComplete:
+		return true
+	case ComponentCellStateNotAssessed:
+		return true
+	case ComponentCellStateProvisional:
 		return true
 	default:
 		return false
@@ -687,6 +711,375 @@ func (e PromotionMoveOutcome) Valid() bool {
 	}
 }
 
+// Defines values for ResultCellState.
+const (
+	ResultCellStateBlocked     ResultCellState = "blocked"
+	ResultCellStateComplete    ResultCellState = "complete"
+	ResultCellStateNotAssessed ResultCellState = "not_assessed"
+	ResultCellStateProvisional ResultCellState = "provisional"
+)
+
+// Valid indicates whether the value is a known member of the ResultCellState enum.
+func (e ResultCellState) Valid() bool {
+	switch e {
+	case ResultCellStateBlocked:
+		return true
+	case ResultCellStateComplete:
+		return true
+	case ResultCellStateNotAssessed:
+		return true
+	case ResultCellStateProvisional:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResultComponentState.
+const (
+	ResultComponentStateBlocked     ResultComponentState = "blocked"
+	ResultComponentStateComplete    ResultComponentState = "complete"
+	ResultComponentStateLeftOut     ResultComponentState = "left_out"
+	ResultComponentStateNotAssessed ResultComponentState = "not_assessed"
+	ResultComponentStateProvisional ResultComponentState = "provisional"
+)
+
+// Valid indicates whether the value is a known member of the ResultComponentState enum.
+func (e ResultComponentState) Valid() bool {
+	switch e {
+	case ResultComponentStateBlocked:
+		return true
+	case ResultComponentStateComplete:
+		return true
+	case ResultComponentStateLeftOut:
+		return true
+	case ResultComponentStateNotAssessed:
+		return true
+	case ResultComponentStateProvisional:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResultDetailBasis.
+const (
+	ResultDetailBasisFull         ResultDetailBasis = "full"
+	ResultDetailBasisRenormalised ResultDetailBasis = "renormalised"
+	ResultDetailBasisSoFar        ResultDetailBasis = "so_far"
+)
+
+// Valid indicates whether the value is a known member of the ResultDetailBasis enum.
+func (e ResultDetailBasis) Valid() bool {
+	switch e {
+	case ResultDetailBasisFull:
+		return true
+	case ResultDetailBasisRenormalised:
+		return true
+	case ResultDetailBasisSoFar:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResultDetailState.
+const (
+	ResultDetailStateBlocked     ResultDetailState = "blocked"
+	ResultDetailStateComplete    ResultDetailState = "complete"
+	ResultDetailStateNotAssessed ResultDetailState = "not_assessed"
+	ResultDetailStateProvisional ResultDetailState = "provisional"
+)
+
+// Valid indicates whether the value is a known member of the ResultDetailState enum.
+func (e ResultDetailState) Valid() bool {
+	switch e {
+	case ResultDetailStateBlocked:
+		return true
+	case ResultDetailStateComplete:
+		return true
+	case ResultDetailStateNotAssessed:
+		return true
+	case ResultDetailStateProvisional:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResultEventUse.
+const (
+	ResultEventUseBlocked ResultEventUse = "blocked"
+	ResultEventUseCarried ResultEventUse = "carried"
+	ResultEventUseDropped ResultEventUse = "dropped"
+	ResultEventUseLeftOut ResultEventUse = "left_out"
+	ResultEventUsePending ResultEventUse = "pending"
+	ResultEventUseUsed    ResultEventUse = "used"
+)
+
+// Valid indicates whether the value is a known member of the ResultEventUse enum.
+func (e ResultEventUse) Valid() bool {
+	switch e {
+	case ResultEventUseBlocked:
+		return true
+	case ResultEventUseCarried:
+		return true
+	case ResultEventUseDropped:
+		return true
+	case ResultEventUseLeftOut:
+		return true
+	case ResultEventUsePending:
+		return true
+	case ResultEventUseUsed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ResultPartUse.
+const (
+	ResultPartUseAbsent  ResultPartUse = "absent"
+	ResultPartUseCounted ResultPartUse = "counted"
+	ResultPartUseLeftOut ResultPartUse = "left_out"
+	ResultPartUsePending ResultPartUse = "pending"
+	ResultPartUseZero    ResultPartUse = "zero"
+)
+
+// Valid indicates whether the value is a known member of the ResultPartUse enum.
+func (e ResultPartUse) Valid() bool {
+	switch e {
+	case ResultPartUseAbsent:
+		return true
+	case ResultPartUseCounted:
+		return true
+	case ResultPartUseLeftOut:
+		return true
+	case ResultPartUsePending:
+		return true
+	case ResultPartUseZero:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeStatus.
+const (
+	SchemeStatusDraft     SchemeStatus = "draft"
+	SchemeStatusPublished SchemeStatus = "published"
+	SchemeStatusRetired   SchemeStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the SchemeStatus enum.
+func (e SchemeStatus) Valid() bool {
+	switch e {
+	case SchemeStatusDraft:
+		return true
+	case SchemeStatusPublished:
+		return true
+	case SchemeStatusRetired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeAggregateFn.
+const (
+	Avg   SchemeAggregateFn = "avg"
+	BestN SchemeAggregateFn = "best_n"
+	Max   SchemeAggregateFn = "max"
+	Min   SchemeAggregateFn = "min"
+	Sum   SchemeAggregateFn = "sum"
+)
+
+// Valid indicates whether the value is a known member of the SchemeAggregateFn enum.
+func (e SchemeAggregateFn) Valid() bool {
+	switch e {
+	case Avg:
+		return true
+	case BestN:
+		return true
+	case Max:
+		return true
+	case Min:
+		return true
+	case Sum:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeComponentOnAbsent.
+const (
+	SchemeComponentOnAbsentCarryForward SchemeComponentOnAbsent = "carry_forward"
+	SchemeComponentOnAbsentExclude      SchemeComponentOnAbsent = "exclude"
+	SchemeComponentOnAbsentWaitMakeup   SchemeComponentOnAbsent = "wait_makeup"
+	SchemeComponentOnAbsentZero         SchemeComponentOnAbsent = "zero"
+)
+
+// Valid indicates whether the value is a known member of the SchemeComponentOnAbsent enum.
+func (e SchemeComponentOnAbsent) Valid() bool {
+	switch e {
+	case SchemeComponentOnAbsentCarryForward:
+		return true
+	case SchemeComponentOnAbsentExclude:
+		return true
+	case SchemeComponentOnAbsentWaitMakeup:
+		return true
+	case SchemeComponentOnAbsentZero:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeDefinitionSchema.
+const (
+	N1 SchemeDefinitionSchema = 1
+)
+
+// Valid indicates whether the value is a known member of the SchemeDefinitionSchema enum.
+func (e SchemeDefinitionSchema) Valid() bool {
+	switch e {
+	case N1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeFromKinds.
+const (
+	Midterm      SchemeFromKinds = "midterm"
+	PeriodicTest SchemeFromKinds = "periodic_test"
+	TermEnd      SchemeFromKinds = "term_end"
+)
+
+// Valid indicates whether the value is a known member of the SchemeFromKinds enum.
+func (e SchemeFromKinds) Valid() bool {
+	switch e {
+	case Midterm:
+		return true
+	case PeriodicTest:
+		return true
+	case TermEnd:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeFromPartKind.
+const (
+	SchemeFromPartKindAdditional SchemeFromPartKind = "additional"
+	SchemeFromPartKindMain       SchemeFromPartKind = "main"
+)
+
+// Valid indicates whether the value is a known member of the SchemeFromPartKind enum.
+func (e SchemeFromPartKind) Valid() bool {
+	switch e {
+	case SchemeFromPartKindAdditional:
+		return true
+	case SchemeFromPartKindMain:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeGradingFrom.
+const (
+	Rounded   SchemeGradingFrom = "rounded"
+	Unrounded SchemeGradingFrom = "unrounded"
+)
+
+// Valid indicates whether the value is a known member of the SchemeGradingFrom enum.
+func (e SchemeGradingFrom) Valid() bool {
+	switch e {
+	case Rounded:
+		return true
+	case Unrounded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeRoundingAt.
+const (
+	SchemeRoundingAtComponents SchemeRoundingAt = "components"
+	SchemeRoundingAtSubject    SchemeRoundingAt = "subject"
+)
+
+// Valid indicates whether the value is a known member of the SchemeRoundingAt enum.
+func (e SchemeRoundingAt) Valid() bool {
+	switch e {
+	case SchemeRoundingAtComponents:
+		return true
+	case SchemeRoundingAtSubject:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeRoundingMode.
+const (
+	HalfUp SchemeRoundingMode = "half_up"
+)
+
+// Valid indicates whether the value is a known member of the SchemeRoundingMode enum.
+func (e SchemeRoundingMode) Valid() bool {
+	switch e {
+	case HalfUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchemeSummaryStatus.
+const (
+	SchemeSummaryStatusDraft     SchemeSummaryStatus = "draft"
+	SchemeSummaryStatusPublished SchemeSummaryStatus = "published"
+	SchemeSummaryStatusRetired   SchemeSummaryStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the SchemeSummaryStatus enum.
+func (e SchemeSummaryStatus) Valid() bool {
+	switch e {
+	case SchemeSummaryStatusDraft:
+		return true
+	case SchemeSummaryStatusPublished:
+		return true
+	case SchemeSummaryStatusRetired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SectionResultsAccess.
+const (
+	SectionResultsAccessCounts SectionResultsAccess = "counts"
+	SectionResultsAccessFull   SectionResultsAccess = "full"
+)
+
+// Valid indicates whether the value is a known member of the SectionResultsAccess enum.
+func (e SectionResultsAccess) Valid() bool {
+	switch e {
+	case SectionResultsAccessCounts:
+		return true
+	case SectionResultsAccessFull:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SortRuleDirection.
 const (
 	Asc  SortRuleDirection = "asc"
@@ -1126,6 +1519,17 @@ type ChoiceResult struct {
 // ChoiceRule exactly_one and at_most_one fix the counts; range takes minChoices to maxChoices.
 type ChoiceRule string
 
+// ComponentCell defines model for ComponentCell.
+type ComponentCell struct {
+	Code   string             `json:"code"`
+	Reason string             `json:"reason,omitempty"`
+	State  ComponentCellState `json:"state"`
+	Value  string             `json:"value,omitempty"`
+}
+
+// ComponentCellState defines model for ComponentCell.State.
+type ComponentCellState string
+
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
 	Tiles []Tile `json:"tiles"`
@@ -1149,6 +1553,36 @@ type DashboardRow struct {
 
 // Decimal An exact decimal with up to 2 places, sent as text so it is never a float.
 type Decimal = string
+
+// DryRun defines model for DryRun.
+type DryRun struct {
+	Changed int       `json:"changed"`
+	Current SchemeRef `json:"current,omitempty"`
+
+	// NowBlocked Results that would become blocked.
+	NowBlocked int         `json:"nowBlocked"`
+	Rows       []DryRunRow `json:"rows"`
+	Students   int         `json:"students"`
+}
+
+// DryRunInput defines model for DryRunInput.
+type DryRunInput struct {
+	PeriodId  string `json:"periodId"`
+	SectionId string `json:"sectionId"`
+	SubjectId string `json:"subjectId"`
+}
+
+// DryRunRow defines model for DryRunRow.
+type DryRunRow struct {
+	After   ResultCell `json:"after,omitempty"`
+	Before  ResultCell `json:"before,omitempty"`
+	Changed bool       `json:"changed"`
+
+	// Delta The change in percentage, when both have one.
+	Delta     string `json:"delta,omitempty"`
+	Name      string `json:"name"`
+	StudentId string `json:"studentId"`
+}
 
 // Enrolment defines model for Enrolment.
 type Enrolment struct {
@@ -1787,6 +2221,352 @@ type ReasonInput struct {
 	Reason string `json:"reason"`
 }
 
+// RecomputeDone defines model for RecomputeDone.
+type RecomputeDone struct {
+	// Computed How many subject results were stored.
+	Computed int `json:"computed"`
+}
+
+// RecomputeInput defines model for RecomputeInput.
+type RecomputeInput struct {
+	PeriodId  string `json:"periodId"`
+	SectionId string `json:"sectionId"`
+
+	// SubjectId One subject; absent means every subject the level teaches.
+	SubjectId string `json:"subjectId,omitempty"`
+}
+
+// ResultCell defines model for ResultCell.
+type ResultCell struct {
+	Grade  string          `json:"grade,omitempty"`
+	Max    string          `json:"max,omitempty"`
+	Pct    string          `json:"pct,omitempty"`
+	Reason string          `json:"reason,omitempty"`
+	State  ResultCellState `json:"state"`
+	Value  string          `json:"value,omitempty"`
+}
+
+// ResultCellState defines model for ResultCell.State.
+type ResultCellState string
+
+// ResultColumn defines model for ResultColumn.
+type ResultColumn struct {
+	Code string `json:"code"`
+	Max  string `json:"max"`
+	Name string `json:"name"`
+}
+
+// ResultComponent defines model for ResultComponent.
+type ResultComponent struct {
+	// Aggregate sum, avg, max, min, or best_n:N.
+	Aggregate string        `json:"aggregate"`
+	Code      string        `json:"code"`
+	Events    []ResultEvent `json:"events"`
+
+	// Exact The value before rounding, when it differs.
+	Exact    string               `json:"exact,omitempty"`
+	Max      string               `json:"max"`
+	Name     string               `json:"name"`
+	OnAbsent string               `json:"onAbsent"`
+	Pct      string               `json:"pct,omitempty"`
+	Reason   string               `json:"reason,omitempty"`
+	State    ResultComponentState `json:"state"`
+	Value    string               `json:"value,omitempty"`
+	Working  string               `json:"working,omitempty"`
+}
+
+// ResultComponentState defines model for ResultComponent.State.
+type ResultComponentState string
+
+// ResultCounts defines model for ResultCounts.
+type ResultCounts struct {
+	Blocked     int `json:"blocked"`
+	Complete    int `json:"complete"`
+	NotAssessed int `json:"notAssessed"`
+	Provisional int `json:"provisional"`
+	Stale       int `json:"stale"`
+}
+
+// ResultDetail Every input used, every policy decision and the arithmetic, as the engine recorded them.
+type ResultDetail struct {
+	// Basis renormalised when a component was left out and the rest scaled up; so_far while a component is still to come.
+	Basis           ResultDetailBasis `json:"basis,omitempty"`
+	Components      []ResultComponent `json:"components"`
+	Expr            string            `json:"expr"`
+	Grade           string            `json:"grade,omitempty"`
+	GradeDescriptor string            `json:"gradeDescriptor,omitempty"`
+	Max             string            `json:"max,omitempty"`
+	Passed          bool              `json:"passed,omitempty"`
+	Pct             string            `json:"pct,omitempty"`
+
+	// Reason Why a result is not complete, for example choice_missing, component_blocked:TE or pending:TE.
+	Reason   string            `json:"reason,omitempty"`
+	Rounding SchemeRounding    `json:"rounding"`
+	State    ResultDetailState `json:"state"`
+	Value    string            `json:"value,omitempty"`
+	Working  []string          `json:"working,omitempty"`
+}
+
+// ResultDetailBasis renormalised when a component was left out and the rest scaled up; so_far while a component is still to come.
+type ResultDetailBasis string
+
+// ResultDetailState defines model for ResultDetail.State.
+type ResultDetailState string
+
+// ResultEvent defines model for ResultEvent.
+type ResultEvent struct {
+	AssessmentId string         `json:"assessmentId"`
+	CarriedFrom  string         `json:"carriedFrom,omitempty"`
+	HeldOn       string         `json:"heldOn,omitempty"`
+	Kind         string         `json:"kind"`
+	Max          string         `json:"max,omitempty"`
+	Parts        []ResultPart   `json:"parts"`
+	Pct          string         `json:"pct,omitempty"`
+	Reason       string         `json:"reason,omitempty"`
+	Title        string         `json:"title"`
+	Use          ResultEventUse `json:"use"`
+	Value        string         `json:"value,omitempty"`
+}
+
+// ResultEventUse defines model for ResultEvent.Use.
+type ResultEventUse string
+
+// ResultExplanation defines model for ResultExplanation.
+type ResultExplanation struct {
+	ComputedAt string `json:"computedAt"`
+
+	// Detail Every input used, every policy decision and the arithmetic, as the engine recorded them.
+	Detail    ResultDetail `json:"detail"`
+	Name      string       `json:"name"`
+	PeriodId  string       `json:"periodId"`
+	Scheme    SchemeRef    `json:"scheme"`
+	Stale     bool         `json:"stale"`
+	StudentId string       `json:"studentId"`
+	SubjectId string       `json:"subjectId"`
+}
+
+// ResultPart defines model for ResultPart.
+type ResultPart struct {
+	Max    string        `json:"max"`
+	Name   string        `json:"name"`
+	PartId string        `json:"partId"`
+	State  string        `json:"state"`
+	Use    ResultPartUse `json:"use"`
+	Value  string        `json:"value,omitempty"`
+}
+
+// ResultPartUse defines model for ResultPart.Use.
+type ResultPartUse string
+
+// Scheme defines model for Scheme.
+type Scheme struct {
+	Board string `json:"board,omitempty"`
+
+	// Definition A scheme as the engine reads it (blueprint Part 4.1). Components read the marks of assessments of some kinds; the subject expression combines them with the whitelisted functions only (sum, avg, min, max, best_n, scale, clamp, round_half_up, pct, coalesce).
+	Definition  SchemeDefinition `json:"definition"`
+	FamilyId    string           `json:"familyId"`
+	Id          string           `json:"id"`
+	Name        string           `json:"name"`
+	PackKey     string           `json:"packKey,omitempty"`
+	PublishedAt string           `json:"publishedAt,omitempty"`
+	Status      SchemeStatus     `json:"status"`
+	UpdatedAt   string           `json:"updatedAt"`
+	Version     int              `json:"version"`
+}
+
+// SchemeStatus defines model for Scheme.Status.
+type SchemeStatus string
+
+// SchemeAggregate defines model for SchemeAggregate.
+type SchemeAggregate struct {
+	Fn SchemeAggregateFn `json:"fn"`
+	N  int               `json:"n,omitempty"`
+}
+
+// SchemeAggregateFn defines model for SchemeAggregate.Fn.
+type SchemeAggregateFn string
+
+// SchemeAssignment defines model for SchemeAssignment.
+type SchemeAssignment struct {
+	FamilyId string `json:"familyId"`
+	Id       string `json:"id"`
+	LevelId  string `json:"levelId,omitempty"`
+	PeriodId string `json:"periodId,omitempty"`
+
+	// PublishedVersion The version in force; absent while the scheme has no published version.
+	PublishedVersion int    `json:"publishedVersion,omitempty"`
+	SchemeName       string `json:"schemeName"`
+	SubjectId        string `json:"subjectId,omitempty"`
+}
+
+// SchemeAssignmentChange defines model for SchemeAssignmentChange.
+type SchemeAssignmentChange struct {
+	Assignment SchemeAssignment `json:"assignment"`
+	Marked     int              `json:"marked"`
+}
+
+// SchemeAssignmentInput defines model for SchemeAssignmentInput.
+type SchemeAssignmentInput struct {
+	FamilyId  string `json:"familyId"`
+	LevelId   string `json:"levelId,omitempty"`
+	PeriodId  string `json:"periodId,omitempty"`
+	SubjectId string `json:"subjectId,omitempty"`
+}
+
+// SchemeBand defines model for SchemeBand.
+type SchemeBand struct {
+	Descriptor string `json:"descriptor,omitempty"`
+	Label      string `json:"label"`
+
+	// MinPct An exact decimal, written as text so it is never a float.
+	MinPct SchemeDecimal `json:"min_pct"`
+}
+
+// SchemeChange defines model for SchemeChange.
+type SchemeChange struct {
+	// Marked How many results were marked to be worked out again.
+	Marked int    `json:"marked"`
+	Scheme Scheme `json:"scheme"`
+}
+
+// SchemeComponent defines model for SchemeComponent.
+type SchemeComponent struct {
+	Aggregate SchemeAggregate         `json:"aggregate"`
+	Code      string                  `json:"code"`
+	From      SchemeFrom              `json:"from"`
+	Name      string                  `json:"name"`
+	OnAbsent  SchemeComponentOnAbsent `json:"on_absent"`
+
+	// ScaleTo An exact decimal, written as text so it is never a float.
+	ScaleTo SchemeDecimal `json:"scale_to"`
+}
+
+// SchemeComponentOnAbsent defines model for SchemeComponent.OnAbsent.
+type SchemeComponentOnAbsent string
+
+// SchemeDecimal An exact decimal, written as text so it is never a float.
+type SchemeDecimal = string
+
+// SchemeDefinition A scheme as the engine reads it (blueprint Part 4.1). Components read the marks of assessments of some kinds; the subject expression combines them with the whitelisted functions only (sum, avg, min, max, best_n, scale, clamp, round_half_up, pct, coalesce).
+type SchemeDefinition struct {
+	Components []SchemeComponent      `json:"components"`
+	Grading    SchemeGrading          `json:"grading,omitempty"`
+	Pass       SchemePass             `json:"pass,omitempty"`
+	Rounding   SchemeRounding         `json:"rounding"`
+	Schema     SchemeDefinitionSchema `json:"schema"`
+	Subject    SchemeSubjectRule      `json:"subject"`
+}
+
+// SchemeDefinitionSchema defines model for SchemeDefinition.Schema.
+type SchemeDefinitionSchema int
+
+// SchemeFrom defines model for SchemeFrom.
+type SchemeFrom struct {
+	// ComponentCode For additional columns, the code the column carries.
+	ComponentCode string             `json:"component_code,omitempty"`
+	Kinds         []SchemeFromKinds  `json:"kinds"`
+	PartKind      SchemeFromPartKind `json:"part_kind"`
+}
+
+// SchemeFromKinds defines model for SchemeFrom.Kinds.
+type SchemeFromKinds string
+
+// SchemeFromPartKind defines model for SchemeFrom.PartKind.
+type SchemeFromPartKind string
+
+// SchemeGrading defines model for SchemeGrading.
+type SchemeGrading struct {
+	Bands []SchemeBand      `json:"bands"`
+	From  SchemeGradingFrom `json:"from"`
+}
+
+// SchemeGradingFrom defines model for SchemeGrading.From.
+type SchemeGradingFrom string
+
+// SchemeImport defines model for SchemeImport.
+type SchemeImport struct {
+	// Created False when the pack had been imported before.
+	Created bool   `json:"created"`
+	Scheme  Scheme `json:"scheme"`
+}
+
+// SchemeInput defines model for SchemeInput.
+type SchemeInput struct {
+	// Definition A scheme as the engine reads it (blueprint Part 4.1). Components read the marks of assessments of some kinds; the subject expression combines them with the whitelisted functions only (sum, avg, min, max, best_n, scale, clamp, round_half_up, pct, coalesce).
+	Definition SchemeDefinition `json:"definition"`
+	Name       string           `json:"name"`
+}
+
+// SchemePack defines model for SchemePack.
+type SchemePack struct {
+	Board       string `json:"board"`
+	Description string `json:"description"`
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+
+	// SchemeId Set when this pack was imported here already.
+	SchemeId string `json:"schemeId,omitempty"`
+	Stage    string `json:"stage"`
+	Version  int    `json:"version"`
+}
+
+// SchemePass defines model for SchemePass.
+type SchemePass struct {
+	Components map[string]SchemeDecimal `json:"components,omitempty"`
+
+	// SubjectMinPct An exact decimal, written as text so it is never a float.
+	SubjectMinPct SchemeDecimal `json:"subject_min_pct"`
+}
+
+// SchemeRef defines model for SchemeRef.
+type SchemeRef struct {
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+	Version int    `json:"version"`
+}
+
+// SchemeRounding defines model for SchemeRounding.
+type SchemeRounding struct {
+	// At components rounds each component before the subject is worked out, so the shown parts add up; subject rounds once at the end.
+	At     SchemeRoundingAt   `json:"at"`
+	Mode   SchemeRoundingMode `json:"mode"`
+	Places int                `json:"places"`
+}
+
+// SchemeRoundingAt components rounds each component before the subject is worked out, so the shown parts add up; subject rounds once at the end.
+type SchemeRoundingAt string
+
+// SchemeRoundingMode defines model for SchemeRounding.Mode.
+type SchemeRoundingMode string
+
+// SchemeSubjectRule defines model for SchemeSubjectRule.
+type SchemeSubjectRule struct {
+	Expr string `json:"expr"`
+
+	// Max An exact decimal, written as text so it is never a float.
+	Max SchemeDecimal `json:"max"`
+}
+
+// SchemeSummary defines model for SchemeSummary.
+type SchemeSummary struct {
+	Board string `json:"board,omitempty"`
+
+	// FamilyId The id of version 1, shared by every version.
+	FamilyId string `json:"familyId"`
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+
+	// PackKey The board pack it was imported from, as board-stage@version.
+	PackKey     string              `json:"packKey,omitempty"`
+	PublishedAt string              `json:"publishedAt,omitempty"`
+	Status      SchemeSummaryStatus `json:"status"`
+	UpdatedAt   string              `json:"updatedAt"`
+	Version     int                 `json:"version"`
+}
+
+// SchemeSummaryStatus defines model for SchemeSummary.Status.
+type SchemeSummaryStatus string
+
 // Section defines model for Section.
 type Section struct {
 	BranchId string `json:"branchId"`
@@ -1806,6 +2586,19 @@ type SectionInput struct {
 	Name     string `json:"name"`
 	YearId   string `json:"yearId"`
 }
+
+// SectionResults defines model for SectionResults.
+type SectionResults struct {
+	// Access counts means the person sees how many results are in each state, never a student's result.
+	Access     SectionResultsAccess `json:"access"`
+	Components []ResultColumn       `json:"components"`
+	Counts     ResultCounts         `json:"counts"`
+	Rows       []StudentResult      `json:"rows"`
+	Scheme     SchemeRef            `json:"scheme,omitempty"`
+}
+
+// SectionResultsAccess counts means the person sees how many results are in each state, never a student's result.
+type SectionResultsAccess string
 
 // SetupStatus defines model for SetupStatus.
 type SetupStatus struct {
@@ -1895,6 +2688,19 @@ type StudentPage struct {
 
 	// NextCursor Absent on the last page.
 	NextCursor string `json:"nextCursor,omitempty"`
+}
+
+// StudentResult defines model for StudentResult.
+type StudentResult struct {
+	AdmissionNo string          `json:"admissionNo"`
+	Components  []ComponentCell `json:"components"`
+	Name        string          `json:"name"`
+	Result      ResultCell      `json:"result,omitempty"`
+	RollNo      string          `json:"rollNo,omitempty"`
+
+	// Stale Marks changed since this was worked out; a fresh result follows within seconds.
+	Stale     bool   `json:"stale"`
+	StudentId string `json:"studentId"`
 }
 
 // Subject defines model for Subject.
@@ -2549,6 +3355,110 @@ type RestorePeriodParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// SectionResultsParams defines parameters for SectionResults.
+type SectionResultsParams struct {
+	SectionId string `form:"sectionId" json:"sectionId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+	SubjectId string `form:"subjectId" json:"subjectId"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ExplainResultParams defines parameters for ExplainResult.
+type ExplainResultParams struct {
+	StudentId string `form:"studentId" json:"studentId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+	SubjectId string `form:"subjectId" json:"subjectId"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// RecomputeResultsParams defines parameters for RecomputeResults.
+type RecomputeResultsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListSchemeAssignmentsParams defines parameters for ListSchemeAssignments.
+type ListSchemeAssignmentsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// AssignSchemeParams defines parameters for AssignScheme.
+type AssignSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UnassignSchemeParams defines parameters for UnassignScheme.
+type UnassignSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListSchemePacksParams defines parameters for ListSchemePacks.
+type ListSchemePacksParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ImportSchemePackParams defines parameters for ImportSchemePack.
+type ImportSchemePackParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListSchemesParams defines parameters for ListSchemes.
+type ListSchemesParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateSchemeParams defines parameters for CreateScheme.
+type CreateSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DeleteSchemeParams defines parameters for DeleteScheme.
+type DeleteSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetSchemeParams defines parameters for GetScheme.
+type GetSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateSchemeParams defines parameters for UpdateScheme.
+type UpdateSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DryRunSchemeParams defines parameters for DryRunScheme.
+type DryRunSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PublishSchemeParams defines parameters for PublishScheme.
+type PublishSchemeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// NewSchemeVersionParams defines parameters for NewSchemeVersion.
+type NewSchemeVersionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListSectionsParams defines parameters for ListSections.
 type ListSectionsParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -3036,6 +3946,21 @@ type CreatePeriodJSONRequestBody = PeriodInput
 
 // UpdatePeriodJSONRequestBody defines body for UpdatePeriod for application/json ContentType.
 type UpdatePeriodJSONRequestBody = PeriodInput
+
+// RecomputeResultsJSONRequestBody defines body for RecomputeResults for application/json ContentType.
+type RecomputeResultsJSONRequestBody = RecomputeInput
+
+// AssignSchemeJSONRequestBody defines body for AssignScheme for application/json ContentType.
+type AssignSchemeJSONRequestBody = SchemeAssignmentInput
+
+// CreateSchemeJSONRequestBody defines body for CreateScheme for application/json ContentType.
+type CreateSchemeJSONRequestBody = SchemeInput
+
+// UpdateSchemeJSONRequestBody defines body for UpdateScheme for application/json ContentType.
+type UpdateSchemeJSONRequestBody = SchemeInput
+
+// DryRunSchemeJSONRequestBody defines body for DryRunScheme for application/json ContentType.
+type DryRunSchemeJSONRequestBody = DryRunInput
 
 // CreateSectionJSONRequestBody defines body for CreateSection for application/json ContentType.
 type CreateSectionJSONRequestBody = SectionInput

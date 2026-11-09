@@ -1,0 +1,23 @@
+schema: 1
+rounding: { mode: half_up, places: 2, at: components }
+components:
+  - code: PT
+    name: Periodic tests
+    from: { kinds: [periodic_test], part_kind: main }
+    aggregate: { fn: best_n, n: 2 }
+    scale_to: 10
+    on_absent: wait_makeup
+  - code: NB
+    name: Notebook
+    from: { kinds: [periodic_test], part_kind: additional, component_code: NB }
+    aggregate: { fn: avg }
+    scale_to: 10
+    on_absent: exclude
+  - code: TE
+    name: Term exam
+    from: { kinds: [term_end], part_kind: main }
+    aggregate: { fn: sum }
+    scale_to: 80
+    on_absent: wait_makeup
+subject: { expr: "PT + NB + TE", max: 100 }
+pass: { subject_min_pct: 33, components: { TE: 33 } }
