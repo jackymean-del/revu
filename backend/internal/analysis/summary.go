@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/reports"
@@ -144,18 +145,20 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 	if err != nil {
 		return out, err
 	}
-	cfg, err := reports.TemplateConfig(ctx, tx)
+	// Everything else in one round trip (decision D30).
+	var b pgx.Batch
+	gathered := reports.QueueGather(&b, sec, periodID)
+	getConfig := reports.QueueTemplateConfig(&b)
+	getSettings := queueSettings(&b)
+	if err := results.Send(ctx, tx, &b); err != nil {
+		return out, err
+	}
+	cfg, err := getConfig()
 	if err != nil {
 		return out, err
 	}
-	settings, err := loadSettings(ctx, tx)
-	if err != nil {
-		return out, err
-	}
-	facts, err := reports.Gather(ctx, tx, sec, periodID, nil, cfg, now)
-	if err != nil {
-		return out, err
-	}
+	settings := getSettings()
+	facts := gathered.Build(nil, cfg, now)
 
 	// The subjects in report order, the bases on offer, and what the
 	// viewer may see of each subject.

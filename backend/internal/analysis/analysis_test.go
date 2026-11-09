@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackymean-del/revu/internal/analysis"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/db/dbtest"
@@ -344,7 +345,47 @@ func TestAnalysis(t *testing.T) {
 			t.Fatal("clearing left a status")
 		}
 	})
+
+	t.Run("a page of analysis takes few round trips (D30)", func(t *testing.T) {
+		cfg := appPool.Config()
+		trips := &counter{}
+		cfg.ConnConfig.Tracer = trips
+		pool, err := pgxpool.NewWithConfig(ctx, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer pool.Close()
+		traced := server.New(config.Config{Version: "test"}, server.Deps{DB: pool, Auth: headerAuth{}})
+		as := caller{t, traced, cara.user, a.ID}
+		as.must(200, "GET", "/v1/analysis/summary"+q, nil) // warm the connection
+		trips.reset()
+		as.must(200, "GET", "/v1/analysis/summary"+q, nil)
+		n, sqls := trips.reset()
+		t.Logf("summary: %d round trips", n)
+		for _, s := range sqls {
+			t.Logf("  %.110s", s)
+		}
+		if n > summaryTrips {
+			t.Errorf("summary took %d round trips, over %d", n, summaryTrips)
+		}
+		tm := caller{t, traced, tom.user, a.ID}
+		tm.must(200, "GET", "/v1/analysis/assessment?assessmentId="+paper+"&sectionId="+a.SectionID, nil)
+		trips.reset()
+		tm.must(200, "GET", "/v1/analysis/assessment?assessmentId="+paper+"&sectionId="+a.SectionID, nil)
+		n, sqls = trips.reset()
+		t.Logf("assessment: %d round trips", n)
+		for _, s := range sqls {
+			t.Logf("  %.110s", s)
+		}
+		if n > assessmentTrips {
+			t.Errorf("assessment took %d round trips, over %d", n, assessmentTrips)
+		}
+	})
 }
+
+// The most round trips a page may take, whatever the number of subjects,
+// students or paper parts.
+const summaryTrips, assessmentTrips = 5, 6
 
 func row2(s analysis.Summary, id string) analysis.StudentRow {
 	for _, x := range s.Students {

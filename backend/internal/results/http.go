@@ -74,30 +74,15 @@ type (
 // Section is the facts the policy and the queries need about a section.
 type Section struct{ ID, BranchID, LevelID, YearID string }
 
-// LoadSection reads a section and checks the period is in its year.
+// LoadSection reads a section and checks the period is in its year, in
+// one round trip.
 func LoadSection(ctx context.Context, tx pgx.Tx, sectionID, periodID string) (Section, error) {
-	s := Section{ID: sectionID}
-	for field, v := range map[string]string{"sectionId": sectionID, "periodId": periodID} {
-		if !records.UUIDShape.MatchString(v) {
-			return s, problem.Invalid(api.FieldError{Field: field, Code: "unknown", Message: "Not an id."})
-		}
+	var b pgx.Batch
+	get := QueueSection(&b, sectionID, periodID)
+	if err := Send(ctx, tx, &b); err != nil {
+		return Section{ID: sectionID}, err
 	}
-	err := tx.QueryRow(ctx, `SELECT branch_id::text, level_id::text, year_id::text FROM sections WHERE id = $1::uuid AND deleted_at IS NULL`, sectionID).
-		Scan(&s.BranchID, &s.LevelID, &s.YearID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return s, problem.New(http.StatusNotFound, "section.not_found", "No section has this id.")
-	}
-	if err != nil {
-		return s, err
-	}
-	var inYear bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM periods WHERE id = $1::uuid AND year_id = $2::uuid AND deleted_at IS NULL)`, periodID, s.YearID).Scan(&inYear); err != nil {
-		return s, err
-	}
-	if !inYear {
-		return s, problem.Invalid(api.FieldError{Field: "periodId", Code: "unknown", Message: "This period is not in the section's year."})
-	}
-	return s, nil
+	return get()
 }
 
 // Student is one student of a section, and whether they take a subject.
@@ -109,7 +94,18 @@ type Student struct {
 // Students lists a section's students in roll order, with whether each
 // takes the subject in the period (Part 74.1).
 func Students(ctx context.Context, tx pgx.Tx, s Section, periodID, subjectID string) ([]Student, error) {
-	rows, err := tx.Query(ctx, `
+	var b pgx.Batch
+	get := QueueStudents(&b, s, periodID, subjectID)
+	if err := Send(ctx, tx, &b); err != nil {
+		return nil, err
+	}
+	return get(), nil
+}
+
+// QueueStudents queues Students on b.
+func QueueStudents(b *pgx.Batch, s Section, periodID, subjectID string) func() []Student {
+	var out []Student
+	b.Queue(`
 		SELECT st.id::text, st.name, st.admission_no, coalesce(e.roll_no, ''),
 		       `+fmt.Sprintf(evidence.Applicable, "("+evidence.Selected+")", "st.id")+`, `+choiceMissing+`
 		  FROM enrolments e
@@ -117,14 +113,18 @@ func Students(ctx context.Context, tx pgx.Tx, s Section, periodID, subjectID str
 		  CROSS JOIN LATERAL (SELECT $2::uuid AS level_id, $4::uuid AS subject_id, $3::uuid AS year_id, $5::uuid AS period_id) a
 		  CROSS JOIN LATERAL (SELECT st.id AS s) k
 		 WHERE e.section_id = $1::uuid AND e.year_id = $3::uuid AND e.deleted_at IS NULL
-		 ORDER BY e.roll_no IS NULL, lpad(e.roll_no, 12, '0'), st.name`, s.ID, s.LevelID, s.YearID, subjectID, periodID)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Student, error) {
-		var x Student
-		return x, r.Scan(&x.ID, &x.Name, &x.AdmissionNo, &x.RollNo, &x.Takes, &x.ChoiceMissing)
-	})
+		 ORDER BY e.roll_no IS NULL, lpad(e.roll_no, 12, '0'), st.name`, s.ID, s.LevelID, s.YearID, subjectID, periodID).
+		Query(func(rows pgx.Rows) error {
+			for rows.Next() {
+				var x Student
+				if err := rows.Scan(&x.ID, &x.Name, &x.AdmissionNo, &x.RollNo, &x.Takes, &x.ChoiceMissing); err != nil {
+					return err
+				}
+				out = append(out, x)
+			}
+			return rows.Err()
+		})
+	return func() []Student { return out }
 }
 
 func ids(c fiber.Ctx, names ...string) (map[string]string, error) {

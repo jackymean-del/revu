@@ -159,7 +159,11 @@ func workbook(s Summary) ([]byte, error) {
 	if s.Basis == "" {
 		values := []any{"", "Passed"}
 		for _, sub := range s.Subjects {
-			values = append(values, fmt.Sprintf("%d of %d", sub.Passed, sub.Complete), "")
+			passed := ""
+			if sub.Complete > 0 {
+				passed = fmt.Sprintf("%d of %d", sub.Passed, sub.Complete)
+			}
+			values = append(values, passed, "")
 		}
 		if err := w.put(values, head); err != nil {
 			return nil, err

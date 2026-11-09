@@ -7,28 +7,35 @@ import (
 	"github.com/jackymean-del/revu/internal/api"
 )
 
-// load reads the organisation's preset and overrides. Row-level security
-// limits both queries to the organisation of tx.
+// load reads the organisation's preset and overrides in one round trip.
+// Row-level security limits both queries to the organisation of tx.
 func load(ctx context.Context, tx pgx.Tx) (api.Terminology, error) {
-	var t api.Terminology
-	if err := tx.QueryRow(ctx, `SELECT preset FROM orgs`).Scan(&t.Preset); err != nil {
-		return t, err
+	var b pgx.Batch
+	get := queueLoad(&b)
+	if err := tx.SendBatch(ctx, &b).Close(); err != nil {
+		return api.Terminology{}, err
 	}
-	rows, err := tx.Query(ctx, `
+	return get(), nil
+}
+
+func queueLoad(b *pgx.Batch) func() api.Terminology {
+	t := api.Terminology{Overrides: []api.TermOverride{}}
+	b.Queue(`SELECT preset FROM orgs`).QueryRow(func(r pgx.Row) error { return r.Scan(&t.Preset) })
+	b.Queue(`
 		SELECT key, coalesce(branch_id::text, ''), singular, plural
 		  FROM terminology WHERE locale = 'en'
-		 ORDER BY key, branch_id NULLS FIRST`)
-	if err != nil {
-		return t, err
-	}
-	t.Overrides, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (api.TermOverride, error) {
-		var o api.TermOverride
-		return o, row.Scan(&o.Key, &o.BranchId, &o.One, &o.Other)
-	})
-	if t.Overrides == nil {
-		t.Overrides = []api.TermOverride{}
-	}
-	return t, err
+		 ORDER BY key, branch_id NULLS FIRST`).
+		Query(func(rows pgx.Rows) error {
+			for rows.Next() {
+				var o api.TermOverride
+				if err := rows.Scan(&o.Key, &o.BranchId, &o.One, &o.Other); err != nil {
+					return err
+				}
+				t.Overrides = append(t.Overrides, o)
+			}
+			return rows.Err()
+		})
+	return func() api.Terminology { return t }
 }
 
 // knownBranches returns which of ids are branches of this organisation.
@@ -71,6 +78,17 @@ func Words(ctx context.Context, tx pgx.Tx) (func(key string, count int) string, 
 	if err != nil {
 		return nil, err
 	}
+	return wordsOf(t), nil
+}
+
+// QueueWords queues loading the words on b, for a screen that reads other
+// things in the same round trip; call the getter after b is sent.
+func QueueWords(b *pgx.Batch) func() func(key string, count int) string {
+	get := queueLoad(b)
+	return func() func(key string, count int) string { return wordsOf(get()) }
+}
+
+func wordsOf(t api.Terminology) func(key string, count int) string {
 	overrides := make([]Override, 0, len(t.Overrides))
 	for _, o := range t.Overrides {
 		overrides = append(overrides, Override{Key: o.Key, BranchID: o.BranchId, Forms: Forms{One: o.One, Other: o.Other}})
@@ -81,5 +99,5 @@ func Words(ctx context.Context, tx pgx.Tx) (func(key string, count int) string, 
 			return key
 		}
 		return w
-	}, nil
+	}
 }

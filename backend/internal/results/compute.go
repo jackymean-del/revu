@@ -37,31 +37,12 @@ type Schemes []assignment
 
 // LoadSchemes reads the assignments in force.
 func LoadSchemes(ctx context.Context, tx pgx.Tx) (Schemes, error) {
-	rows, err := tx.Query(ctx, `
-		SELECT coalesce(sa.level_id::text, ''), coalesce(sa.period_id::text, ''), coalesce(sa.subject_id::text, ''),
-		       s.id::text, s.family_id::text, s.name, s.version, s.definition
-		  FROM scheme_assignments sa
-		  JOIN LATERAL (SELECT id, family_id, name, version, definition FROM schemes
-		                 WHERE family_id = sa.family_id AND status = 'published' AND deleted_at IS NULL
-		                 ORDER BY version DESC LIMIT 1) s ON true`)
-	if err != nil {
+	var b pgx.Batch
+	get := QueueSchemes(&b)
+	if err := Send(ctx, tx, &b); err != nil {
 		return nil, err
 	}
-	var out Schemes
-	for rows.Next() {
-		var a assignment
-		var raw []byte
-		if err := rows.Scan(&a.levelID, &a.periodID, &a.subjectID, &a.scheme.ID, &a.scheme.FamilyID, &a.scheme.Name, &a.scheme.Version, &raw); err != nil {
-			return nil, err
-		}
-		d, err := scheme.Parse(raw)
-		if err != nil {
-			return nil, fmt.Errorf("scheme %s v%d is stored invalid: %w", a.scheme.Name, a.scheme.Version, err)
-		}
-		a.scheme.Definition = d
-		out = append(out, a)
-	}
-	return out, rows.Err()
+	return get(), nil
 }
 
 // For is the scheme for a level, period and subject: the most specific

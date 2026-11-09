@@ -83,15 +83,28 @@ func validPct(s string) bool {
 }
 
 func loadSettings(ctx context.Context, tx pgx.Tx) (Settings, error) {
-	var raw []byte
-	if err := tx.QueryRow(ctx, `SELECT settings -> 'analysis' FROM orgs WHERE id = app_org_id()`).Scan(&raw); err != nil {
+	var b pgx.Batch
+	get := queueSettings(&b)
+	if err := results.Send(ctx, tx, &b); err != nil {
 		return Settings{}, err
 	}
+	return get(), nil
+}
+
+// queueSettings queues reading the settings, or the defaults.
+func queueSettings(b *pgx.Batch) func() Settings {
 	s := DefaultSettings()
-	if len(raw) > 0 && string(raw) != "null" {
-		_ = json.Unmarshal(raw, &s)
-	}
-	return s, nil
+	b.Queue(`SELECT settings -> 'analysis' FROM orgs WHERE id = app_org_id()`).QueryRow(func(r pgx.Row) error {
+		var raw []byte
+		if err := r.Scan(&raw); err != nil {
+			return err
+		}
+		if len(raw) > 0 && string(raw) != "null" {
+			_ = json.Unmarshal(raw, &s)
+		}
+		return nil
+	})
+	return func() Settings { return s }
 }
 
 func getSettings(c fiber.Ctx) error {
@@ -227,239 +240,6 @@ type AssessmentView struct {
 	Students  []StudentScore `json:"students"`
 	Reteach   Reteach        `json:"reteach"`
 	Settings  Settings       `json:"settings"`
-}
-
-type loaded struct {
-	id, title, kind, mode, held, period, subject, level, year string
-	parts                                                     []Part
-}
-
-func loadAssessment(ctx context.Context, tx pgx.Tx, id string) (loaded, error) {
-	var a loaded
-	err := tx.QueryRow(ctx, `
-		SELECT id::text, title, kind, entry_mode, coalesce(held_on::text, ''), period_id::text, subject_id::text, level_id::text, year_id::text
-		  FROM assessments WHERE id = $1::uuid AND deleted_at IS NULL`, id).
-		Scan(&a.id, &a.title, &a.kind, &a.mode, &a.held, &a.period, &a.subject, &a.level, &a.year)
-	if err != nil {
-		return a, err
-	}
-	rows, err := tx.Query(ctx, `
-		SELECT id::text, name, max_marks::text, kind = 'main' AND counts_in_total
-		  FROM assessment_parts WHERE assessment_id = $1::uuid AND deleted_at IS NULL ORDER BY seq`, id)
-	if err != nil {
-		return a, err
-	}
-	a.parts, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Part, error) {
-		var p Part
-		return p, r.Scan(&p.ID, &p.Name, &p.Max, &p.Main)
-	})
-	return a, err
-}
-
-// cells reads, for the students given, each part's cell with the row
-// status applied: absent makes every cell absent, exempt exempt, and not
-// applicable or left not applicable.
-func cells(ctx context.Context, tx pgx.Tx, assessmentID string, students []string, parts []Part) (map[string]map[string]scheme.Cell, error) {
-	out := map[string]map[string]scheme.Cell{}
-	maxOf := map[string]string{}
-	for _, s := range students {
-		out[s] = map[string]scheme.Cell{}
-		for _, p := range parts {
-			out[s][p.ID] = scheme.Cell{Max: p.Max}
-		}
-	}
-	for _, p := range parts {
-		maxOf[p.ID] = p.Max
-	}
-	rows, err := tx.Query(ctx, `SELECT student_id::text, part_id::text, state::text, coalesce(value::text, '') FROM evidence WHERE assessment_id = $1::uuid AND student_id = ANY($2::uuid[])`,
-		assessmentID, students)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var s, p, state, value string
-		if err := rows.Scan(&s, &p, &state, &value); err != nil {
-			return nil, err
-		}
-		if _, ok := out[s][p]; ok {
-			out[s][p] = scheme.Cell{State: state, Value: value, Max: maxOf[p]}
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	rows, err = tx.Query(ctx, `SELECT student_id::text, status FROM assessment_participation WHERE assessment_id = $1::uuid AND student_id = ANY($2::uuid[])`, assessmentID, students)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var s, status string
-		if err := rows.Scan(&s, &status); err != nil {
-			return nil, err
-		}
-		state := map[string]string{"absent": "absent", "exempt": "exempt"}[status]
-		if state == "" {
-			state = "not_applicable"
-		}
-		for p, cell := range out[s] {
-			out[s][p] = scheme.Cell{State: state, Max: cell.Max}
-		}
-	}
-	return out, rows.Err()
-}
-
-func normal(name string) string { return strings.ToLower(strings.Join(strings.Fields(name), " ")) }
-
-func assessment(c fiber.Ctx) error {
-	tx, err := tenant.Tx(c)
-	if err != nil {
-		return err
-	}
-	ctx := c.Context()
-	id, sectionID := c.Query("assessmentId"), c.Query("sectionId")
-	notFound := problem.New(http.StatusNotFound, "assessment.not_found", "No assessment has this id.")
-	if !records.UUIDShape.MatchString(id) {
-		return notFound
-	}
-	a, err := loadAssessment(ctx, tx, id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return notFound
-	}
-	if err != nil {
-		return err
-	}
-	var covers bool
-	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM assessment_scopes WHERE assessment_id = $1::uuid AND section_id::text = $2)`, id, sectionID).Scan(&covers); err != nil {
-		return err
-	}
-	if !covers {
-		return problem.New(http.StatusNotFound, "assessment.not_found", "This assessment does not cover that section.")
-	}
-	sec, err := results.LoadSection(ctx, tx, sectionID, a.period)
-	if err != nil {
-		return err
-	}
-	actor, err := tenant.Teaching(c)
-	if err != nil {
-		return err
-	}
-	if err := policy.Check(actor, policy.ResultsRead, policy.Target{BranchID: sec.BranchID, SectionID: sec.ID, SubjectID: a.subject}); err != nil {
-		return err
-	}
-	settings, err := loadSettings(ctx, tx)
-	if err != nil {
-		return err
-	}
-	roster, err := results.Students(ctx, tx, sec, a.period, a.subject)
-	if err != nil {
-		return err
-	}
-	roster = slices.DeleteFunc(roster, func(s results.Student) bool { return !s.Takes })
-	ids := make([]string, len(roster))
-	for i, s := range roster {
-		ids[i] = s.ID
-	}
-	grid, err := cells(ctx, tx, id, ids, a.parts)
-	if err != nil {
-		return err
-	}
-	out := AssessmentView{ID: a.id, Title: a.title, Kind: a.kind, EntryMode: a.mode, HeldOn: a.held, Parts: a.parts, Students: []StudentScore{}, Settings: settings,
-		Reteach: Reteach{Items: []Item{}}}
-	var main []Part
-	for _, p := range a.parts {
-		if p.Main {
-			main = append(main, p)
-		}
-	}
-	for _, s := range roster {
-		var cs []scheme.Cell
-		for _, p := range main {
-			cs = append(cs, grid[s.ID][p.ID])
-		}
-		out.Students = append(out.Students, StudentScore{ID: s.ID, Name: s.Name, RollNo: s.RollNo, Score: scheme.AssessmentScore(cs)})
-	}
-
-	switch {
-	case a.mode != "sections":
-		out.Reteach.Reason = "total_marks"
-	case len(main) < 2:
-		out.Reteach.Reason = "one_section"
-	default:
-		out.Reteach.Available = true
-	}
-	if !out.Reteach.Available {
-		return c.JSON(out)
-	}
-	status := map[string]string{}
-	rows, err := tx.Query(ctx, `SELECT part_id::text, status FROM reteach_marks WHERE assessment_id = $1::uuid AND section_id = $2::uuid`, id, sec.ID)
-	if err != nil {
-		return err
-	}
-	for rows.Next() {
-		var p, s string
-		if err := rows.Scan(&p, &s); err != nil {
-			return err
-		}
-		status[p] = s
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for _, p := range main {
-		cs := make([]scheme.Cell, len(roster))
-		for i, s := range roster {
-			cs[i] = grid[s.ID][p.ID]
-		}
-		m := scheme.SectionMastery(cs, settings.MasteryPct, settings.ReteachSharePct, settings.MinEvidence)
-		item := Item{PartID: p.ID, Name: p.Name, Max: p.Max, Mastery: m, Students: []string{}, Status: status[p.ID]}
-		for _, i := range m.BelowIDs {
-			item.Students = append(item.Students, roster[i].Name)
-		}
-		if item.FollowUp, err = followUp(ctx, tx, a, p, sec, ids, settings, m); err != nil {
-			return err
-		}
-		out.Reteach.Items = append(out.Reteach.Items, item)
-	}
-	return c.JSON(out)
-}
-
-// followUp finds the next assessment of the same subject and level, for the
-// same section, with a paper section of the same name, and compares the
-// share below mastery. It claims no cause, only the change.
-func followUp(ctx context.Context, tx pgx.Tx, a loaded, p Part, sec results.Section, students []string, settings Settings, before scheme.Mastery) (*FollowUp, error) {
-	var next loaded
-	var partID, max string
-	err := tx.QueryRow(ctx, `
-		SELECT x.id::text, x.title, pt.id::text, pt.max_marks::text
-		  FROM assessments x
-		  JOIN assessment_scopes sc ON sc.assessment_id = x.id AND sc.section_id = $4::uuid
-		  JOIN assessment_parts pt ON pt.assessment_id = x.id AND pt.deleted_at IS NULL AND pt.kind = 'main'
-		       AND lower(regexp_replace(btrim(pt.name), '\s+', ' ', 'g')) = $5
-		  JOIN assessments me ON me.id = $1::uuid
-		 WHERE x.deleted_at IS NULL AND x.id <> me.id AND x.subject_id = $2::uuid AND x.level_id = $3::uuid
-		   AND (coalesce(x.held_on, x.created_at::date), x.created_at) > (coalesce(me.held_on, me.created_at::date), me.created_at)
-		 ORDER BY coalesce(x.held_on, x.created_at::date), x.created_at LIMIT 1`,
-		a.id, a.subject, a.level, sec.ID, normal(p.Name)).Scan(&next.id, &next.title, &partID, &max)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	grid, err := cells(ctx, tx, next.id, students, []Part{{ID: partID, Max: max}})
-	if err != nil {
-		return nil, err
-	}
-	cs := make([]scheme.Cell, len(students))
-	for i, s := range students {
-		cs[i] = grid[s][partID]
-	}
-	after := scheme.SectionMastery(cs, settings.MasteryPct, settings.ReteachSharePct, settings.MinEvidence)
-	f := &FollowUp{AssessmentID: next.id, Title: next.title, SharePct: after.SharePct}
-	if before.Enough && after.Enough {
-		f.Trend = scheme.Trend(before.SharePct, after.SharePct)
-	}
-	return f, nil
 }
 
 type reteachIn struct {

@@ -59,21 +59,33 @@ type templateOut struct {
 // loadTemplate reads the institution's template, or the default when none
 // was saved.
 func loadTemplate(ctx context.Context, tx pgx.Tx) (templateOut, error) {
-	var t templateOut
-	var raw []byte
-	err := tx.QueryRow(ctx, `SELECT id::text, version, config FROM report_templates`).Scan(&t.ID, &t.Version, &raw)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return templateOut{Config: DefaultConfig()}, nil
+	var b pgx.Batch
+	get := queueTemplate(&b)
+	if err := results.Send(ctx, tx, &b); err != nil {
+		return templateOut{}, err
 	}
-	if err != nil {
-		return t, err
-	}
-	cfg, ps := Parse(raw)
-	if len(ps) > 0 {
-		return t, fmt.Errorf("stored report template is invalid: %s", ps[0].Message)
-	}
-	t.Config = cfg
-	return t, nil
+	return get()
+}
+
+func queueTemplate(b *pgx.Batch) func() (templateOut, error) {
+	t := templateOut{Config: DefaultConfig()}
+	var err error
+	b.Queue(`SELECT id::text, version, config FROM report_templates`).Query(func(rows pgx.Rows) error {
+		for rows.Next() {
+			var raw []byte
+			if e := rows.Scan(&t.ID, &t.Version, &raw); e != nil {
+				return e
+			}
+			cfg, ps := Parse(raw)
+			if len(ps) > 0 {
+				err = fmt.Errorf("stored report template is invalid: %s", ps[0].Message)
+				continue
+			}
+			t.Config = cfg
+		}
+		return rows.Err()
+	})
+	return func() (templateOut, error) { return t, err }
 }
 
 // TemplateConfig is the institution's report template, or the default: its
@@ -81,6 +93,15 @@ func loadTemplate(ctx context.Context, tx pgx.Tx) (templateOut, error) {
 func TemplateConfig(ctx context.Context, tx pgx.Tx) (Config, error) {
 	t, err := loadTemplate(ctx, tx)
 	return t.Config, err
+}
+
+// QueueTemplateConfig queues reading TemplateConfig on b.
+func QueueTemplateConfig(b *pgx.Batch) func() (Config, error) {
+	get := queueTemplate(b)
+	return func() (Config, error) {
+		t, err := get()
+		return t.Config, err
+	}
 }
 
 func getTemplate(c fiber.Ctx) error {

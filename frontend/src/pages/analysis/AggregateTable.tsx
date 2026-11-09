@@ -24,7 +24,7 @@ export function AggregateTable({ summary }: { summary: Summary }) {
     ['Highest', (x) => x.highest],
     ['Lowest', (x) => x.lowest],
   ]
-  if (summary.basis === '') footer.push(['Passed', (x) => (x.access === 'full' ? `${x.passed} of ${x.complete}` : '')])
+  if (summary.basis === '') footer.push(['Passed', (x) => (x.access === 'full' && x.complete > 0 ? `${x.passed} of ${x.complete}` : '')])
 
   return (
     <section aria-label="Aggregate" className="space-y-2">
