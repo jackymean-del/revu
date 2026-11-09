@@ -10,8 +10,8 @@ import { parseCell, plain, showCell, type CellValue, type ValueState } from './c
  *
  * Keys (Part 7.4): arrows, Enter and Tab move; typing a number starts an
  * edit that commits on the move; A, E and N set absent, exempt and not
- * applicable; P, Delete and Backspace set pending; Escape reverts; F2 edits
- * the mark already there. Typed keys go into a buffer, not an input, so a
+ * applicable; P, Delete and Backspace set pending; Escape reverts; F2 or a
+ * double click edits the mark already there. Typed keys go into a buffer, not an input, so a
  * fast typist or a scanner never loses one.
  */
 
@@ -243,6 +243,20 @@ export function MarksGrid(p: Props) {
                   const name = `${row.name}, ${col.label}, out of ${plain(col.max)}: ${
                     status ? status : muted ? 'does not take this subject' : cell?.state === 'scored' ? plain(cell.value ?? '') : STATE_WORDS[cell?.state ?? 'pending']
                   }`
+                  // An editable cell is drawn as an entry box, so a person sees
+                  // where marks go; a locked one is flat. The box under the
+                  // cursor shows a caret: typing starts there.
+                  const box = editing
+                    ? edit.error
+                      ? 'border-red-600 bg-red-50'
+                      : 'border-brand bg-white ring-2 ring-brand/25'
+                    : active && canChange
+                      ? 'border-brand bg-white ring-2 ring-brand/15'
+                      : canChange
+                        ? 'border-[#cfcaf0] bg-white group-hover:border-brand/60'
+                        : active
+                          ? 'border-brand/40 bg-transparent'
+                          : 'border-transparent bg-transparent'
                   return (
                     <div
                       key={col.id}
@@ -252,21 +266,27 @@ export function MarksGrid(p: Props) {
                       aria-label={name}
                       aria-readonly={!canChange || undefined}
                       aria-invalid={editing && edit.error ? true : undefined}
-                      title={editing && edit.error ? edit.error : undefined}
+                      title={editing && edit.error ? edit.error : canChange ? 'Type a mark, or AB, EX or NA' : undefined}
                       onClick={() => {
                         if (active || !finish()) return
                         go(v.index, i)
                       }}
-                      className={`relative flex items-center justify-end px-2 tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand ${
-                        editing && edit.error ? 'bg-red-50 ring-2 ring-inset ring-red-600' : editing ? 'bg-mist' : !canChange ? 'bg-canvas/60' : 'bg-white'
-                      }`}
+                      onDoubleClick={() => {
+                        if (!canChange || !finish()) return
+                        go(v.index, i)
+                        setEdit({ buffer: plain(cell?.value ?? '') })
+                      }}
+                      className={`group relative flex items-center px-1 tabular-nums outline-none ${canChange ? 'cursor-text' : 'bg-canvas/60 text-muted'}`}
                       style={pinnedLeft(i)}
                     >
-                      {shown || (status || muted ? '' : <span aria-hidden="true" className="text-subtle">·</span>)}
+                      <span className={`flex h-7 w-full items-center justify-end rounded-md border px-2 ${box}`}>
+                        {shown}
+                        {active && canChange && <span aria-hidden="true" className="ml-0.5 h-4 w-px animate-pulse bg-brand" />}
+                      </span>
                       {mark && (
                         <span
                           aria-hidden="true"
-                          className={`absolute right-1 top-1 size-1.5 rounded-full ${mark === 'saving' ? 'bg-subtle' : mark === 'conflict' ? 'bg-amber-500' : 'bg-red-600'}`}
+                          className={`absolute right-1.5 top-1.5 size-1.5 rounded-full ${mark === 'saving' ? 'bg-subtle' : mark === 'conflict' ? 'bg-amber-500' : 'bg-red-600'}`}
                         />
                       )}
                     </div>

@@ -23,6 +23,8 @@ import { useMarks } from './useMarks'
 const button = 'rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
 const input = 'rounded-md border border-line bg-white px-2 py-1.5 text-sm'
 
+const DEFAULT_SORT: SortRule[] = [{ field: 'roll_no', direction: 'asc' }]
+
 const STATUS_LABEL: Record<RowStatus, string> = { not_applicable: 'NA', absent: 'Absent', exempt: 'Exempt', left: 'Left' }
 
 const phone = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 639px)').matches
@@ -35,8 +37,8 @@ export function EntryGrid({ orgId, assessmentId, sectionId, sectionName, subject
   const layout = useQuery({ queryKey: ['layout', orgId, assessmentId], queryFn: ({ signal }) => resolveLayout(orgId, assessmentId, signal) })
   const bulks = useQuery({ queryKey: ['bulks', orgId, assessmentId, sectionId], queryFn: ({ signal }) => listBulkWrites(orgId, assessmentId, sectionId, signal) })
   const marks = useMarks(orgId, grid.data)
-  const [arr, setArr] = useState<Arrangement | null>(null)
-  const [sort, setSort] = useState<SortRule[] | null>(null)
+  const [savedArr, setArr] = useState<Arrangement | null>(null)
+  const [savedSort, setSort] = useState<SortRule[] | null>(null)
   const [showAll, setShowAll] = useState(false)
   const [oneByOne, setOneByOne] = useState(phone)
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
@@ -53,9 +55,14 @@ export function EntryGrid({ orgId, assessmentId, sectionId, sectionName, subject
     }
   }, [layout.data, data, columns])
 
-  if (grid.isPending || !arr || !sort) return <p className="text-sm text-muted">Loading the grid</p>
+  if (grid.isPending) return <p className="text-sm text-muted">Loading the grid</p>
   if (grid.isError) return <p role="alert" className="text-sm font-semibold text-red-700">{grid.error.message}</p>
   if (!data) return null
+  // The grid draws as soon as its marks are in; the person's own column
+  // layout applies when it arrives, and paper order stands in until then
+  // (or if it cannot be loaded).
+  const arr = savedArr ?? arrange(columns, layout.data?.items ?? [])
+  const sort = savedSort ?? (layout.data?.sort as SortRule[] | undefined) ?? DEFAULT_SORT
 
   const as = data.assessment
   const students: MarksStudent[] = data.students.map((s) => ({ ...s, status: s.status as RowStatus | undefined }))
@@ -84,7 +91,7 @@ export function EntryGrid({ orgId, assessmentId, sectionId, sectionName, subject
     }
   }
 
-  function keep(next: Arrangement, nextSort: SortRule[] = sort!) {
+  function keep(next: Arrangement, nextSort: SortRule[] = sort) {
     setArr(next)
     setSort(nextSort)
     void saveLayout(orgId, { surface: 'entry_grid', scopeId: assessmentId, items: toItems(next), sort: nextSort })
@@ -364,21 +371,24 @@ export function EntryGrid({ orgId, assessmentId, sectionId, sectionName, subject
           onCommit={(s, c, cell) => void marks.save(s, c, cell)}
         />
       ) : (
-        <MarksGrid
-          label={`${subjectName}, ${as.title}, ${sectionName}`}
-          rows={shown}
-          columns={columns}
-          order={arr.order}
-          hidden={arr.hidden}
-          pinned={arr.pinned}
-          value={marks.value}
-          canEdit={(s) => canEdit(s)}
-          rowLabel={(s) => (byId.get(s)?.status ? STATUS_LABEL[byId.get(s)!.status!] : undefined)}
-          muted={(s) => !byId.get(s)?.applicable}
-          saveMark={marks.mark}
-          onCommit={(s, c, cell) => void marks.save(s, c, cell)}
-          rowActions={rowActions}
-        />
+        <>
+          {data.canEdit && <p className="text-sm text-muted">Click a box and type the mark. Enter goes down, Tab goes across, and a double click changes a mark already there.</p>}
+          <MarksGrid
+            label={`${subjectName}, ${as.title}, ${sectionName}`}
+            rows={shown}
+            columns={columns}
+            order={arr.order}
+            hidden={arr.hidden}
+            pinned={arr.pinned}
+            value={marks.value}
+            canEdit={(s) => canEdit(s)}
+            rowLabel={(s) => (byId.get(s)?.status ? STATUS_LABEL[byId.get(s)!.status!] : undefined)}
+            muted={(s) => !byId.get(s)?.applicable}
+            saveMark={marks.mark}
+            onCommit={(s, c, cell) => void marks.save(s, c, cell)}
+            rowActions={rowActions}
+          />
+        </>
       )}
     </div>
   )

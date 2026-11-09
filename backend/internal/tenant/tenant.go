@@ -33,6 +33,9 @@ type Member struct {
 	OrgID  string
 	UserID string
 	Roles  []Role
+	// teaches are the sections and subjects the person teaches, read with
+	// the roles so the policy needs no query of its own.
+	teaches []policy.Assignment
 }
 
 // Actor is the member as the permission policy sees them. Modules that act
@@ -134,12 +137,24 @@ func preview(c fiber.Ctx, m Member, as string) (Member, error) {
 	return m, nil
 }
 
-// enter scopes tx to the organisation and loads the user's roles there.
+// enter scopes tx to the organisation and loads the user's roles and
+// teaching assignments there. The three statements go as one batch, so
+// they cost one round trip to the database, in order: the organisation is
+// set before row-level security reads the other two.
 func enter(ctx context.Context, tx pgx.Tx, userID, orgID string) (Member, error) {
-	if _, err := tx.Exec(ctx, `SELECT set_config('app.org_id', $1, true)`, orgID); err != nil {
+	var b pgx.Batch
+	b.Queue(`SELECT set_config('app.org_id', $1, true)`, orgID)
+	b.Queue(`SELECT role::text, coalesce(branch_id::text, '') FROM memberships WHERE clerk_user_id = $1 ORDER BY 1, 2`, userID)
+	b.Queue(`
+		SELECT DISTINCT a.section_id::text, coalesce(a.subject_id::text, '')
+		  FROM teaching_assignments a JOIN memberships m ON m.staff_id = a.staff_id
+		 WHERE m.clerk_user_id = $1 AND a.deleted_at IS NULL`, userID)
+	br := tx.SendBatch(ctx, &b)
+	defer br.Close()
+	if _, err := br.Exec(); err != nil {
 		return Member{}, err
 	}
-	rows, err := tx.Query(ctx, `SELECT role::text, coalesce(branch_id::text, '') FROM memberships WHERE clerk_user_id = $1 ORDER BY 1, 2`, userID)
+	rows, err := br.Query()
 	if err != nil {
 		return Member{}, err
 	}
@@ -150,10 +165,23 @@ func enter(ctx context.Context, tx pgx.Tx, userID, orgID string) (Member, error)
 	if err != nil {
 		return Member{}, err
 	}
+	rows, err = br.Query()
+	if err != nil {
+		return Member{}, err
+	}
+	teaches, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (as policy.Assignment, err error) {
+		return as, r.Scan(&as.SectionID, &as.SubjectID)
+	})
+	if err != nil {
+		return Member{}, err
+	}
+	if err := br.Close(); err != nil {
+		return Member{}, err
+	}
 	if len(roles) == 0 {
 		return Member{}, errNoOrg
 	}
-	return Member{OrgID: orgID, UserID: userID, Roles: roles}, nil
+	return Member{OrgID: orgID, UserID: userID, Roles: roles, teaches: teaches}, nil
 }
 
 // Tx is the request's organisation-scoped transaction. Repositories run every
@@ -173,23 +201,14 @@ func MemberFrom(c fiber.Ctx) (Member, bool) {
 }
 
 // Teaching is the acting person as the policy sees them, with the sections
-// and subjects they teach, for rules about their own sections.
+// and subjects they teach, for rules about their own sections. The
+// assignments were read when the request entered the organisation.
 func Teaching(c fiber.Ctx) (policy.Actor, error) {
-	tx, err := Tx(c)
-	if err != nil {
+	if _, err := Tx(c); err != nil {
 		return policy.Actor{}, err
 	}
 	m, _ := MemberFrom(c)
 	a := m.Actor()
-	rows, err := tx.Query(c.Context(), `
-		SELECT DISTINCT a.section_id::text, coalesce(a.subject_id::text, '')
-		  FROM teaching_assignments a JOIN memberships m ON m.staff_id = a.staff_id
-		 WHERE m.clerk_user_id = $1 AND a.deleted_at IS NULL`, m.UserID)
-	if err != nil {
-		return a, err
-	}
-	a.Assignments, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (as policy.Assignment, err error) {
-		return as, r.Scan(&as.SectionID, &as.SubjectID)
-	})
-	return a, err
+	a.Assignments = m.teaches
+	return a, nil
 }
