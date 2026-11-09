@@ -111,7 +111,8 @@ test('an administrator sees who has not chosen, and fills in choices one by one 
 test('a class teacher has Choices in the menu; the words follow the preset', async ({ page }) => {
   fakeApi(page, ['class_teacher'], 'university')
   await page.goto('/')
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Choices' }).click()
+  // Choices sits in step 1, Resources, which for a class teacher opens on it.
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Resources' }).click()
   await expect(page.getByRole('heading', { name: 'Course choices', level: 1 })).toBeVisible()
   await expect(page.getByLabel('Second language for Kiran')).toBeVisible()
   // Importing is for leaders.

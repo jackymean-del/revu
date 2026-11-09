@@ -1664,6 +1664,7 @@ type AnalysisList struct {
 type AnalysisListEntry struct {
 	Name      string   `json:"name"`
 	RollNo    string   `json:"rollNo,omitempty"`
+	Section   string   `json:"section"`
 	StudentId string   `json:"studentId"`
 	Subjects  []string `json:"subjects"`
 	TotalPct  string   `json:"totalPct,omitempty"`
@@ -1713,11 +1714,16 @@ type AnalysisSettings struct {
 
 // AnalysisStudent defines model for AnalysisStudent.
 type AnalysisStudent struct {
-	Id       string                  `json:"id"`
-	Name     string                  `json:"name"`
-	RollNo   string                  `json:"rollNo,omitempty"`
-	Subjects map[string]AnalysisCell `json:"subjects"`
-	Total    AnalysisCell            `json:"total,omitempty"`
+	AdmissionNo string `json:"admissionNo,omitempty"`
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	RollNo      string `json:"rollNo,omitempty"`
+
+	// Section The section as people say it, such as Class 10 A.
+	Section   string                  `json:"section"`
+	SectionId string                  `json:"sectionId"`
+	Subjects  map[string]AnalysisCell `json:"subjects"`
+	Total     AnalysisCell            `json:"total,omitempty"`
 }
 
 // AnalysisStudentScore defines model for AnalysisStudentScore.
@@ -3264,6 +3270,8 @@ type SectionResultsAccess string
 
 // SetupStatus defines model for SetupStatus.
 type SetupStatus struct {
+	Assessments int `json:"assessments"`
+
 	// Done An administrator has finished the setup steps.
 	Done bool `json:"done"`
 
@@ -3271,12 +3279,24 @@ type SetupStatus struct {
 	Invitations   int `json:"invitations"`
 	LevelSubjects int `json:"levelSubjects"`
 	Levels        int `json:"levels"`
-	Periods       int `json:"periods"`
-	Sections      int `json:"sections"`
-	Staff         int `json:"staff"`
-	Students      int `json:"students"`
-	Subjects      int `json:"subjects"`
-	Years         int `json:"years"`
+
+	// Marks Marks entered, in any state but pending, counted up to 10000.
+	Marks   int `json:"marks"`
+	Periods int `json:"periods"`
+
+	// Reports Report runs made.
+	Reports int `json:"reports"`
+
+	// Results Final subject results worked out, counted up to 10000.
+	Results int `json:"results"`
+
+	// Schemes Published scheme versions.
+	Schemes  int `json:"schemes"`
+	Sections int `json:"sections"`
+	Staff    int `json:"staff"`
+	Students int `json:"students"`
+	Subjects int `json:"subjects"`
+	Years    int `json:"years"`
 }
 
 // SortRule defines model for SortRule.
@@ -3585,6 +3605,9 @@ type PeriodQuery = string
 // SectionQuery defines model for SectionQuery.
 type SectionQuery = string
 
+// SectionsQuery defines model for SectionsQuery.
+type SectionsQuery = string
+
 // AnalysisAssessmentParams defines parameters for AnalysisAssessment.
 type AnalysisAssessmentParams struct {
 	AssessmentId string       `form:"assessmentId" json:"assessmentId"`
@@ -3614,8 +3637,9 @@ type PutAnalysisSettingsParams struct {
 
 // AnalysisSummaryParams defines parameters for AnalysisSummary.
 type AnalysisSummaryParams struct {
-	SectionId SectionQuery `form:"sectionId" json:"sectionId"`
-	PeriodId  PeriodQuery  `form:"periodId" json:"periodId"`
+	// SectionIds The sections, comma separated, up to 60 of one year; their students read as one table.
+	SectionIds SectionsQuery `form:"sectionIds" json:"sectionIds"`
+	PeriodId   PeriodQuery   `form:"periodId" json:"periodId"`
 
 	// Basis A component code to analyse instead of the term result.
 	Basis BasisQuery `form:"basis,omitempty" json:"basis,omitempty"`
@@ -3626,8 +3650,9 @@ type AnalysisSummaryParams struct {
 
 // AnalysisSummaryXlsxParams defines parameters for AnalysisSummaryXlsx.
 type AnalysisSummaryXlsxParams struct {
-	SectionId SectionQuery `form:"sectionId" json:"sectionId"`
-	PeriodId  PeriodQuery  `form:"periodId" json:"periodId"`
+	// SectionIds The sections, comma separated, up to 60 of one year; their students read as one table.
+	SectionIds SectionsQuery `form:"sectionIds" json:"sectionIds"`
+	PeriodId   PeriodQuery   `form:"periodId" json:"periodId"`
 
 	// Basis A component code to analyse instead of the term result.
 	Basis BasisQuery `form:"basis,omitempty" json:"basis,omitempty"`

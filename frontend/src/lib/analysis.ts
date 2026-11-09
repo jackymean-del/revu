@@ -86,20 +86,52 @@ export const TREND: Record<NonNullable<S['ReteachFollowUp']['trend']>, string> =
   worse: 'More below mastery',
 }
 
-export type Order = 'roll' | 'total'
+/** What the aggregate can be sorted by: a column, or a subject by its id. */
+export type SortKey = 'roll' | 'name' | 'admission' | 'section' | 'total' | `subject:${string}`
+export interface Sort {
+  key: SortKey
+  dir: 'asc' | 'desc'
+}
 
-/** Rows in roll order, or by total percentage, highest first; rows with no total go last, in roll order. */
-export function sortRows(rows: StudentRow[], order: Order): StudentRow[] {
-  const roll = (a: StudentRow, b: StudentRow) => (a.rollNo ?? '').localeCompare(b.rollNo ?? '', undefined, { numeric: true }) || a.name.localeCompare(b.name)
-  if (order === 'roll') return [...rows].sort(roll)
+const text = (a: string | undefined, b: string | undefined) => (a ?? '').localeCompare(b ?? '', undefined, { numeric: true, sensitivity: 'base' })
+
+/**
+ * Rows sorted by one column, the whole row moving together. Numbers sort
+ * by their exact value; a row with no number (withheld, absent, not
+ * assessed) goes last whichever way, so the top of the list is always the
+ * real highest or lowest. Ties fall back to section, then roll number.
+ */
+export function sortRows(rows: StudentRow[], sort: Sort): StudentRow[] {
+  const flip = sort.dir === 'asc' ? 1 : -1
+  const place = (a: StudentRow, b: StudentRow) => text(a.section, b.section) || text(a.rollNo, b.rollNo) || text(a.name, b.name)
+  const number = (r: StudentRow) =>
+    sort.key === 'total' ? hundredths(r.total?.pct) : sort.key.startsWith('subject:') ? hundredths(r.subjects[sort.key.slice(8)]?.pct) : null
   return [...rows].sort((a, b) => {
-    const x = hundredths(a.total?.pct)
-    const y = hundredths(b.total?.pct)
-    if (x === null && y === null) return roll(a, b)
-    if (x === null) return 1
-    if (y === null) return -1
-    return y - x || roll(a, b)
+    switch (sort.key) {
+      case 'roll':
+        return flip * place(a, b)
+      case 'name':
+        return flip * text(a.name, b.name) || place(a, b)
+      case 'admission':
+        return flip * text(a.admissionNo, b.admissionNo) || place(a, b)
+      case 'section':
+        return flip * (text(a.section, b.section) || text(a.rollNo, b.rollNo)) || text(a.name, b.name)
+      default: {
+        const x = number(a)
+        const y = number(b)
+        if (x === null && y === null) return place(a, b)
+        if (x === null) return 1
+        if (y === null) return -1
+        return flip * (x - y) || place(a, b)
+      }
+    }
   })
+}
+
+/** Clicking a column: a new column starts highest first for numbers and A to Z for words; the same column flips. */
+export function nextSort(current: Sort, key: SortKey): Sort {
+  if (current.key === key) return { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+  return { key, dir: key === 'total' || key.startsWith('subject:') ? 'desc' : 'asc' }
 }
 
 /** A cell as the tables show it: the percentage, or the state in words. */

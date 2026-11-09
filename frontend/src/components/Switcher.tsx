@@ -9,7 +9,7 @@ import { useT } from '../lib/terminology/terms-context'
  * institution as another role. The server enforces the previewed role and
  * refuses changes, so the preview is exactly what that role sees.
  */
-export function Switcher() {
+export function Switcher({ align = 'right' }: { align?: 'left' | 'right' }) {
   const t = useT()
   const { current, platformOwner, groups, previewing, preview, ownRoles } = useOrg()
   const [open, setOpen] = useState(false)
@@ -57,7 +57,7 @@ export function Switcher() {
         Switch
       </button>
       {open && (
-        <div role="menu" aria-label="Switch" className="absolute right-0 z-40 mt-2 w-72 rounded-xl border border-line bg-white p-1.5 shadow-[0_8px_32px_rgba(19,17,30,0.12)]">
+        <div role="menu" aria-label="Switch" className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} z-40 mt-2 w-72 rounded-xl border border-line bg-white p-1.5 shadow-[0_8px_32px_rgba(19,17,30,0.12)]`}>
           {platformOwner && (
             <>
               <p className={heading}>Platform</p>

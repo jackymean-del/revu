@@ -57,7 +57,14 @@ const choices = createRoute({
 const marks = createRoute({
   getParentRoute: () => root,
   path: '/marks',
+  // ?a=assessment/section opens that assessment straight away.
+  validateSearch: (s: Record<string, unknown>): { a?: string } => (typeof s.a === 'string' ? { a: s.a } : {}),
   component: lazyRouteComponent(() => import('./pages/Marks'), 'Marks'),
+})
+const exams = createRoute({
+  getParentRoute: () => root,
+  path: '/exams',
+  component: lazyRouteComponent(() => import('./pages/Exams'), 'Exams'),
 })
 const results = createRoute({
   getParentRoute: () => root,
@@ -94,6 +101,16 @@ const structure = createRoute({
   path: '/settings/structure',
   component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
 })
+const yearsPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/years',
+  component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
+})
+const subjectsPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/subjects',
+  component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
+})
 const words = createRoute({
   getParentRoute: () => root,
   path: '/settings/words',
@@ -105,9 +122,11 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, subjectsPage, words, history])
 
-export const router = createRouter({ routeTree })
+// Hovering or focusing a link loads that screen and its code before the
+// click, so moving around feels instant.
+export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultPreloadDelay: 40 })
 
 declare module '@tanstack/react-router' {
   interface Register {

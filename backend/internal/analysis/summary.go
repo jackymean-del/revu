@@ -1,12 +1,15 @@
 package analysis
 
 import (
+	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/reports"
@@ -56,11 +59,14 @@ type Cell struct {
 
 // StudentRow is one student across the subjects the viewer may see.
 type StudentRow struct {
-	ID       string          `json:"id"`
-	Name     string          `json:"name"`
-	RollNo   string          `json:"rollNo,omitempty"`
-	Subjects map[string]Cell `json:"subjects"`
-	Total    *Cell           `json:"total,omitempty"` // only when every subject is visible
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	RollNo      string          `json:"rollNo,omitempty"`
+	AdmissionNo string          `json:"admissionNo,omitempty"`
+	SectionID   string          `json:"sectionId"`
+	Section     string          `json:"section"` // such as Class 10 A
+	Subjects    map[string]Cell `json:"subjects"`
+	Total       *Cell           `json:"total,omitempty"` // only when every subject is visible
 }
 
 // ListEntry is one student on a criteria list.
@@ -68,6 +74,7 @@ type ListEntry struct {
 	StudentID string   `json:"studentId"`
 	Name      string   `json:"name"`
 	RollNo    string   `json:"rollNo,omitempty"`
+	Section   string   `json:"section"`
 	TotalPct  string   `json:"totalPct,omitempty"`
 	Subjects  []string `json:"subjects"` // ids of the subjects below the list's display threshold
 }
@@ -129,6 +136,32 @@ func cellOf(x reports.Subject, basis string) (Cell, bool) {
 	return Cell{}, false
 }
 
+// sectionIDs are the sections asked for: sectionIds as a comma list (up to
+// 60, the same year), or one sectionId.
+func sectionIDs(c fiber.Ctx) ([]string, error) {
+	raw := c.Query("sectionIds")
+	if raw == "" {
+		raw = c.Query("sectionId")
+	}
+	var out []string
+	for _, id := range strings.Split(raw, ",") {
+		if id = strings.TrimSpace(id); id != "" && !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	if len(out) == 0 || len(out) > 60 {
+		return nil, problem.Invalid(api.FieldError{Field: "sectionIds", Code: "invalid", Message: "Choose from 1 to 60 sections."})
+	}
+	return out, nil
+}
+
+// row is one student's facts with the section they are in.
+type row struct {
+	sec  results.Section
+	name string // the section as people say it, such as Class 10 A
+	f    reports.Facts
+}
+
 func build(c fiber.Ctx, now time.Time) (Summary, error) {
 	var out Summary
 	tx, err := tenant.Tx(c)
@@ -137,17 +170,37 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 	}
 	ctx := c.Context()
 	periodID := c.Query("periodId")
-	sec, err := results.LoadSection(ctx, tx, c.Query("sectionId"), periodID)
+	ids, err := sectionIDs(c)
 	if err != nil {
 		return out, err
+	}
+
+	// The sections, each checked to be in the period's year, in one round trip.
+	var b pgx.Batch
+	gets := make([]func() (results.Section, error), len(ids))
+	for i, id := range ids {
+		gets[i] = results.QueueSection(&b, id, periodID)
+	}
+	if err := results.Send(ctx, tx, &b); err != nil {
+		return out, err
+	}
+	secs := make([]results.Section, len(ids))
+	for i, get := range gets {
+		if secs[i], err = get(); err != nil {
+			return out, err
+		}
 	}
 	actor, err := tenant.Teaching(c)
 	if err != nil {
 		return out, err
 	}
-	// Everything else in one round trip (decision D30).
-	var b pgx.Batch
-	gathered := reports.QueueGather(&b, sec, periodID)
+
+	// Everything else in one more round trip, however many sections (D30).
+	b = pgx.Batch{}
+	gathered := make([]*reports.Gathered, len(secs))
+	for i, s := range secs {
+		gathered[i] = reports.QueueGather(&b, s, periodID)
+	}
 	getConfig := reports.QueueTemplateConfig(&b)
 	getSettings := queueSettings(&b)
 	if err := results.Send(ctx, tx, &b); err != nil {
@@ -158,16 +211,31 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 		return out, err
 	}
 	settings := getSettings()
-	facts := gathered.Build(nil, cfg, now)
+	var rows []row
+	var legends [][]scheme.Band
+	sameScale := true
+	for i, g := range gathered {
+		for _, f := range g.Build(nil, cfg, now) {
+			rows = append(rows, row{sec: secs[i], name: strings.TrimSpace(f.Level + " " + f.Section), f: f})
+			if len(f.Legends) != 1 {
+				sameScale = false
+			} else if len(legends) == 0 || !slices.Equal(legends[0], f.Legends[0].Bands) {
+				legends = append(legends, f.Legends[0].Bands)
+			}
+		}
+	}
 
-	// The subjects in report order, the bases on offer, and what the
-	// viewer may see of each subject.
+	// The subjects in report order (first seen across the sections), the
+	// bases on offer, and what the viewer may see of each subject in each
+	// section: the matrix decides per section, so a teacher sees in full
+	// only the sections and subjects they teach.
 	var order []reports.Subject
 	seen := map[string]bool{}
 	bases := []Basis{{Code: "", Name: "Term result"}}
 	seenBasis := map[string]bool{}
-	for _, f := range facts {
-		for _, s := range f.Subjects {
+	access := map[[2]string]policy.Access{}
+	for _, r := range rows {
+		for _, s := range r.f.Subjects {
 			if !seen[s.ID] {
 				seen[s.ID] = true
 				order = append(order, s)
@@ -178,61 +246,78 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 					bases = append(bases, Basis{Code: p.Code, Name: p.Name})
 				}
 			}
+			k := [2]string{r.sec.ID, s.ID}
+			if _, ok := access[k]; !ok {
+				access[k] = policy.Decide(actor, policy.ResultsRead, policy.Target{BranchID: r.sec.BranchID, SectionID: r.sec.ID, SubjectID: s.ID})
+			}
 		}
 	}
 	basis := c.Query("basis")
 	if basis != "" && !seenBasis[basis] {
 		return out, problem.New(http.StatusNotFound, "analysis.basis_unknown", "No subject here has that component.")
 	}
-	access := map[string]policy.Access{}
-	full, counts := 0, 0
-	for _, s := range order {
-		a := policy.Decide(actor, policy.ResultsRead, policy.Target{BranchID: sec.BranchID, SectionID: sec.ID, SubjectID: s.ID})
-		access[s.ID] = a
-		switch a {
-		case policy.Full:
+	full, shown := 0, 0
+	for _, a := range access {
+		if a != policy.None {
+			shown++
+		}
+		if a == policy.Full {
 			full++
-		case policy.Counts:
-			counts++
 		}
 	}
-	if full+counts == 0 {
+	if shown == 0 && len(access) > 0 {
 		return out, problem.New(http.StatusForbidden, "auth.forbidden", "Your role does not show these results.")
 	}
 	out = Summary{Access: "counts", Basis: basis, Bases: bases, Subjects: []SubjectSummary{}, Students: []StudentRow{}, Lists: []List{},
 		Bands: []scheme.Band{}, Settings: settings}
 	switch {
-	case full == len(order):
+	case full == len(access):
 		out.Access = "full"
 	case full > 0:
 		out.Access = "partial"
 	}
-	if len(facts) > 0 {
-		out.Words = facts[0].Words
+	// One band scale across the sections grades totals and components; with
+	// several, only the term results carry a band.
+	if sameScale && len(legends) == 1 {
+		out.Bands = legends[0]
+	}
+	if len(rows) > 0 {
+		out.Words = rows[0].f.Words
 		out.Signoff = settings.Signoff
 		if len(out.Signoff) == 0 {
 			out.Signoff = []string{out.Words["person.class_teacher"], out.Words["person.principal"]}
 		}
-		out.Title = facts[0].Level + " " + facts[0].Section + ", " + facts[0].Period
-		// One band scale for the section grades totals and components;
-		// with several scales, only the term results carry a band.
-		if len(facts[0].Legends) == 1 {
-			out.Bands = facts[0].Legends[0].Bands
+		var names []string
+		for _, r := range rows {
+			if !slices.Contains(names, r.name) {
+				names = append(names, r.name)
+			}
 		}
+		if len(names) > 4 {
+			names = []string{fmt.Sprintf("%s to %s, %d %s", names[0], names[len(names)-1], len(names), strings.ToLower(out.Words["group.section"])+"s")}
+		}
+		out.Title = strings.Join(names, ", ") + ", " + rows[0].f.Period
 	}
 
-	for _, s := range order {
-		a := access[s.ID]
-		if a == policy.None {
-			continue
+	band := func(cell Cell) Cell {
+		if basis != "" && cell.Band == "" && len(out.Bands) > 0 && cell.Pct != "" {
+			cell.Band = scheme.BandOf(cell.Pct, out.Bands)
 		}
-		sum := SubjectSummary{ID: s.ID, Name: s.Name, Access: "counts", Bands: []Band{}}
+		return cell
+	}
+	for _, s := range order {
+		sum := SubjectSummary{ID: s.ID, Name: s.Name, Access: "full", Bands: []Band{}}
 		var pcts []string
 		bands := map[string]int{}
 		var labels []string
 		maxes := map[string]bool{}
-		for _, f := range facts {
-			for _, x := range f.Subjects {
+		found := false
+		for _, r := range rows {
+			a := access[[2]string{r.sec.ID, s.ID}]
+			if a == policy.None {
+				continue
+			}
+			for _, x := range r.f.Subjects {
 				if x.ID != s.ID {
 					continue
 				}
@@ -240,9 +325,11 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 				if !has {
 					continue
 				}
-				if basis != "" && cell.Band == "" && len(out.Bands) > 0 && cell.Pct != "" {
-					cell.Band = scheme.BandOf(cell.Pct, out.Bands)
+				found = true
+				if a != policy.Full {
+					sum.Access = "counts"
 				}
+				cell = band(cell)
 				sum.Taking++
 				if cell.Max != "" {
 					maxes[cell.Max] = true
@@ -273,8 +360,8 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 				}
 			}
 		}
-		if sum.Taking == 0 {
-			continue // no component of this kind in this subject
+		if !found || sum.Taking == 0 {
+			continue // hidden here, or no component of this kind in this subject
 		}
 		if len(maxes) == 1 {
 			for m := range maxes {
@@ -288,8 +375,7 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 		for _, l := range labels {
 			sum.Bands = append(sum.Bands, Band{Label: l, Count: bands[l]})
 		}
-		if a == policy.Full {
-			sum.Access = "full"
+		if sum.Access == "full" {
 			st := scheme.Describe(pcts, 2)
 			sum.Average, sum.Highest, sum.Lowest = st.Average, st.Highest, st.Lowest
 			sum.Median = scheme.Median(pcts, 2)
@@ -306,22 +392,26 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 	for i, r := range settings.Lists {
 		lists[i] = List{Rule: r, Students: []ListEntry{}}
 	}
-	for _, f := range facts {
-		row := StudentRow{ID: f.Student.ID, Name: f.Student.Name, RollNo: f.Student.RollNo, Subjects: map[string]Cell{}}
+	for _, r := range rows {
+		st := StudentRow{ID: r.f.Student.ID, Name: r.f.Student.Name, RollNo: r.f.Student.RollNo, AdmissionNo: r.f.Student.AdmissionNo,
+			SectionID: r.sec.ID, Section: r.name, Subjects: map[string]Cell{}}
 		var lines []scheme.SubjectLine
-		for _, x := range f.Subjects {
-			if access[x.ID] != policy.Full {
+		visible := 0
+		for _, x := range r.f.Subjects {
+			if access[[2]string{r.sec.ID, x.ID}] != policy.Full {
 				continue
 			}
 			cell, has := cellOf(x, basis)
 			if !has {
 				continue
 			}
-			if basis != "" && cell.Band == "" && len(out.Bands) > 0 && cell.Pct != "" {
-				cell.Band = scheme.BandOf(cell.Pct, out.Bands)
-			}
-			row.Subjects[x.ID] = cell
+			cell = band(cell)
+			st.Subjects[x.ID] = cell
 			lines = append(lines, scheme.SubjectLine{State: cell.State, Value: cell.Value, Max: cell.Max})
+			visible++
+		}
+		if visible == 0 {
+			continue // a section this viewer sees as counts only
 		}
 		if out.Access == "full" {
 			o := scheme.Summarise(lines, 2)
@@ -329,10 +419,10 @@ func build(c fiber.Ctx, now time.Time) (Summary, error) {
 			if o.Pct != "" && len(out.Bands) > 0 {
 				total.Band = scheme.BandOf(o.Pct, out.Bands)
 			}
-			row.Total = &total
+			st.Total = &total
 		}
-		out.Students = append(out.Students, row)
-		if i, entry, ok := place(row, out.Subjects, settings.Lists); ok {
+		out.Students = append(out.Students, st)
+		if i, entry, ok := place(st, out.Subjects, settings.Lists); ok {
 			lists[i].Students = append(lists[i].Students, entry)
 		}
 	}
@@ -369,7 +459,7 @@ func place(row StudentRow, subjects []SubjectSummary, rules []Rule) (int, ListEn
 		if !met {
 			continue
 		}
-		entry := ListEntry{StudentID: row.ID, Name: row.Name, RollNo: row.RollNo, Subjects: []string{}}
+		entry := ListEntry{StudentID: row.ID, Name: row.Name, RollNo: row.RollNo, Section: row.Section, Subjects: []string{}}
 		if row.Total != nil {
 			entry.TotalPct = row.Total.Pct
 		}

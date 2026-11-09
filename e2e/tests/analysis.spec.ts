@@ -30,32 +30,39 @@ const fullSummary = {
     { id: 'sci', name: 'Science', access: 'full', max: '100', taking: 4, complete: 3, provisional: 0, blocked: 1, notAssessed: 0, average: '66.67', median: '55.00', highest: '95.00', lowest: '50.00', passed: 2, failed: 1, bands: [{ label: 'A1', count: 1 }, { label: 'C', count: 2 }] },
   ],
   students: [
-    { id: 'ravi', name: 'Ravi Kumar', rollNo: '1', subjects: { math: cell('85.00', 'A2'), sci: cell('95.00', 'A1') }, total: { state: 'complete', value: '180', max: '200', pct: '90.00', band: 'A1' } },
-    { id: 'kiran', name: 'Kiran Das', rollNo: '2', subjects: { math: cell('27.50', 'C'), sci: cell('50.00', 'C') }, total: { state: 'complete', value: '77.5', max: '200', pct: '38.75', band: 'C' } },
-    { id: 'leela', name: 'Leela Rao', rollNo: '3', subjects: { math: cell('40.00', 'C'), sci: cell('55.00', 'C') }, total: { state: 'complete', value: '95', max: '200', pct: '47.50', band: 'C' } },
-    { id: 'nikhil', name: 'Nikhil Jena', rollNo: '4', subjects: { math: cell('72.50', 'B1'), sci: { state: 'blocked' } }, total: { state: 'blocked' } },
+    { id: 'ravi', name: 'Ravi Kumar', rollNo: '1', admissionNo: 'A-104', sectionId: SECTION, section: 'Grade 6 A', subjects: { math: cell('85.00', 'A2'), sci: cell('95.00', 'A1') }, total: { state: 'complete', value: '180', max: '200', pct: '90.00', band: 'A1' } },
+    { id: 'kiran', name: 'Kiran Das', rollNo: '2', admissionNo: 'A-101', sectionId: SECTION, section: 'Grade 6 A', subjects: { math: cell('27.50', 'C'), sci: cell('50.00', 'C') }, total: { state: 'complete', value: '77.5', max: '200', pct: '38.75', band: 'C' } },
+    { id: 'leela', name: 'Leela Rao', rollNo: '3', admissionNo: 'A-103', sectionId: SECTION, section: 'Grade 6 A', subjects: { math: cell('40.00', 'C'), sci: cell('55.00', 'C') }, total: { state: 'complete', value: '95', max: '200', pct: '47.50', band: 'C' } },
+    { id: 'nikhil', name: 'Nikhil Jena', rollNo: '4', admissionNo: 'A-102', sectionId: SECTION, section: 'Grade 6 A', subjects: { math: cell('72.50', 'B1'), sci: { state: 'blocked' } }, total: { state: 'blocked' } },
   ],
   lists: [
-    { rule: settings.lists[0], students: [{ studentId: 'kiran', name: 'Kiran Das', rollNo: '2', totalPct: '38.75', subjects: ['math', 'sci'] }, { studentId: 'leela', name: 'Leela Rao', rollNo: '3', totalPct: '47.50', subjects: ['math', 'sci'] }] },
+    { rule: settings.lists[0], students: [{ studentId: 'kiran', name: 'Kiran Das', rollNo: '2', section: 'Grade 6 A', totalPct: '38.75', subjects: ['math', 'sci'] }, { studentId: 'leela', name: 'Leela Rao', rollNo: '3', section: 'Grade 6 A', totalPct: '47.50', subjects: ['math', 'sci'] }] },
     { rule: settings.lists[1], students: [] },
   ],
 }
 
 function fakeApi(page: Page, role: string, summary: unknown = fullSummary) {
-  const saved: { reteach: unknown[]; settings?: unknown; basis?: string | null } = { reteach: [] }
+  const saved: { reteach: unknown[]; settings?: unknown; basis?: string | null; sectionIds?: string | null } = { reteach: [] }
   const json = (r: Route, body: unknown, s = 200) => r.fulfill({ status: s, json: body })
   void page.route('**/v1/me', (r) => json(r, { userId: 'user_1', orgs: [{ id: ORG, name: 'Hill View', preset: 'school', roles: [role], setupDone: true, staffId: 'staff-1' }] }))
   void page.route('**/v1/terminology', (r) => json(r, { preset: 'school', overrides: [] }))
   void page.route(/\/v1\/years(\?.*)?$/, (r) => json(r, [{ id: 'y', label: '2026-27', startsOn: '2026-04-01', endsOn: '2027-03-31' }]))
   void page.route(/\/v1\/periods(\?.*)?$/, (r) => json(r, [{ id: 't1', yearId: 'y', name: 'Term 1', seq: 1, kind: 'term', startsOn: '2026-04-01', endsOn: '2026-09-30' }]))
-  void page.route(/\/v1\/levels(\?.*)?$/, (r) => json(r, [{ id: 'l6', name: 'Grade 6', seq: 6 }]))
-  void page.route(/\/v1\/sections(\?.*)?$/, (r) => json(r, [{ id: SECTION, name: 'A', levelId: 'l6', yearId: 'y', branchId: 'b' }]))
+  void page.route(/\/v1\/levels(\?.*)?$/, (r) => json(r, [{ id: 'l6', name: 'Grade 6', seq: 6 }, { id: 'l7', name: 'Grade 7', seq: 7 }]))
+  void page.route(/\/v1\/sections(\?.*)?$/, (r) =>
+    json(r, [
+      { id: SECTION, name: 'A', levelId: 'l6', yearId: 'y', branchId: 'b' },
+      { id: 'sec-6b', name: 'B', levelId: 'l6', yearId: 'y', branchId: 'b' },
+      { id: 'sec-7a', name: 'A', levelId: 'l7', yearId: 'y', branchId: 'b' },
+    ]),
+  )
   void page.route(/\/v1\/teaching-assignments(\?.*)?$/, (r) => json(r, [{ id: 'ta', staffId: 'staff-1', sectionId: SECTION, subjectId: 'math' }]))
   void page.route(/\/v1\/analysis\/summary\.xlsx/, (r) =>
     r.fulfill({ status: 200, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', body: 'xlsx' }),
   )
   void page.route(/\/v1\/analysis\/summary\?/, (r) => {
     saved.basis = new URL(r.request().url()).searchParams.get('basis')
+    saved.sectionIds = new URL(r.request().url()).searchParams.get('sectionIds')
     return json(r, saved.basis ? { ...(summary as object), basis: saved.basis } : summary)
   })
   void page.route('**/v1/analysis/settings', (r) => {
@@ -105,10 +112,19 @@ test('a class teacher reads the aggregate, the bands, the lists and the ranges, 
   await expect(table.getByRole('row', { name: /Kiran Das/ })).toContainText('27.50')
   await expect(table.getByRole('row', { name: /Nikhil Jena/ })).toContainText('Withheld')
   await expect(table.getByRole('row', { name: /^Average/ })).toContainText('56.25')
-  // Ordered by total: Ravi first, Nikhil (withheld) last.
-  await page.getByLabel('Total, highest first').check()
-  const names = await table.locator('tbody th').allInnerTexts()
-  expect(names.map((n) => n.replace(/^\d+\s*/, ''))).toEqual(['Ravi Kumar', 'Leela Rao', 'Kiran Das', 'Nikhil Jena'])
+  // Every column sorts, both ways, rows moving whole; withheld goes last.
+  const order = () => table.locator('tbody th').allInnerTexts()
+  const pct = table.getByRole('columnheader', { name: '%' })
+  await pct.getByRole('button').click()
+  await expect(pct).toHaveAttribute('aria-sort', 'descending')
+  expect(await order()).toEqual(['Ravi Kumar', 'Leela Rao', 'Kiran Das', 'Nikhil Jena'])
+  await pct.getByRole('button').click()
+  expect(await order()).toEqual(['Kiran Das', 'Leela Rao', 'Ravi Kumar', 'Nikhil Jena'])
+  await table.getByRole('columnheader', { name: 'Admission number' }).getByRole('button').click()
+  expect(await order()).toEqual(['Kiran Das', 'Nikhil Jena', 'Leela Rao', 'Ravi Kumar'])
+  await table.getByRole('columnheader', { name: 'Mathematics' }).getByRole('button').click()
+  expect(await order()).toEqual(['Ravi Kumar', 'Nikhil Jena', 'Leela Rao', 'Kiran Das'])
+  await expect(table.getByRole('row', { name: /Ravi Kumar/ })).toContainText('A-104')
 
   await page.getByRole('tab', { name: 'Bands' }).click()
   await expect(page.getByRole('row', { name: /Science/ })).toContainText('1')
@@ -130,6 +146,22 @@ test('a class teacher reads the aggregate, the bands, the lists and the ranges, 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Excel workbook' }).click()
   expect((await download).suggestedFilename()).toBe('analysis-Grade-6-A-Term-1.xlsx')
+})
+
+test('choose a grade, then one, several or all of its sections, or every grade', async ({ page }) => {
+  const saved = fakeApi(page, 'admin')
+  await page.goto('/analysis')
+  await expect.poll(() => saved.sectionIds).toBe(`${SECTION},sec-6b`)
+  const sections = page.getByRole('group', { name: 'Sections' })
+  await sections.getByRole('button', { name: 'B', exact: true }).click()
+  await expect.poll(() => saved.sectionIds).toBe('sec-6b')
+  // Picking the rest is all of them again (that answer is already at hand).
+  await sections.getByRole('button', { name: 'A', exact: true }).click()
+  await expect(sections.getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByLabel('Grade', { exact: true }).selectOption({ label: 'All grades' })
+  await expect.poll(() => saved.sectionIds).toBe(`${SECTION},sec-6b,sec-7a`)
+  await sections.getByRole('button', { name: 'A', exact: true }).click()
+  await expect.poll(() => saved.sectionIds).toBe(`${SECTION},sec-7a`)
 })
 
 test('a teacher marks a part of the paper for reteaching, and total-marks entry says why there is no list', async ({ page }) => {

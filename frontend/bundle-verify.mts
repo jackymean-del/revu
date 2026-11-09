@@ -53,7 +53,8 @@ const statics = (f: string, seen: Set<string>): Set<string> => {
 const entry = readFileSync(join(DIST, scripts[0]), 'utf8')
 // Screens are the chunks the entry imports on demand: import("./Marks-x.js").
 const screens = [...new Set([...entry.matchAll(/import\(["'`]\.\/([A-Z][\w-]*\.js)["'`]\)/g)].map((m) => `assets/${m[1]}`))]
-const lazy = (readFileSync(join('src', 'router.tsx'), 'utf8').match(/lazyRouteComponent\(/g) ?? []).length
+// One chunk per screen module; two routes may open the same screen.
+const lazy = new Set([...readFileSync(join('src', 'router.tsx'), 'utf8').matchAll(/lazyRouteComponent\(\(\) => import\('([^']+)'\)/g)].map((m) => m[1])).size
 ok(screens.length === lazy, 'every lazy screen in the router is measured', `${screens.length} of ${lazy}`)
 let worst = { name: '', size: 0 }
 for (const s of screens) {

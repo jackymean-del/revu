@@ -346,6 +346,45 @@ func TestAnalysis(t *testing.T) {
 		}
 	})
 
+	// A second section of the same grade, with one student of its own.
+	sectionB := one(`INSERT INTO sections (org_id, branch_id, level_id, year_id, name) VALUES ($1, $2, $3, $4, 'B') RETURNING id`, a.ID, a.BranchID, a.LevelID, a.YearID)
+	zoe := one(`INSERT INTO students (org_id, admission_no, name) VALUES ($1, 'B-1', 'Zoe Paul') RETURNING id`, a.ID)
+	one(`INSERT INTO enrolments (org_id, student_id, section_id, year_id, roll_no) VALUES ($1, $2, $3, $4, '1') RETURNING id`, a.ID, zoe, sectionB, a.YearID)
+	both := "?sectionIds=" + a.SectionID + "," + sectionB + "&periodId=" + a.PeriodID
+
+	t.Run("several sections read as one table, each row naming its section", func(t *testing.T) {
+		var s2 analysis.Summary
+		cara.must(200, "GET", "/v1/analysis/summary"+both, nil).into(&s2)
+		// Cara is class teacher of A only: B is counts for her, so B's rows stay out.
+		if len(s2.Students) != 5 {
+			t.Fatalf("class teacher of A sees %d rows", len(s2.Students))
+		}
+		var all analysis.Summary
+		admin.must(200, "GET", "/v1/analysis/summary"+both, nil).into(&all)
+		if len(all.Students) != 6 || all.Access != "full" {
+			t.Fatalf("admin: %d rows, access %s", len(all.Students), all.Access)
+		}
+		z := row2(all, zoe)
+		if z.Section != "Grade 6 B" || z.AdmissionNo != "B-1" || row2(all, kiran).Section != "Grade 6 A" {
+			t.Fatalf("sections %q, %q; admission %q", z.Section, row2(all, kiran).Section, z.AdmissionNo)
+		}
+		// Zoe has no marks: not assessed, never zero; the class figures stay A's.
+		if c := z.Subjects[a.SubjectID]; c.State != "not_assessed" || subject2(all, a.SubjectID).Average != "59.00" || subject2(all, a.SubjectID).Taking != 6 {
+			t.Fatalf("zoe %+v, mathematics %+v", c, subject2(all, a.SubjectID))
+		}
+		admin.must(422, "GET", "/v1/analysis/summary?sectionIds=&periodId="+a.PeriodID, nil)
+		outsider.must(404, "GET", "/v1/analysis/summary"+both, nil)
+		r := admin.must(200, "GET", "/v1/analysis/summary.xlsx"+both, nil)
+		f, err := excelize.OpenReader(bytes.NewReader(r.body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, _ := f.GetRows("Aggregate")
+		if !strings.Contains(strings.Join(rows[2], "|"), "Section") {
+			t.Fatalf("no section column: %v", rows[2])
+		}
+	})
+
 	t.Run("a page of analysis takes few round trips (D30)", func(t *testing.T) {
 		cfg := appPool.Config()
 		trips := &counter{}
@@ -367,6 +406,13 @@ func TestAnalysis(t *testing.T) {
 		}
 		if n > summaryTrips {
 			t.Errorf("summary took %d round trips, over %d", n, summaryTrips)
+		}
+		ad := caller{t, traced, admin.user, a.ID}
+		ad.must(200, "GET", "/v1/analysis/summary"+both, nil)
+		trips.reset()
+		ad.must(200, "GET", "/v1/analysis/summary"+both, nil)
+		if n, _ = trips.reset(); n > summaryTrips {
+			t.Errorf("two sections took %d round trips, over %d", n, summaryTrips)
 		}
 		tm := caller{t, traced, tom.user, a.ID}
 		tm.must(200, "GET", "/v1/analysis/assessment?assessmentId="+paper+"&sectionId="+a.SectionID, nil)

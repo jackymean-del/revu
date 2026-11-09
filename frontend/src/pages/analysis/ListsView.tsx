@@ -10,6 +10,7 @@ export function ListsView({ summary }: { summary: Summary }) {
   const noun = { one: t('course.subject', { lower: true }), many: t('course.subject', { count: 2, lower: true }) }
   const rows = new Map(summary.students.map((s) => [s.id, s]))
   const names = new Map(summary.subjects.map((s) => [s.id, s.name]))
+  const several = new Set(summary.students.map((r) => r.sectionId)).size > 1
   if (summary.settings.lists.length === 0) return <p className="text-sm text-muted">No lists are set up. An administrator adds them under Settings.</p>
   return (
     <div className="space-y-4">
@@ -32,6 +33,7 @@ export function ListsView({ summary }: { summary: Summary }) {
                   <thead>
                     <tr>
                       <th className={th}>{t('person.student')}</th>
+                      {several && <th className={th}>{t('group.section')}</th>}
                       {cols.map((s) => (
                         <th key={s.id} className={`${th} text-right`}>
                           {names.get(s.id)}
@@ -47,6 +49,7 @@ export function ListsView({ summary }: { summary: Summary }) {
                           <span className="mr-2 inline-block w-7 tabular-nums text-muted">{e.rollNo}</span>
                           {e.name}
                         </th>
+                        {several && <td className={`${td} whitespace-nowrap text-muted`}>{e.section}</td>}
                         {cols.map((s) => {
                           const c = e.subjects.includes(s.id) ? rows.get(e.studentId)?.subjects[s.id] : undefined
                           return (

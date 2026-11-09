@@ -8,9 +8,12 @@ import { useT } from '../../lib/terminology/terms-context'
 const select = 'rounded-md border border-line bg-white px-2 py-1.5 text-sm'
 
 /** The reteach list of one assessment for the section (B8.7), with each part of the paper's share below mastery and the teacher's decision. */
-export function ReteachPanel({ orgId, sectionId, periodId }: { orgId: string; sectionId: string; periodId: string }) {
+export function ReteachPanel({ orgId, sections, periodId }: { orgId: string; sections: { id: string; name: string }[]; periodId: string }) {
   const t = useT()
   const qc = useQueryClient()
+  // A reteach list is for one section: the first chosen, or the one picked here.
+  const [sectionPick, setSectionPick] = useState('')
+  const sectionId = sections.some((x) => x.id === sectionPick) ? sectionPick : (sections[0]?.id ?? '')
   const assessments = useQuery({
     queryKey: ['assessments', orgId, { sectionId, periodId }],
     queryFn: ({ signal }) => listAssessments(orgId, { sectionId, periodId }, signal),
@@ -36,6 +39,18 @@ export function ReteachPanel({ orgId, sectionId, periodId }: { orgId: string; se
 
   return (
     <section aria-label="Reteach" className="space-y-4">
+      {sections.length > 1 && (
+        <label className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+          {t('group.section')}
+          <select className={select} value={sectionId} onChange={(e) => setSectionPick(e.target.value)}>
+            {sections.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="flex flex-wrap items-center gap-2 text-sm font-semibold">
         Assessment
         <select className={select} value={assessmentId} onChange={(e) => setPicked(e.target.value)}>

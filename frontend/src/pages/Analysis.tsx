@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { download, getAnalysisSummary, listStructure, type Period, type TeachingAssignment } from '../api/client'
+import { analysisQuery, download, getAnalysisSummary, listStructure, type Period, type TeachingAssignment } from '../api/client'
 import { ApiError } from '../api/problem'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
@@ -14,6 +14,8 @@ import { SettingsPanel } from './analysis/SettingsPanel'
 
 const select = 'rounded-md border border-line bg-white px-2 py-1.5 text-sm'
 const button = 'rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
+const chip = (on: boolean) =>
+  `min-w-9 rounded-md border px-2.5 py-1.5 text-sm font-semibold ${on ? 'border-brand bg-brand text-white' : 'border-line bg-white text-ink hover:bg-mist'}`
 
 type Tab = 'aggregate' | 'bands' | 'lists' | 'ranges' | 'reteach' | 'settings'
 
@@ -36,18 +38,28 @@ export function Analysis() {
     queryFn: ({ signal }) => listStructure<TeachingAssignment>(orgId, 'teaching-assignments', { staffId: current!.staffId! }, signal),
     enabled: !!orgId && !leads && !!current?.staffId,
   }).data
-  const [pick, setPick] = useState({ sectionId: '', periodId: '', basis: '' })
+  const [pick, setPick] = useState({ levelId: '', letters: [] as string[], periodId: '', basis: '' })
   const [tab, setTab] = useState<Tab>('aggregate')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
 
   const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
   const sections = names.sections.filter((s) => s.yearId === latestYear && (leads || mine?.some((m) => m.sectionId === s.id)))
-  const sectionId = pick.sectionId || sections[0]?.id || ''
-  const yearPeriods = periods.filter((p) => p.yearId === (names.byId(sectionId)?.yearId ?? latestYear)).sort((a, b) => a.seq - b.seq)
+  // Class first (one, or all), then any of its sections (one, several, or all).
+  const levels = names.levels.filter((l) => sections.some((s) => s.levelId === l.id))
+  const levelId = pick.levelId === 'all' ? 'all' : pick.levelId || levels[0]?.id || ''
+  const inLevel = sections.filter((s) => levelId === 'all' || s.levelId === levelId)
+  const letters = [...new Set(inLevel.map((s) => s.name))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  const chosen = inLevel.filter((s) => pick.letters.length === 0 || pick.letters.includes(s.name))
+  const sectionIds = chosen.map((s) => s.id)
+  const yearPeriods = periods.filter((p) => p.yearId === latestYear).sort((a, b) => a.seq - b.seq)
   const periodId = pick.periodId || yearPeriods[0]?.id || ''
-  const ready = !!(orgId && sectionId && periodId)
-  const q = { sectionId, periodId, basis: pick.basis }
+  const ready = !!(orgId && sectionIds.length && periodId)
+  const q = { sectionIds, periodId, basis: pick.basis }
+  const toggle = (letter: string) => {
+    const next = pick.letters.includes(letter) ? pick.letters.filter((x) => x !== letter) : [...pick.letters, letter]
+    setPick({ ...pick, letters: next.length === letters.length ? [] : next })
+  }
   const packTab = tab === 'aggregate' || tab === 'bands' || tab === 'lists' || tab === 'ranges'
 
   const summary = useQuery({
@@ -60,7 +72,8 @@ export function Analysis() {
   if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
-  const sectionName = names.byId(sectionId) ? names.name(names.byId(sectionId)!) : ''
+  const levelName = levelId === 'all' ? 'All' : (levels.find((l) => l.id === levelId)?.name ?? '')
+  const sectionName = chosen.length === 1 ? names.name(chosen[0]) : `${levelName}${pick.letters.length ? ' ' + pick.letters.join('') : ''}`
   const periodName = yearPeriods.find((p) => p.id === periodId)?.name ?? ''
   const data = summary.data
   const basisName = (code: string, name: string) => (code === '' ? `${t('period.term')} result` : name)
@@ -77,8 +90,7 @@ export function Analysis() {
     setBusy(true)
     setNote(null)
     try {
-      const params = new URLSearchParams(pick.basis ? q : { sectionId, periodId })
-      await download(orgId, `/v1/analysis/summary.xlsx?${params}`, `analysis-${sectionName.replace(/\s+/g, '-')}-${periodName.replace(/\s+/g, '-')}.xlsx`)
+      await download(orgId, `/v1/analysis/summary.xlsx?${analysisQuery(q)}`, `analysis-${sectionName.replace(/\s+/g, '-')}-${periodName.replace(/\s+/g, '-')}.xlsx`)
       setNote({ text: 'The workbook is downloaded.' })
     } catch (e) {
       setNote({ text: e instanceof ApiError ? e.message : 'Not downloaded. Try again.', error: true })
@@ -92,25 +104,40 @@ export function Analysis() {
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">Analysis</h1>
         <p className="mt-1 max-w-3xl text-muted">
-          How a {t('group.section', { lower: true })} did: every {t('course.subject', { lower: true })} side by side, how many are in each band, who needs a warning or an
+          How a {t('group.level', { lower: true })}, some of its {t('group.section', { count: 2, lower: true })} or the whole {t('org.institution', { lower: true })} did: every{' '}
+          {t('course.subject', { lower: true })} side by side, how many are in each band, who needs a warning or an
           undertaking, and which parts of a paper to teach again. Absent, withheld and not assessed are never counted as zero.
         </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm font-semibold">
-          {t('group.section')}
-          <select className={select} value={sectionId} onChange={(e) => setPick({ sectionId: e.target.value, periodId: '', basis: '' })}>
-            {sections.map((s) => (
-              <option key={s.id} value={s.id}>
-                {names.name(s)}
+          {t('group.level')}
+          <select aria-label={t('group.level')} className={select} value={levelId} onChange={(e) => setPick({ ...pick, levelId: e.target.value, letters: [] })}>
+            <option value="all">All {t('group.level', { count: 2, lower: true })}</option>
+            {levels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
               </option>
             ))}
           </select>
         </label>
+        <div role="group" aria-label={t('group.section', { count: 2 })} className="flex flex-col gap-1 text-sm font-semibold">
+          <span aria-hidden="true">{t('group.section', { count: 2 })}</span>
+          <div className="flex flex-wrap gap-1">
+            <button type="button" aria-pressed={pick.letters.length === 0} onClick={() => setPick({ ...pick, letters: [] })} className={chip(pick.letters.length === 0)}>
+              All
+            </button>
+            {letters.map((x) => (
+              <button key={x} type="button" aria-pressed={pick.letters.includes(x)} onClick={() => toggle(x)} className={chip(pick.letters.includes(x))}>
+                {x}
+              </button>
+            ))}
+          </div>
+        </div>
         <label className="flex flex-col gap-1 text-sm font-semibold">
           {t('period.term')}
-          <select className={select} value={periodId} onChange={(e) => setPick({ ...pick, sectionId, periodId: e.target.value })}>
+          <select className={select} value={periodId} onChange={(e) => setPick({ ...pick, periodId: e.target.value })}>
             {yearPeriods.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -121,7 +148,7 @@ export function Analysis() {
         {packTab && data && data.bases.length > 1 && (
           <label className="flex flex-col gap-1 text-sm font-semibold">
             Based on
-            <select className={select} value={pick.basis} onChange={(e) => setPick({ ...pick, sectionId, periodId, basis: e.target.value })}>
+            <select className={select} value={pick.basis} onChange={(e) => setPick({ ...pick, periodId, basis: e.target.value })}>
               {data.bases.map((b) => (
                 <option key={b.code} value={b.code}>
                   {basisName(b.code, b.name)}
@@ -157,11 +184,11 @@ export function Analysis() {
       )}
 
       {!ready ? (
-        <p className="text-sm text-muted">There is no {t('group.section', { lower: true })} you can analyse yet.</p>
+        <p className="text-sm text-muted">Choose at least one {t('group.section', { lower: true })} you can see.</p>
       ) : tab === 'settings' ? (
         <SettingsPanel orgId={orgId} />
       ) : tab === 'reteach' ? (
-        <ReteachPanel orgId={orgId} sectionId={sectionId} periodId={periodId} />
+        <ReteachPanel orgId={orgId} sections={chosen.map((s) => ({ id: s.id, name: names.name(s) }))} periodId={periodId} />
       ) : summary.isPending ? (
         <p className="text-sm text-muted">Loading</p>
       ) : summary.isError ? (

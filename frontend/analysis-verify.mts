@@ -7,7 +7,7 @@
  * server's rules; every server action and status has a label.
  */
 import { readFileSync } from 'node:fs'
-import { ACTION, below, checkSettings, describeRule, hundredths, rangeIndex, ranges, RETEACH_STATUS, sortRows, type Settings, type StudentRow } from './src/lib/analysis.ts'
+import { ACTION, below, checkSettings, describeRule, hundredths, nextSort, rangeIndex, ranges, RETEACH_STATUS, sortRows, type Settings, type Sort, type StudentRow } from './src/lib/analysis.ts'
 
 let fail = 0
 const ok = (cond: boolean, label: string, extra = '') => {
@@ -31,10 +31,31 @@ for (let i = 0; i <= 10000; i++) {
 }
 ok(gaps === 0, 'ranges cover 0 to 100 with no gap or overlap')
 
-const row = (name: string, roll: string, pct?: string): StudentRow => ({ id: name, name, rollNo: roll, subjects: {}, total: pct ? { state: 'complete', pct } : { state: 'blocked' } })
-const rows = [row('a', '2', '70.5'), row('b', '10', '91'), row('c', '1'), row('d', '3', '91')]
-ok(sortRows(rows, 'roll').map((r) => r.name).join('') === 'cadb', 'roll order is numeric')
-ok(sortRows(rows, 'total').map((r) => r.name).join('') === 'dbac', 'by total: highest first, ties by roll, no number last')
+const row = (name: string, roll: string, pct?: string, sec = 'Class 10 A', adm = '', maths?: string): StudentRow => ({
+  id: name, name, rollNo: roll, admissionNo: adm, sectionId: sec, section: sec,
+  subjects: maths ? { m: { state: 'complete', pct: maths } } : { m: { state: 'blocked' } },
+  total: pct ? { state: 'complete', pct } : { state: 'blocked' },
+})
+const rows = [
+  row('Asha', '2', '70.5', 'Class 10 A', 'IK-0007', '40'),
+  row('bina', '10', '91', 'Class 10 A', 'IK-0003', '95.5'),
+  row('Chetan', '1', undefined, 'Class 10 A', 'IK-0010'),
+  row('Dev', '3', '91', 'Class 10 A', 'IK-0001', '60'),
+  row('Esha', '1', '55', 'Class 10 B', 'IK-0002', '39.99'),
+]
+const by = (key: Sort['key'], dir: Sort['dir']) => sortRows(rows, { key, dir }).map((r) => r.name).join(',')
+ok(by('roll', 'asc') === 'Chetan,Asha,Dev,bina,Esha', 'roll: section first, then roll numbers as numbers', by('roll', 'asc'))
+ok(by('roll', 'desc') === 'Esha,bina,Dev,Asha,Chetan', 'roll reversed')
+ok(by('name', 'asc') === 'Asha,bina,Chetan,Dev,Esha' && by('name', 'desc') === 'Esha,Dev,Chetan,bina,Asha', 'names A to Z and back, ignoring case')
+ok(by('admission', 'asc') === 'Dev,Esha,bina,Asha,Chetan', 'admission numbers in order', by('admission', 'asc'))
+ok(by('total', 'desc') === 'Dev,bina,Asha,Esha,Chetan', 'total highest first, ties by roll, withheld last', by('total', 'desc'))
+ok(by('total', 'asc') === 'Esha,Asha,Dev,bina,Chetan', 'total lowest first, withheld still last', by('total', 'asc'))
+ok(by('subject:m', 'desc') === 'bina,Dev,Asha,Esha,Chetan', 'a subject sorts by its exact percentage', by('subject:m', 'desc'))
+ok(by('section', 'desc').startsWith('Esha'), 'by section')
+ok(sortRows(rows, { key: 'total', dir: 'desc' }).length === rows.length, 'sorting keeps every row')
+ok(JSON.stringify(nextSort({ key: 'roll', dir: 'asc' }, 'subject:m')) === '{"key":"subject:m","dir":"desc"}', 'a number column starts highest first')
+ok(JSON.stringify(nextSort({ key: 'roll', dir: 'asc' }, 'name')) === '{"key":"name","dir":"asc"}', 'a word column starts A to Z')
+ok(JSON.stringify(nextSort({ key: 'name', dir: 'asc' }, 'name')) === '{"key":"name","dir":"desc"}', 'the same column flips')
 
 // The pilot school's own two lists read as staff say them.
 const noun = { one: 'subject', many: 'subjects' }

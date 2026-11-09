@@ -1,3 +1,4 @@
+import { useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { listStructure, type Branch, type Level, type Section, type Staff, type StructurePath, type Subject, type SubjectGroup, type Year } from '../api/client'
@@ -50,7 +51,9 @@ export function Structure() {
   const { current, loading } = useOrg()
   const orgId = current?.id
   const canEdit = !!current?.roles.includes('admin')
-  const [tab, setTab] = useState<Tab>('years')
+  // Each way in starts on its own tab: grades and sections, years and terms, or subjects.
+  const path = useRouterState({ select: (s) => s.location.pathname })
+  const [tab, setTab] = useState<Tab>(path.endsWith('/subjects') ? 'subjects' : path.endsWith('/years') ? 'years' : 'levels')
 
   const years = useChoices<Year>(orgId, 'years')
   const levels = useChoices<Level>(orgId, 'levels')

@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { getSetup } from '../api/client'
 import { SignInPrompt } from '../components/Account'
 import { Dashboard } from '../components/Dashboard'
+import { Icon } from '../components/Icon'
+import { useSetup } from '../lib/progress'
+import { cardFact, modules, nextStep, statuses, visiblePages } from '../lib/journey'
 import { useAuthState } from '../lib/auth-context'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
@@ -13,14 +14,14 @@ const card = 'rounded-xl border border-line bg-white p-5'
 export function Home() {
   const t = useT()
   const auth = useAuthState()
-  const { current, orgs, loading, error, unreachable, userId, platformOwner, groups } = useOrg()
+  const { current, loading, error, unreachable, userId, platformOwner, groups } = useOrg()
   const orgId = current?.id ?? ''
   const roles = current?.roles ?? []
   const isAdmin = roles.includes('admin')
   const teaches = roles.includes('teacher') || roles.includes('class_teacher')
   const leads = roles.some((r) => r === 'admin' || r === 'principal' || r === 'coordinator')
-  const setup = useQuery({ queryKey: ['setup', orgId], queryFn: ({ signal }) => getSetup(orgId, signal), enabled: !!orgId })
-  const shell = (children: React.ReactNode) => <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10">{children}</div>
+  const setup = useSetup()
+  const shell = (children: React.ReactNode) => <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">{children}</div>
 
   if (auth.enabled && auth.loaded && !auth.signedIn)
     return shell(
@@ -76,67 +77,108 @@ export function Home() {
     )
 
   const s = setup.data
-  const steps = s
-    ? [
-        { done: s.years > 0 && s.periods > 0, text: `Add the ${t('period.year', { lower: true })} and its ${t('period.term', { count: 2, lower: true })}` },
-        { done: s.levels > 0 && s.sections > 0, text: `Add ${t('group.level', { count: 2, lower: true })} and ${t('group.section', { count: 2, lower: true })}` },
-        { done: s.subjects > 0, text: `Choose ${t('course.subject', { count: 2, lower: true })}` },
-        { done: s.invitations > 0 || s.staff > 1, text: 'Invite staff' },
-        { done: s.students > 0, text: `Import ${t('person.student', { count: 2, lower: true })}` },
-      ]
-    : []
+  const ms = modules(t)
+  const next = nextStep(ms, s, roles, t)
+  const status = statuses(ms, s, roles, t)
 
   return shell(
     <>
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.08em] text-subtle">{current.name}</p>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Home</h1>
-        {orgs.length > 1 && <p className="mt-1 text-sm text-muted">You belong to {orgs.length}; switch at the top right.</p>}
       </div>
 
-      {isAdmin && s && !s.done && (
-        <section aria-labelledby="setup-heading" className={`${card} space-y-3 border-brand/40 print:hidden`}>
-          <h2 id="setup-heading" className="font-extrabold">
-            Finish setting up
-          </h2>
-          <ul className="space-y-1 text-sm">
-            {steps.map((x) => (
-              <li key={x.text} className="flex items-center gap-2">
-                <span aria-hidden="true" className={`grid size-5 place-items-center rounded-full text-xs font-bold ${x.done ? 'bg-brand text-white' : 'border border-line text-subtle'}`}>
-                  {x.done ? '✓' : ''}
-                </span>
-                <span className={x.done ? 'text-muted line-through' : ''}>{x.text}</span>
-                <span className="sr-only">{x.done ? '(done)' : '(to do)'}</span>
-              </li>
-            ))}
-          </ul>
-          <Link to="/setup" className="inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-            Continue setup
+      {next && (
+        <section aria-labelledby="next-heading" className="flex flex-wrap items-center gap-4 rounded-2xl bg-brand p-5 text-white shadow-[0_8px_30px_rgba(104,93,188,0.25)] print:hidden">
+          <div className="min-w-0 flex-1">
+            <h2 id="next-heading" className="text-xs font-bold uppercase tracking-[0.1em] text-white/75">
+              Next step
+            </h2>
+            <p className="mt-1 text-xl font-extrabold">{next.text}</p>
+            <p className="mt-0.5 text-sm text-white/80">
+              Step {ms.find((m) => m.key === next.module)?.n} of 8, {ms.find((m) => m.key === next.module)?.title}
+            </p>
+          </div>
+          <Link to={next.to} className="flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-base font-bold text-brand hover:bg-mist">
+            Start
+            <Icon name="arrow" size={18} />
           </Link>
         </section>
       )}
 
+      {(
+        [
+          { id: 'master', title: 'Master', note: 'Set up once, changed when something changes', cols: 'sm:grid-cols-2' },
+          { id: 'exams', title: 'Exam steps', note: 'Each term, in this order', cols: 'sm:grid-cols-2 lg:grid-cols-3' },
+        ] as const
+      ).map((g) => {
+        const list = ms.filter((m) => m.group === g.id)
+        return (
+          <section key={g.id} aria-labelledby={`${g.id}-heading`}>
+            <div className="mb-2 flex items-baseline gap-3">
+              <h2 id={`${g.id}-heading`} className="font-extrabold">
+                {g.title}
+              </h2>
+              <p className="text-sm text-subtle">{g.note}</p>
+            </div>
+            <ol className={`grid gap-3 ${g.cols}`}>
+              {list.map((m) => {
+                const st = status[m.key]
+                const pages = visiblePages(m, roles)
+                const fact = st === 'later' ? '' : cardFact(m.key, s, t)
+                const body = (
+                  <>
+                    <span className="flex items-center justify-between gap-2">
+                      <span
+                        className={`grid size-9 place-items-center rounded-xl ${st === 'next' ? 'bg-brand text-white' : st === 'done' ? 'bg-mist text-brand' : 'bg-canvas text-muted'}`}
+                      >
+                        <Icon name={m.icon} />
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${CHIP[st].className}`}>
+                        {st === 'done' && <Icon name="check" size={12} className="mr-0.5 inline" />}
+                        {CHIP[st].text}
+                      </span>
+                    </span>
+                    <span className="mt-3 block text-xs font-bold text-subtle">Step {m.n}</span>
+                    <span className="block text-base font-extrabold leading-tight text-ink">{m.title}</span>
+                    <span className="mt-1 block text-sm leading-snug text-muted">{m.blurb}</span>
+                    {fact && <span className="mt-2 block text-xs font-semibold text-subtle">{fact}</span>}
+                  </>
+                )
+                const box = `flex h-full flex-col rounded-2xl border bg-white p-4 text-left ${
+                  st === 'next' ? 'border-brand ring-2 ring-brand/20' : 'border-line'
+                }`
+                return (
+                  <li key={m.key}>
+                    {st !== 'later' && pages.length > 0 ? (
+                      <Link to={pages[0].to} className={`${box} transition hover:-translate-y-0.5 hover:border-brand hover:shadow-md`}>
+                        {body}
+                      </Link>
+                    ) : (
+                      <div className={`${box} ${st === 'later' ? 'opacity-60' : ''}`} aria-disabled="true">
+                        {body}
+                      </div>
+                    )}
+                  </li>
+                )
+          })}
+            </ol>
+          </section>
+        )
+      })}
+
       <Dashboard orgId={orgId} orgName={current.name} canAct={isAdmin} canPrint={leads} />
 
       {teaches && !current.staffId && (
-        <p className={`${card} text-sm text-muted`}>Your sign-in is not linked to a staff record yet. Ask your administrator to link it in People.</p>
-      )}
-      {teaches && <p className="text-xs text-subtle print:hidden">Marks entry for your classes arrives with the next release.</p>}
-
-      {isAdmin && (
-        <nav aria-label="Shortcuts" className="flex flex-wrap gap-2 text-sm print:hidden">
-          {[
-            { to: '/people', label: `Import ${t('person.student', { count: 2, lower: true })}` },
-            { to: '/settings/structure', label: 'Structure' },
-            { to: '/settings/words', label: 'Words' },
-            { to: '/settings/history', label: 'History' },
-          ].map((l) => (
-            <Link key={l.to} to={l.to} className="rounded-lg border border-line bg-white px-3 py-2 font-semibold text-brand hover:bg-mist">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+        <p className={`${card} text-sm text-muted`}>Your sign-in is not linked to a staff record yet. Ask your administrator to link it in {`${t('person.student', { count: 2 })} and staff`}.</p>
       )}
     </>,
   )
 }
+
+const CHIP = {
+  done: { text: 'Done', className: 'bg-mist text-brand' },
+  next: { text: 'Next', className: 'bg-brand text-white' },
+  todo: { text: 'To do', className: 'bg-canvas text-muted' },
+  later: { text: 'Coming soon', className: 'bg-canvas text-subtle' },
+} as const

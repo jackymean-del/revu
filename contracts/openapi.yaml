@@ -3246,7 +3246,7 @@ paths:
       tags: [analysis]
       parameters:
         - $ref: "#/components/parameters/OrgId"
-        - $ref: "#/components/parameters/SectionQuery"
+        - $ref: "#/components/parameters/SectionsQuery"
         - $ref: "#/components/parameters/PeriodQuery"
         - $ref: "#/components/parameters/BasisQuery"
       responses:
@@ -3265,7 +3265,7 @@ paths:
       tags: [analysis]
       parameters:
         - $ref: "#/components/parameters/OrgId"
-        - $ref: "#/components/parameters/SectionQuery"
+        - $ref: "#/components/parameters/SectionsQuery"
         - $ref: "#/components/parameters/PeriodQuery"
         - $ref: "#/components/parameters/BasisQuery"
       responses:
@@ -3337,6 +3337,13 @@ components:
       schema:
         type: string
         format: uuid
+    SectionsQuery:
+      name: sectionIds
+      in: query
+      required: true
+      description: The sections, comma separated, up to 60 of one year; their students read as one table.
+      schema:
+        type: string
     PeriodQuery:
       name: periodId
       in: query
@@ -4213,7 +4220,7 @@ components:
           format: uuid
     SetupStatus:
       type: object
-      required: [years, periods, levels, sections, subjects, levelSubjects, staff, students, invitations, done]
+      required: [years, periods, levels, sections, subjects, levelSubjects, staff, students, invitations, done, assessments, marks, schemes, results, reports]
       properties:
         years:
           type: integer
@@ -4237,6 +4244,20 @@ components:
         done:
           type: boolean
           description: An administrator has finished the setup steps.
+        assessments:
+          type: integer
+        marks:
+          type: integer
+          description: Marks entered, in any state but pending, counted up to 10000.
+        schemes:
+          type: integer
+          description: Published scheme versions.
+        results:
+          type: integer
+          description: Final subject results worked out, counted up to 10000.
+        reports:
+          type: integer
+          description: Report runs made.
     Tile:
       type: object
       required: [key, count, status, listable]
@@ -6150,7 +6171,7 @@ components:
           type: string
     AnalysisStudent:
       type: object
-      required: [id, name, subjects]
+      required: [id, name, sectionId, section, subjects]
       properties:
         id:
           type: string
@@ -6159,6 +6180,14 @@ components:
           type: string
         rollNo:
           type: string
+        admissionNo:
+          type: string
+        sectionId:
+          type: string
+          format: uuid
+        section:
+          type: string
+          description: The section as people say it, such as Class 10 A.
         subjects:
           type: object
           additionalProperties:
@@ -6167,7 +6196,7 @@ components:
           $ref: "#/components/schemas/AnalysisCell"
     AnalysisListEntry:
       type: object
-      required: [studentId, name, subjects]
+      required: [studentId, name, section, subjects]
       properties:
         studentId:
           type: string
@@ -6175,6 +6204,8 @@ components:
         name:
           type: string
         rollNo:
+          type: string
+        section:
           type: string
         totalPct:
           type: string

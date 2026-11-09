@@ -86,7 +86,7 @@ test('the owner switches to a preview of a role, and stops it', async ({ page })
   await expect(page.getByText(/Previewing as View only/)).toBeVisible()
   await page.getByRole('button', { name: 'Stop preview' }).click()
   await expect(page.getByText(/Previewing as/)).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'People' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Resources' })).toBeVisible()
   expect(seen.viewAs.at(-1)).toBeNull()
 })
 

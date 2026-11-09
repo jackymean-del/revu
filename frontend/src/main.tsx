@@ -8,7 +8,9 @@ import { TermsProvider } from './lib/terminology/TermsProvider'
 import { router } from './router'
 import './index.css'
 
-const queryClient = new QueryClient()
+// Data a screen just read is shown at once when it is opened again, and
+// refreshed in the background after 20 seconds.
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 20_000 } } })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

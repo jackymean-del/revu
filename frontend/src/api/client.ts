@@ -403,8 +403,14 @@ type AnalysisSettings = components['schemas']['AnalysisSettings']
 type AssessmentAnalysis = components['schemas']['AssessmentAnalysis']
 type ReteachInput = components['schemas']['ReteachInput']
 
-export const getAnalysisSummary = (orgId: string, q: { sectionId: string; periodId: string; basis?: string }, signal?: AbortSignal) =>
-  call<AnalysisSummary>(`/v1/analysis/summary?${new URLSearchParams(q.basis ? q : { sectionId: q.sectionId, periodId: q.periodId })}`, { orgId, signal })
+/** The query for an analysis of some sections: comma separated, the basis only when one is chosen. */
+export function analysisQuery(q: { sectionIds: string[]; periodId: string; basis?: string }): string {
+  const p = new URLSearchParams({ sectionIds: q.sectionIds.join(','), periodId: q.periodId })
+  if (q.basis) p.set('basis', q.basis)
+  return p.toString()
+}
+export const getAnalysisSummary = (orgId: string, q: { sectionIds: string[]; periodId: string; basis?: string }, signal?: AbortSignal) =>
+  call<AnalysisSummary>(`/v1/analysis/summary?${analysisQuery(q)}`, { orgId, signal })
 export const getAnalysisSettings = (orgId: string, signal?: AbortSignal) => call<AnalysisSettings>('/v1/analysis/settings', { orgId, signal })
 export const putAnalysisSettings = (orgId: string, body: AnalysisSettings) => call<AnalysisSettings>('/v1/analysis/settings', { orgId, method: 'PUT', body })
 export const getAssessmentAnalysis = (orgId: string, q: { assessmentId: string; sectionId: string }, signal?: AbortSignal) =>

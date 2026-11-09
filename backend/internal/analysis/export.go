@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -22,8 +23,12 @@ func exportPack(c fiber.Ctx, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	if err := audit.Record(c, audit.Entry{Action: "export", Entity: "analysis_pack", EntityID: c.Query("sectionId"),
-		After: map[string]string{"periodId": c.Query("periodId"), "basis": s.Basis}}); err != nil {
+	ids, err := sectionIDs(c)
+	if err != nil {
+		return err
+	}
+	if err := audit.Record(c, audit.Entry{Action: "export", Entity: "analysis_pack", EntityID: ids[0],
+		After: map[string]string{"periodId": c.Query("periodId"), "basis": s.Basis, "sections": strings.Join(ids, ",")}}); err != nil {
 		return err
 	}
 	c.Set(fiber.HeaderContentType, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -111,7 +116,17 @@ func workbook(s Summary) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	header := []any{word("person.roll_no"), word("person.student")}
+	several := false
+	for _, st := range s.Students {
+		if len(s.Students) > 0 && st.SectionID != s.Students[0].SectionID {
+			several = true
+			break
+		}
+	}
+	header := []any{word("person.roll_no"), word("person.admission_no"), word("person.student")}
+	if several {
+		header = append(header, word("group.section"))
+	}
 	for _, sub := range s.Subjects {
 		header = append(header, sub.Name+" %", sub.Name+" band")
 	}
@@ -123,7 +138,10 @@ func workbook(s Summary) ([]byte, error) {
 	}
 	headerRow := w.row
 	for _, st := range s.Students {
-		values := []any{st.RollNo, st.Name}
+		values := []any{st.RollNo, st.AdmissionNo, st.Name}
+		if several {
+			values = append(values, st.Section)
+		}
 		for _, sub := range s.Subjects {
 			cell, ok := st.Subjects[sub.ID]
 			if !ok {
@@ -148,7 +166,10 @@ func workbook(s Summary) ([]byte, error) {
 		{"Highest", func(x SubjectSummary) string { return x.Highest }},
 		{"Lowest", func(x SubjectSummary) string { return x.Lowest }},
 	} {
-		values := []any{"", line.label}
+		values := []any{"", "", line.label}
+		if several {
+			values = append(values, "")
+		}
 		for _, sub := range s.Subjects {
 			values = append(values, line.pick(sub), "")
 		}
@@ -157,7 +178,10 @@ func workbook(s Summary) ([]byte, error) {
 		}
 	}
 	if s.Basis == "" {
-		values := []any{"", "Passed"}
+		values := []any{"", "", "Passed"}
+		if several {
+			values = append(values, "")
+		}
 		for _, sub := range s.Subjects {
 			passed := ""
 			if sub.Complete > 0 {
@@ -172,8 +196,8 @@ func workbook(s Summary) ([]byte, error) {
 	if err := sign(w); err != nil {
 		return nil, err
 	}
-	top, _ := excelize.CoordinatesToCellName(3, headerRow+1)
-	_ = f.SetPanes("Aggregate", &excelize.Panes{Freeze: true, XSplit: 2, YSplit: headerRow, TopLeftCell: top, ActivePane: "bottomRight"})
+	top, _ := excelize.CoordinatesToCellName(4, headerRow+1)
+	_ = f.SetPanes("Aggregate", &excelize.Panes{Freeze: true, XSplit: 3, YSplit: headerRow, TopLeftCell: top, ActivePane: "bottomRight"})
 
 	// Bands.
 	w, err = open("Bands", "band counts", false)
@@ -241,7 +265,7 @@ func workbook(s Summary) ([]byte, error) {
 		if err := w.put([]any{describe(l.Rule)}, 0); err != nil {
 			return nil, err
 		}
-		header := []any{word("person.roll_no"), word("person.student")}
+		header := []any{word("person.roll_no"), word("person.student"), word("group.section")}
 		for _, sub := range s.Subjects {
 			header = append(header, sub.Name)
 		}
@@ -250,7 +274,7 @@ func workbook(s Summary) ([]byte, error) {
 			return nil, err
 		}
 		for _, e := range l.Students {
-			values := []any{e.RollNo, e.Name}
+			values := []any{e.RollNo, e.Name, e.Section}
 			for _, sub := range s.Subjects {
 				v := ""
 				for _, id := range e.Subjects {

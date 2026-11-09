@@ -2444,6 +2444,15 @@ export interface components {
             invitations: number;
             /** @description An administrator has finished the setup steps. */
             done: boolean;
+            assessments: number;
+            /** @description Marks entered, in any state but pending, counted up to 10000. */
+            marks: number;
+            /** @description Published scheme versions. */
+            schemes: number;
+            /** @description Final subject results worked out, counted up to 10000. */
+            results: number;
+            /** @description Report runs made. */
+            reports: number;
         };
         Tile: {
             /** @description What the tile counts; the app names it in the organisation's words. */
@@ -3476,6 +3485,11 @@ export interface components {
             id: string;
             name: string;
             rollNo?: string;
+            admissionNo?: string;
+            /** Format: uuid */
+            sectionId: string;
+            /** @description The section as people say it, such as Class 10 A. */
+            section: string;
             subjects: {
                 [key: string]: components["schemas"]["AnalysisCell"];
             };
@@ -3486,6 +3500,7 @@ export interface components {
             studentId: string;
             name: string;
             rollNo?: string;
+            section: string;
             totalPct?: string;
             subjects: string[];
         };
@@ -3604,6 +3619,8 @@ export interface components {
     };
     parameters: {
         SectionQuery: string;
+        /** @description The sections, comma separated, up to 60 of one year; their students read as one table. */
+        SectionsQuery: string;
         PeriodQuery: string;
         /** @description A component code to analyse instead of the term result. */
         BasisQuery: string;
@@ -7841,7 +7858,8 @@ export interface operations {
     analysisSummary: {
         parameters: {
             query: {
-                sectionId: components["parameters"]["SectionQuery"];
+                /** @description The sections, comma separated, up to 60 of one year; their students read as one table. */
+                sectionIds: components["parameters"]["SectionsQuery"];
                 periodId: components["parameters"]["PeriodQuery"];
                 /** @description A component code to analyse instead of the term result. */
                 basis?: components["parameters"]["BasisQuery"];
@@ -7870,7 +7888,8 @@ export interface operations {
     analysisSummaryXlsx: {
         parameters: {
             query: {
-                sectionId: components["parameters"]["SectionQuery"];
+                /** @description The sections, comma separated, up to 60 of one year; their students read as one table. */
+                sectionIds: components["parameters"]["SectionsQuery"];
                 periodId: components["parameters"]["PeriodQuery"];
                 /** @description A component code to analyse instead of the term result. */
                 basis?: components["parameters"]["BasisQuery"];

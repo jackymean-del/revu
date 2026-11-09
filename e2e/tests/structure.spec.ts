@@ -28,7 +28,7 @@ test('an administrator adds a year and is told why a used item cannot go', async
     return route.fulfill({ json: years })
   })
 
-  await page.goto('/settings/structure')
+  await page.goto('/settings/years')
   await expect(page.getByRole('tab', { name: 'Academic years and terms' })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByText('No academic years yet.')).toBeVisible()
 

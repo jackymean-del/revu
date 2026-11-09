@@ -36,6 +36,13 @@ type Demo struct {
 	PerSection int    // students in each section
 	Admission  string // admission number prefix
 	BirthYear  int    // of the first level's students
+	// ByLevel, when set, names the subjects of Subjects that level i takes;
+	// otherwise every level takes them all.
+	ByLevel func(i int) []string
+	// Exams, when set, gives the demo a whole term: three assessments in
+	// every subject with marks for every student, a published scheme, and
+	// results queued for the server to work out (see exams.go).
+	Exams bool
 }
 
 type choice struct {
@@ -66,6 +73,29 @@ var Demos = []Demo{
 		Subjects: []string{"Communication Skills", "Mathematics", "Physics", "Computer Science"},
 		Staff:    []string{"Dr. Meena Iyer", "Dr. Rahul Verma", "Dr. Sana Qureshi", "Dr. Thomas George", "Dr. Kavita Rao"},
 		Domain:   "lakeview.example", PerSection: 10, Admission: "LVU-", BirthYear: 2007,
+	},
+	{
+		// A whole school with a term's work done, for testing every step
+		// end to end: Classes 1 to 10, two sections each, 400 students.
+		ExternalID: "demo-ikids", Name: "iKids", Type: "school", Branch: "iKids main",
+		Year:   span{"2026-27", "2026-04-01", "2027-03-31"},
+		Terms:  []span{{"Term 1", "2026-04-01", "2026-09-30"}, {"Term 2", "2026-10-01", "2027-03-31"}},
+		Levels: []string{"Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"}, FirstSeq: 1,
+		Sections: []string{"A", "B"},
+		Subjects: []string{"English", "Mathematics", "Computer", "EVS", "Science", "Social Science"},
+		ByLevel: func(i int) []string {
+			if i < 5 {
+				return []string{"English", "Mathematics", "EVS", "Computer"}
+			}
+			return []string{"English", "Mathematics", "Science", "Social Science", "Computer"}
+		},
+		Choice: &choice{"Second language", []string{"Hindi", "Odia"}},
+		Staff: []string{"Anita Mohanty", "Bikash Sahoo", "Chitra Panda", "Debasis Rout", "Esha Mishra", "Gopal Behera", "Hema Nayak", "Ipsita Das",
+			"Jagannath Swain", "Kalpana Jena", "Lalit Pradhan", "Madhusmita Sethi", "Niranjan Patra", "Pallavi Tripathy", "Rajesh Samal", "Sangita Barik",
+			"Tapan Dash", "Upasana Biswal", "Vivek Senapati", "Yamini Acharya", "Ashok Mahapatra", "Bandita Rath", "Chinmay Parida", "Dipti Satapathy",
+			"Gitanjali Nanda", "Himanshu Lenka", "Jyotsna Kar", "Kishore Mallick", "Lopamudra Hota", "Manoj Dalai"},
+		Domain: "ikids.example", PerSection: 20, Admission: "IK-", BirthYear: 2020,
+		Exams: true,
 	},
 }
 
@@ -212,7 +242,14 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		if err != nil {
 			return r, err
 		}
-		for _, subject := range append(slices.Clone(subjects), options...) {
+		taught := subjects
+		if d.ByLevel != nil {
+			taught = nil
+			for _, name := range d.ByLevel(li) {
+				taught = append(taught, subjects[slices.Index(d.Subjects, name)])
+			}
+		}
+		for _, subject := range append(slices.Clone(taught), options...) {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO level_subjects (org_id, level_id, subject_id) SELECT $1, $2::uuid, $3::uuid
 				 WHERE NOT EXISTS (SELECT 1 FROM level_subjects WHERE level_id = $2::uuid AND subject_id = $3::uuid AND deleted_at IS NULL)`,
@@ -237,8 +274,10 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 				}
 			}
 		}
-		if err := unitTest(ctx, tx, org, year, firstTerm, level, subjects[slices.Index(d.Subjects, "Mathematics")]); err != nil {
-			return r, err
+		if !d.Exams {
+			if err := unitTest(ctx, tx, org, year, firstTerm, level, subjects[slices.Index(d.Subjects, "Mathematics")]); err != nil {
+				return r, err
+			}
 		}
 		for si, sname := range d.Sections {
 			section, err := ensure(ctx, tx,
@@ -257,7 +296,11 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 			n := li*len(d.Sections) + si
 			// A class teacher for the section, and a teacher for each subject.
 			assign := []struct{ staff, subject string }{{staff[n%len(staff)], ""}}
-			for j, subject := range subjects {
+			teach := taught
+			if d.Exams {
+				teach = append(slices.Clone(taught), options...) // a whole school has teachers for the languages too
+			}
+			for j, subject := range teach {
 				assign = append(assign, struct{ staff, subject string }{staff[(n+j+1)%len(staff)], subject})
 			}
 			for _, a := range assign {
@@ -306,6 +349,12 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 					return r, err
 				}
 			}
+		}
+	}
+
+	if d.Exams {
+		if err := seedExams(ctx, tx, d, org, year, firstTerm); err != nil {
+			return r, err
 		}
 	}
 

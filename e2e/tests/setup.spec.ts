@@ -59,8 +59,10 @@ async function tabTo(page: Page, name: string | RegExp) {
 test('an administrator sets up a new school with the keyboard only', async ({ page }) => {
   const { db, state } = fakeApi(page, ['admin'])
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Finish setting up' })).toBeVisible()
-  await tabTo(page, 'Continue setup')
+  // Home leads a new institution to the guided setup as its one next step.
+  await expect(page.getByRole('heading', { name: 'Next step' })).toBeVisible()
+  await expect(page.getByText('Set up your school in five short steps').first()).toBeVisible()
+  await tabTo(page, 'Start')
   await page.keyboard.press('Enter')
 
   await expect(page.getByRole('heading', { name: 'How you speak' })).toBeFocused()
@@ -124,6 +126,9 @@ test('a teacher sees Home with their classes and no settings', async ({ page }) 
   await expect(page.getByText('Mathematics')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Print' })).toHaveCount(0)
   const nav = page.getByRole('navigation', { name: 'Main' })
-  await expect(nav.getByRole('link')).toHaveText(['Home', 'Marks', 'Results', 'Analysis'])
-  await expect(page.getByRole('heading', { name: 'Finish setting up' })).toHaveCount(0)
+  // A teacher's menu: the steps they work in, by name; the numbers beside them are decoration.
+  const names = ['Home', 'Create exam', 'Evaluate exam', 'Scheme', 'Reports and analysis', 'System status']
+  await expect(nav.getByRole('link')).toHaveCount(names.length)
+  for (const name of names) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Getting started' })).toHaveCount(0)
 })

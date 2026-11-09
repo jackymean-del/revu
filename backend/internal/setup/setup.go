@@ -33,12 +33,19 @@ func load(ctx context.Context, tx pgx.Tx) (api.SetupStatus, error) {
 		       (SELECT count(*) FROM staff WHERE deleted_at IS NULL),
 		       (SELECT count(*) FROM students WHERE deleted_at IS NULL),
 		       (SELECT count(*) FROM invitations WHERE status = 'pending'),
-		       coalesce((SELECT (settings ->> 'setupDone')::boolean FROM orgs), false)`).
-		Scan(&s.Years, &s.Periods, &s.Levels, &s.Sections, &s.Subjects, &s.LevelSubjects, &s.Staff, &s.Students, &s.Invitations, &s.Done)
+		       coalesce((SELECT (settings ->> 'setupDone')::boolean FROM orgs), false),
+		       (SELECT count(*) FROM assessments WHERE deleted_at IS NULL),
+		       (SELECT count(*) FROM (SELECT 1 FROM evidence WHERE state <> 'pending' LIMIT 10000) e),
+		       (SELECT count(*) FROM schemes WHERE status = 'published' AND deleted_at IS NULL),
+		       (SELECT count(*) FROM (SELECT 1 FROM computed_results WHERE component_code = '_subject' AND state = 'complete' LIMIT 10000) r),
+		       (SELECT count(*) FROM report_runs)`).
+		Scan(&s.Years, &s.Periods, &s.Levels, &s.Sections, &s.Subjects, &s.LevelSubjects, &s.Staff, &s.Students, &s.Invitations, &s.Done,
+			&s.Assessments, &s.Marks, &s.Schemes, &s.Results, &s.Reports)
 	return s, err
 }
 
-// Counts are not sensitive, so any member may see them.
+// Counts are not sensitive, so any member may see them. Beyond setup they
+// say how far the year has come, for the next step on every screen.
 func status(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {

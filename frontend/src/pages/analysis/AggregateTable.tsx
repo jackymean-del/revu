@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { below, cellText, sortRows, type Order, type Summary } from '../../lib/analysis'
+import { below, cellText, nextSort, sortRows, type Sort, type SortKey, type Summary } from '../../lib/analysis'
 import { useT } from '../../lib/terminology/terms-context'
 
-const th = 'border-b border-line px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted'
+const th = 'border-b border-line px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted'
 const td = 'border-b border-line px-2 py-1.5 text-right tabular-nums'
 
 /** The lowest display threshold of the lists: a result below it is shaded, as on the lists. */
@@ -11,13 +11,39 @@ function watchPct(s: Summary): string {
   return ts.length ? ts.reduce((a, b) => (below(a, b) ? a : b)) : ''
 }
 
-/** The aggregate: one row per student, each subject's percentage and band, the total, and a footer of class figures. */
+/** A column heading that sorts the table by it; again, the other way. */
+function SortHead({ label, k, sort, onSort, right, sticky, sub }: { label: string; k: SortKey; sort: Sort; onSort: (k: SortKey) => void; right?: boolean; sticky?: boolean; sub?: string }) {
+  const on = sort.key === k
+  return (
+    <th scope="col" aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={`${th} ${right ? 'text-right' : 'text-left'} ${sticky ? 'sticky left-0 z-20 bg-white' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className={`inline-flex items-center gap-1 rounded px-1 py-0.5 uppercase hover:bg-mist hover:text-ink ${right ? 'flex-row-reverse' : ''} ${on ? 'text-brand' : ''}`}
+      >
+        <span>{label}</span>
+        <span aria-hidden="true" className={`text-[10px] ${on ? '' : 'opacity-30'}`}>
+          {on ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
+        </span>
+      </button>
+      {sub && <span className="block px-1 font-normal normal-case">{sub}</span>}
+    </th>
+  )
+}
+
+/**
+ * The aggregate: one row per student, each subject's percentage and band,
+ * the total, and a footer of class figures. Every column sorts, both ways,
+ * the whole row moving together.
+ */
 export function AggregateTable({ summary }: { summary: Summary }) {
   const t = useT()
-  const [order, setOrder] = useState<Order>('roll')
-  const rows = sortRows(summary.students, order)
+  const [sort, setSort] = useState<Sort>({ key: 'roll', dir: 'asc' })
+  const rows = sortRows(summary.students, sort)
   const watch = watchPct(summary)
   const full = summary.access === 'full'
+  const several = new Set(summary.students.map((r) => r.sectionId)).size > 1
+  const onSort = (k: SortKey) => setSort(nextSort(sort, k))
   const footer: [string, (x: Summary['subjects'][number]) => string | undefined][] = [
     ['Average', (x) => x.average],
     ['Median', (x) => x.median],
@@ -25,24 +51,16 @@ export function AggregateTable({ summary }: { summary: Summary }) {
     ['Lowest', (x) => x.lowest],
   ]
   if (summary.basis === '') footer.push(['Passed', (x) => (x.access === 'full' && x.complete > 0 ? `${x.passed} of ${x.complete}` : '')])
+  const lead = several ? 4 : 3
 
   return (
     <section aria-label="Aggregate" className="space-y-2">
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="text-muted">Order</span>
-        {(
-          [
-            ['roll', `${t('person.roll_no')}`],
-            ['total', 'Total, highest first'],
-          ] as [Order, string][]
-        ).map(([key, label]) => (
-          <label key={key} className="flex items-center gap-1">
-            <input type="radio" name="order" checked={order === key} disabled={key === 'total' && !full} onChange={() => setOrder(key)} />
-            {label}
-          </label>
-        ))}
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+        <span>
+          {rows.length} {t('person.student', { count: rows.length, lower: true })}. Click any heading to sort by it; click again for the other way.
+        </span>
         {watch && (
-          <span className="ml-auto flex items-center gap-1 text-xs text-muted">
+          <span className="ml-auto flex items-center gap-1">
             <span className="inline-block h-3 w-3 rounded-sm bg-amber-100 ring-1 ring-amber-300" /> below {watch}%
           </span>
         )}
@@ -51,24 +69,26 @@ export function AggregateTable({ summary }: { summary: Summary }) {
         <table className="w-full border-separate border-spacing-0 text-sm">
           <thead className="sticky top-0 z-10 bg-white">
             <tr>
-              <th className={`${th} sticky left-0 z-20 bg-white`}>{t('person.student')}</th>
+              <SortHead label={t('person.roll_no')} k="roll" sort={sort} onSort={onSort} />
+              <SortHead label={t('person.student')} k="name" sort={sort} onSort={onSort} sticky />
+              <SortHead label={t('person.admission_no')} k="admission" sort={sort} onSort={onSort} />
+              {several && <SortHead label={t('group.section')} k="section" sort={sort} onSort={onSort} />}
               {summary.subjects.map((s) => (
-                <th key={s.id} className={`${th} text-right`} title={s.max ? `Out of ${s.max}` : undefined}>
-                  {s.name}
-                  {s.max && summary.basis !== '' && <span className="block font-normal normal-case">out of {s.max}</span>}
-                </th>
+                <SortHead key={s.id} label={s.name} k={`subject:${s.id}`} sort={sort} onSort={onSort} right sub={s.max && summary.basis !== '' ? `out of ${s.max}` : undefined} />
               ))}
-              {full && <th className={`${th} text-right`}>Total</th>}
-              {full && <th className={`${th} text-right`}>%</th>}
+              {full && <th scope="col" className={`${th} text-right`}>Total</th>}
+              {full && <SortHead label="%" k="total" sort={sort} onSort={onSort} right />}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="hover:bg-canvas">
+                <td className="border-b border-line px-2 py-1.5 tabular-nums text-muted">{r.rollNo}</td>
                 <th scope="row" className="sticky left-0 border-b border-line bg-white px-2 py-1.5 text-left font-normal">
-                  <span className="mr-2 inline-block w-7 tabular-nums text-muted">{r.rollNo}</span>
                   {r.name}
                 </th>
+                <td className="border-b border-line px-2 py-1.5 tabular-nums text-muted">{r.admissionNo}</td>
+                {several && <td className="whitespace-nowrap border-b border-line px-2 py-1.5 text-muted">{r.section}</td>}
                 {summary.subjects.map((s) => {
                   const c = r.subjects[s.id]
                   const low = !!watch && below(c?.pct, watch)
@@ -79,11 +99,7 @@ export function AggregateTable({ summary }: { summary: Summary }) {
                     </td>
                   )
                 })}
-                {full && (
-                  <td className={`${td} text-muted`}>
-                    {r.total?.value ? `${r.total.value} / ${r.total.max}` : ''}
-                  </td>
-                )}
+                {full && <td className={`${td} text-muted`}>{r.total?.value ? `${r.total.value} / ${r.total.max}` : ''}</td>}
                 {full && (
                   <td className={`${td} font-semibold`}>
                     {cellText(r.total)}
@@ -96,7 +112,7 @@ export function AggregateTable({ summary }: { summary: Summary }) {
           <tfoot className="bg-canvas">
             {footer.map(([label, pick]) => (
               <tr key={label}>
-                <th scope="row" className="sticky left-0 border-b border-line bg-canvas px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
+                <th scope="row" colSpan={lead} className="sticky left-0 border-b border-line bg-canvas px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted">
                   {label}
                 </th>
                 {summary.subjects.map((s) => (
@@ -113,7 +129,7 @@ export function AggregateTable({ summary }: { summary: Summary }) {
       </div>
       <p className="text-xs text-muted">
         Percentages are of each result&apos;s own maximum. The total adds the {t('course.subject', { count: 2, lower: true })} each {t('person.student', { lower: true })} takes, so
-        its maximum follows their choices. Bands start at their lower edge: a result exactly on an edge is in the higher band.
+        its maximum follows their choices. Withheld and not assessed sort last either way. Bands start at their lower edge.
       </p>
     </section>
   )
