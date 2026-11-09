@@ -76,6 +76,13 @@ func loadTemplate(ctx context.Context, tx pgx.Tx) (templateOut, error) {
 	return t, nil
 }
 
+// TemplateConfig is the institution's report template, or the default: its
+// subject order is the order analysis screens use too.
+func TemplateConfig(ctx context.Context, tx pgx.Tx) (Config, error) {
+	t, err := loadTemplate(ctx, tx)
+	return t.Config, err
+}
+
 func getTemplate(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {

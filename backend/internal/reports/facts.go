@@ -40,6 +40,7 @@ type Component struct {
 	State string `json:"state"`
 	Value string `json:"value,omitempty"`
 	Max   string `json:"max"`
+	Pct   string `json:"pct,omitempty"`
 }
 
 // Subject is one subject's result as stored.
@@ -53,6 +54,7 @@ type Subject struct {
 	Pct             string      `json:"pct,omitempty"`
 	Grade           string      `json:"grade,omitempty"`
 	GradeDescriptor string      `json:"gradeDescriptor,omitempty"`
+	Passed          *bool       `json:"passed,omitempty"`
 	Stale           bool        `json:"stale,omitempty"`
 	Components      []Component `json:"components"`
 }
@@ -240,13 +242,13 @@ func Gather(ctx context.Context, tx pgx.Tx, sec results.Section, periodID string
 			row := Subject{ID: s.id, Name: s.name, State: "not_assessed", Components: []Component{}}
 			if x, ok := got[[2]string{st.ID, s.id}]; ok {
 				row.State, row.Reason, row.Value, row.Max, row.Pct, row.Grade, row.Stale = x.state, x.reason, x.value, x.max, x.pct, x.grade, x.stale
-				row.GradeDescriptor = x.detail.GradeDescriptor
+				row.GradeDescriptor, row.Passed = x.detail.GradeDescriptor, x.detail.Passed
 				for _, c := range x.detail.Components {
 					state := c.State
 					if state == "left_out" {
 						state = "not_assessed"
 					}
-					row.Components = append(row.Components, Component{Code: c.Code, Name: c.Name, State: state, Value: c.Value, Max: c.Max})
+					row.Components = append(row.Components, Component{Code: c.Code, Name: c.Name, State: state, Value: c.Value, Max: c.Max, Pct: c.Pct})
 				}
 			}
 			f.Subjects = append(f.Subjects, row)

@@ -3202,6 +3202,127 @@ paths:
                 type: string
         default:
           $ref: "#/components/responses/Problem"
+  /v1/analysis/settings:
+    get:
+      operationId: getAnalysisSettings
+      summary: The institution's analysis thresholds, ranges, criteria lists and sign-off lines, or the defaults.
+      tags: [analysis]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisSettings"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putAnalysisSettings
+      summary: Change the analysis settings. Needs the right to change schemes.
+      tags: [analysis]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisSettings"
+      responses:
+        "200":
+          description: The settings as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisSettings"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/analysis/summary:
+    get:
+      operationId: analysisSummary
+      summary: The analysis pack of a section for a period (B8.6.1) on the term result or one component; student rows only for subjects the viewer may see in full.
+      tags: [analysis]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/SectionQuery"
+        - $ref: "#/components/parameters/PeriodQuery"
+        - $ref: "#/components/parameters/BasisQuery"
+      responses:
+        "200":
+          description: The pack.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisSummary"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/analysis/summary.xlsx:
+    get:
+      operationId: analysisSummaryXlsx
+      summary: The analysis pack as a workbook with an aggregate sheet, a band sheet and one sheet per list, each with sign-off lines.
+      tags: [analysis]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/SectionQuery"
+        - $ref: "#/components/parameters/PeriodQuery"
+        - $ref: "#/components/parameters/BasisQuery"
+      responses:
+        "200":
+          description: The spreadsheet.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/analysis/assessment:
+    get:
+      operationId: analysisAssessment
+      summary: One assessment for one section, with each student's score and the reteach list (B8.7).
+      tags: [analysis]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: assessmentId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/SectionQuery"
+      responses:
+        "200":
+          description: The assessment.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentAnalysis"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/analysis/reteach:
+    put:
+      operationId: putReteach
+      summary: Mark a reteach item planned, done or not needed, or clear it.
+      tags: [analysis]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReteachInput"
+      responses:
+        "200":
+          description: The mark as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReteachInput"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -3209,6 +3330,26 @@ components:
       scheme: bearer
       description: The signed-in session token (shared bhusku sign-in).
   parameters:
+    SectionQuery:
+      name: sectionId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PeriodQuery:
+      name: periodId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BasisQuery:
+      name: basis
+      in: query
+      description: A component code to analyse instead of the term result.
+      schema:
+        type: string
     IncludeRemoved:
       name: includeRemoved
       in: query
@@ -5895,3 +6036,350 @@ components:
           items:
             type: string
             format: uuid
+    AnalysisRule:
+      type: object
+      additionalProperties: false
+      description: One criteria list (decision D32). Lists are checked in order and the first a student meets wins.
+      required: [name, action, on, belowPct, atLeast, showBelowPct]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        action:
+          type: string
+          enum: [undertaking, warning, retest, support]
+        "on":
+          type: string
+          enum: [subjects, overall]
+        belowPct:
+          type: string
+        atLeast:
+          type: integer
+          description: For subjects, how many must be below; ignored for overall.
+        showBelowPct:
+          type: string
+    AnalysisSettings:
+      type: object
+      additionalProperties: false
+      required: [masteryPct, reteachSharePct, minEvidence, ranges, lists, signoff]
+      properties:
+        masteryPct:
+          type: string
+          description: Below this share of a paper section's marks, a student needs another look.
+        reteachSharePct:
+          type: string
+          description: A paper section is listed when this share of students is below mastery.
+        minEvidence:
+          type: integer
+        ranges:
+          type: array
+          items:
+            type: string
+        lists:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisRule"
+        signoff:
+          type: array
+          description: Who signs the printed pack; empty for the class teacher and principal.
+          items:
+            type: string
+    AnalysisBand:
+      type: object
+      required: [label, count]
+      properties:
+        label:
+          type: string
+        count:
+          type: integer
+    AnalysisSubject:
+      type: object
+      required: [id, name, access, taking, complete, provisional, blocked, notAssessed, passed, failed, bands]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        access:
+          type: string
+          enum: [full, counts]
+        max:
+          type: string
+        taking:
+          type: integer
+        complete:
+          type: integer
+        provisional:
+          type: integer
+        blocked:
+          type: integer
+        notAssessed:
+          type: integer
+        average:
+          type: string
+        median:
+          type: string
+        highest:
+          type: string
+        lowest:
+          type: string
+        passed:
+          type: integer
+        failed:
+          type: integer
+        bands:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisBand"
+    AnalysisCell:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [complete, provisional, blocked, not_assessed]
+        value:
+          type: string
+        max:
+          type: string
+        pct:
+          type: string
+        band:
+          type: string
+    AnalysisStudent:
+      type: object
+      required: [id, name, subjects]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rollNo:
+          type: string
+        subjects:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/AnalysisCell"
+        total:
+          $ref: "#/components/schemas/AnalysisCell"
+    AnalysisListEntry:
+      type: object
+      required: [studentId, name, subjects]
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rollNo:
+          type: string
+        totalPct:
+          type: string
+        subjects:
+          type: array
+          items:
+            type: string
+            format: uuid
+    AnalysisList:
+      type: object
+      required: [rule, students]
+      properties:
+        rule:
+          $ref: "#/components/schemas/AnalysisRule"
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisListEntry"
+    AnalysisBasis:
+      type: object
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          description: Empty for the term result.
+        name:
+          type: string
+    AnalysisSummary:
+      type: object
+      required: [access, basis, bases, subjects, students, lists, bands, settings]
+      properties:
+        access:
+          type: string
+          enum: [full, partial, counts]
+        basis:
+          type: string
+        bases:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisBasis"
+        subjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisSubject"
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisStudent"
+        lists:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisList"
+        bands:
+          type: array
+          description: The band scale for totals and components, when the section has one.
+          items:
+            $ref: "#/components/schemas/SchemeBand"
+        settings:
+          $ref: "#/components/schemas/AnalysisSettings"
+    AnalysisPart:
+      type: object
+      required: [id, name, max, main]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        max:
+          type: string
+        main:
+          type: boolean
+    AssessmentScore:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [complete, pending, absent, left_out]
+        value:
+          type: string
+        max:
+          type: string
+        pct:
+          type: string
+    AnalysisStudentScore:
+      type: object
+      required: [id, name, score]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rollNo:
+          type: string
+        score:
+          $ref: "#/components/schemas/AssessmentScore"
+    Mastery:
+      type: object
+      required: [scored, below, sharePct, flagged, enough]
+      properties:
+        scored:
+          type: integer
+        below:
+          type: integer
+        sharePct:
+          type: string
+        flagged:
+          type: boolean
+        enough:
+          type: boolean
+    ReteachFollowUp:
+      type: object
+      required: [assessmentId, title]
+      properties:
+        assessmentId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        sharePct:
+          type: string
+        trend:
+          type: string
+          enum: [improved, unchanged, worse]
+    ReteachItem:
+      type: object
+      required: [partId, name, max, mastery, students]
+      properties:
+        partId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        max:
+          type: string
+        mastery:
+          $ref: "#/components/schemas/Mastery"
+        students:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [planned, done, not_needed]
+        followUp:
+          $ref: "#/components/schemas/ReteachFollowUp"
+    Reteach:
+      type: object
+      required: [available, items]
+      properties:
+        available:
+          type: boolean
+        reason:
+          type: string
+          enum: [total_marks, one_section]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReteachItem"
+    AssessmentAnalysis:
+      type: object
+      required: [id, title, kind, entryMode, parts, students, reteach, settings]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        kind:
+          type: string
+        entryMode:
+          type: string
+          enum: [total, sections]
+        heldOn:
+          type: string
+          format: date
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisPart"
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalysisStudentScore"
+        reteach:
+          $ref: "#/components/schemas/Reteach"
+        settings:
+          $ref: "#/components/schemas/AnalysisSettings"
+    ReteachInput:
+      type: object
+      additionalProperties: false
+      required: [assessmentId, sectionId, partId, status]
+      properties:
+        assessmentId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [planned, done, not_needed, ""]
+          description: Empty clears the mark.

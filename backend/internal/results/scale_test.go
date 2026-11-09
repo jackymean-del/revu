@@ -70,9 +70,18 @@ func TestRecomputeAtScale(t *testing.T) {
 	t.Logf("recomputed %d results in %s", n, took)
 	// Another recompute loop on the same database (a running server) may
 	// share the work, so check what was stored, not who stored it.
+	// Rows that loop holds are skipped here, so wait for it to finish them.
 	var left int
-	if err := owner.QueryRow(ctx, `SELECT count(*) FROM result_stale_intents WHERE org_id = $1`, a.ID).Scan(&left); err != nil {
-		t.Fatal(err)
+	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(250 * time.Millisecond) {
+		if err := owner.QueryRow(ctx, `SELECT count(*) FROM result_stale_intents WHERE org_id = $1`, a.ID).Scan(&left); err != nil {
+			t.Fatal(err)
+		}
+		if left == 0 || time.Now().After(deadline) {
+			break
+		}
+		if _, err := results.RunOnce(ctx, appPool, 0); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if n == 0 || left != 0 {
 		t.Fatalf("recomputed %d here, %d still waiting", n, left)

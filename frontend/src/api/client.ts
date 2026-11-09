@@ -396,3 +396,17 @@ export async function getReportItemHtml(orgId: string, id: string, signal?: Abor
   if (!res.ok) throw await toApiError(res)
   return res.text()
 }
+
+// Analysis (P0.6): the analysis pack, the reteach list and their settings.
+type AnalysisSummary = components['schemas']['AnalysisSummary']
+type AnalysisSettings = components['schemas']['AnalysisSettings']
+type AssessmentAnalysis = components['schemas']['AssessmentAnalysis']
+type ReteachInput = components['schemas']['ReteachInput']
+
+export const getAnalysisSummary = (orgId: string, q: { sectionId: string; periodId: string; basis?: string }, signal?: AbortSignal) =>
+  call<AnalysisSummary>(`/v1/analysis/summary?${new URLSearchParams(q.basis ? q : { sectionId: q.sectionId, periodId: q.periodId })}`, { orgId, signal })
+export const getAnalysisSettings = (orgId: string, signal?: AbortSignal) => call<AnalysisSettings>('/v1/analysis/settings', { orgId, signal })
+export const putAnalysisSettings = (orgId: string, body: AnalysisSettings) => call<AnalysisSettings>('/v1/analysis/settings', { orgId, method: 'PUT', body })
+export const getAssessmentAnalysis = (orgId: string, q: { assessmentId: string; sectionId: string }, signal?: AbortSignal) =>
+  call<AssessmentAnalysis>(`/v1/analysis/assessment?${new URLSearchParams(q)}`, { orgId, signal })
+export const putReteach = (orgId: string, body: ReteachInput) => call<ReteachInput>('/v1/analysis/reteach', { orgId, method: 'PUT', body })

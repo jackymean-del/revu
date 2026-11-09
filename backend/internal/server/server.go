@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/analysis"
 	"github.com/jackymean-del/revu/internal/assessment"
 	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth"
@@ -104,6 +105,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	layout.Routes(inOrg)
 	schemes.Routes(inOrg)
 	results.Routes(inOrg)
+	analysis.Routes(inOrg, d.Now)
 	reports.Routes(inOrg, reports.Options{Renderer: reports.Renderer{URL: cfg.GotenbergURL}, AppURL: cfg.AppURL, Now: d.Now})
 	tables.Routes(inOrg)
 	audit.Routes(inOrg)

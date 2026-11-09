@@ -83,7 +83,7 @@ const seedScheme = `{"schema": 1, "rounding": {"mode": "half_up", "places": 2, "
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
-	"group_members", "report_run_items", "report_runs", "report_template_versions", "report_templates", "branding_versions", "computed_results", "scheme_assignments", "schemes", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
+	"group_members", "reteach_marks", "report_run_items", "report_runs", "report_template_versions", "report_templates", "branding_versions", "computed_results", "scheme_assignments", "schemes", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
 	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
 	"student_subject_choices", "subject_group_options", "subject_groups",
 	"invitations", "import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
@@ -155,6 +155,7 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO scheme_assignments (org_id, family_id, level_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.SchemeID, o.LevelID)
 	one(`INSERT INTO computed_results (org_id, student_id, period_id, subject_id, component_code, value, max, pct, state, scheme_id, scheme_version)
 		VALUES ($1, $2, $3, $4, '_subject', 31.5, 40, 78.75, 'complete', $5, 1) RETURNING student_id`, o.ID, o.StudentID, o.PeriodID, o.SubjectID, o.SchemeID)
+	one(`INSERT INTO reteach_marks (org_id, assessment_id, section_id, part_id, status) VALUES ($1, $2, $3, $4, 'planned') RETURNING status`, o.ID, o.AssessmentID, o.SectionID, o.PartID)
 	one(`INSERT INTO branding_versions (org_id, version, display_name) VALUES ($1, 1, $2) RETURNING display_name`, o.ID, name)
 	tpl := one(`INSERT INTO report_templates (org_id, name, config) VALUES ($1, 'Report card', $2::jsonb) RETURNING id`, o.ID, seedTemplate)
 	one(`INSERT INTO report_template_versions (org_id, template_id, version, config) VALUES ($1, $2, 1, '{}') RETURNING template_id`, o.ID, tpl)

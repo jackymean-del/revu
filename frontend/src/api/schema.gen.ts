@@ -1873,6 +1873,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/analysis/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The institution's analysis thresholds, ranges, criteria lists and sign-off lines, or the defaults. */
+        get: operations["getAnalysisSettings"];
+        /** Change the analysis settings. Needs the right to change schemes. */
+        put: operations["putAnalysisSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analysis/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The analysis pack of a section for a period (B8.6.1) on the term result or one component; student rows only for subjects the viewer may see in full. */
+        get: operations["analysisSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analysis/summary.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The analysis pack as a workbook with an aggregate sheet, a band sheet and one sheet per list, each with sign-off lines. */
+        get: operations["analysisSummaryXlsx"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analysis/assessment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One assessment for one section, with each student's score and the reteach list (B8.7). */
+        get: operations["analysisAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analysis/reteach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mark a reteach item planned, done or not needed, or clear it. */
+        put: operations["putReteach"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3330,6 +3416,180 @@ export interface components {
             /** @description Some students only; all the section's students when left out. */
             studentIds?: string[];
         };
+        /** @description One criteria list (decision D32). Lists are checked in order and the first a student meets wins. */
+        AnalysisRule: {
+            name: string;
+            /** @enum {string} */
+            action: "undertaking" | "warning" | "retest" | "support";
+            /** @enum {string} */
+            on: "subjects" | "overall";
+            belowPct: string;
+            /** @description For subjects, how many must be below; ignored for overall. */
+            atLeast: number;
+            showBelowPct: string;
+        };
+        AnalysisSettings: {
+            /** @description Below this share of a paper section's marks, a student needs another look. */
+            masteryPct: string;
+            /** @description A paper section is listed when this share of students is below mastery. */
+            reteachSharePct: string;
+            minEvidence: number;
+            ranges: string[];
+            lists: components["schemas"]["AnalysisRule"][];
+            /** @description Who signs the printed pack; empty for the class teacher and principal. */
+            signoff: string[];
+        };
+        AnalysisBand: {
+            label: string;
+            count: number;
+        };
+        AnalysisSubject: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            access: "full" | "counts";
+            max?: string;
+            taking: number;
+            complete: number;
+            provisional: number;
+            blocked: number;
+            notAssessed: number;
+            average?: string;
+            median?: string;
+            highest?: string;
+            lowest?: string;
+            passed: number;
+            failed: number;
+            bands: components["schemas"]["AnalysisBand"][];
+        };
+        AnalysisCell: {
+            /** @enum {string} */
+            state: "complete" | "provisional" | "blocked" | "not_assessed";
+            value?: string;
+            max?: string;
+            pct?: string;
+            band?: string;
+        };
+        AnalysisStudent: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            rollNo?: string;
+            subjects: {
+                [key: string]: components["schemas"]["AnalysisCell"];
+            };
+            total?: components["schemas"]["AnalysisCell"];
+        };
+        AnalysisListEntry: {
+            /** Format: uuid */
+            studentId: string;
+            name: string;
+            rollNo?: string;
+            totalPct?: string;
+            subjects: string[];
+        };
+        AnalysisList: {
+            rule: components["schemas"]["AnalysisRule"];
+            students: components["schemas"]["AnalysisListEntry"][];
+        };
+        AnalysisBasis: {
+            /** @description Empty for the term result. */
+            code: string;
+            name: string;
+        };
+        AnalysisSummary: {
+            /** @enum {string} */
+            access: "full" | "partial" | "counts";
+            basis: string;
+            bases: components["schemas"]["AnalysisBasis"][];
+            subjects: components["schemas"]["AnalysisSubject"][];
+            students: components["schemas"]["AnalysisStudent"][];
+            lists: components["schemas"]["AnalysisList"][];
+            /** @description The band scale for totals and components, when the section has one. */
+            bands: components["schemas"]["SchemeBand"][];
+            settings: components["schemas"]["AnalysisSettings"];
+        };
+        AnalysisPart: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            max: string;
+            main: boolean;
+        };
+        AssessmentScore: {
+            /** @enum {string} */
+            state: "complete" | "pending" | "absent" | "left_out";
+            value?: string;
+            max?: string;
+            pct?: string;
+        };
+        AnalysisStudentScore: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            rollNo?: string;
+            score: components["schemas"]["AssessmentScore"];
+        };
+        Mastery: {
+            scored: number;
+            below: number;
+            sharePct: string;
+            flagged: boolean;
+            enough: boolean;
+        };
+        ReteachFollowUp: {
+            /** Format: uuid */
+            assessmentId: string;
+            title: string;
+            sharePct?: string;
+            /** @enum {string} */
+            trend?: "improved" | "unchanged" | "worse";
+        };
+        ReteachItem: {
+            /** Format: uuid */
+            partId: string;
+            name: string;
+            max: string;
+            mastery: components["schemas"]["Mastery"];
+            students: string[];
+            /** @enum {string} */
+            status?: "planned" | "done" | "not_needed";
+            followUp?: components["schemas"]["ReteachFollowUp"];
+        };
+        Reteach: {
+            available: boolean;
+            /** @enum {string} */
+            reason?: "total_marks" | "one_section";
+            items: components["schemas"]["ReteachItem"][];
+        };
+        AssessmentAnalysis: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            kind: string;
+            /** @enum {string} */
+            entryMode: "total" | "sections";
+            /** Format: date */
+            heldOn?: string;
+            parts: components["schemas"]["AnalysisPart"][];
+            students: components["schemas"]["AnalysisStudentScore"][];
+            reteach: components["schemas"]["Reteach"];
+            settings: components["schemas"]["AnalysisSettings"];
+        };
+        ReteachInput: {
+            /** Format: uuid */
+            assessmentId: string;
+            /** Format: uuid */
+            sectionId: string;
+            /** Format: uuid */
+            partId: string;
+            /**
+             * @description Empty clears the mark.
+             * @enum {string}
+             */
+            status: "planned" | "done" | "not_needed" | "";
+        };
     };
     responses: {
         /** @description Something went wrong. The body says what, with a stable code. */
@@ -3343,6 +3603,10 @@ export interface components {
         };
     };
     parameters: {
+        SectionQuery: string;
+        PeriodQuery: string;
+        /** @description A component code to analyse instead of the term result. */
+        BasisQuery: string;
         /** @description Also list removed items, so they can be restored. */
         IncludeRemoved: boolean;
         Id: string;
@@ -7517,6 +7781,171 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAnalysisSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putAnalysisSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisSettings"];
+            };
+        };
+        responses: {
+            /** @description The settings as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    analysisSummary: {
+        parameters: {
+            query: {
+                sectionId: components["parameters"]["SectionQuery"];
+                periodId: components["parameters"]["PeriodQuery"];
+                /** @description A component code to analyse instead of the term result. */
+                basis?: components["parameters"]["BasisQuery"];
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pack. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisSummary"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    analysisSummaryXlsx: {
+        parameters: {
+            query: {
+                sectionId: components["parameters"]["SectionQuery"];
+                periodId: components["parameters"]["PeriodQuery"];
+                /** @description A component code to analyse instead of the term result. */
+                basis?: components["parameters"]["BasisQuery"];
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The spreadsheet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    analysisAssessment: {
+        parameters: {
+            query: {
+                assessmentId: string;
+                sectionId: components["parameters"]["SectionQuery"];
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The assessment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentAnalysis"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putReteach: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReteachInput"];
+            };
+        };
+        responses: {
+            /** @description The mark as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReteachInput"];
                 };
             };
             default: components["responses"]["Problem"];
