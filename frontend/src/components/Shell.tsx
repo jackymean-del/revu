@@ -21,6 +21,7 @@ interface Item {
   label: string
   icon: IconName
   n?: number
+  key?: string
   exact?: boolean
 }
 interface Section {
@@ -44,7 +45,7 @@ function useSections(ms: Module[]): Section[] {
         .filter((m) => m.built && m.group === group)
         .map((m) => ({ m, pages: visiblePages(m, roles) }))
         .filter((x) => x.pages.length > 0)
-        .map(({ m, pages }) => ({ to: pages[0].to, label: m.title, icon: m.icon, n: m.n }))
+        .map(({ m, pages }) => ({ to: pages[0].to, label: m.title, icon: m.icon, n: m.n, key: m.key }))
     const master = steps('master')
     const exams = steps('exams')
     if (master.length) out.push({ heading: 'Master', items: master })
@@ -228,7 +229,7 @@ export function Shell() {
                 ))}
               {s.items.map((item) => {
                 const here =
-                  item.n !== undefined ? moduleOf(ms, path)?.module.n === item.n : item.exact ? path === item.to : path === item.to || path.startsWith(item.to + '/')
+                  item.key !== undefined ? moduleOf(ms, path)?.module.key === item.key : item.exact ? path === item.to : path === item.to || path.startsWith(item.to + '/')
                 return (
                   <Link
                     key={item.to}

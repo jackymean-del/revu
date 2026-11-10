@@ -1959,6 +1959,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/syllabus/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many competencies, lessons and learning outcomes each class and subject has. */
+        get: operations["syllabusSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/syllabus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One class and subject in full, its lessons with their learning outcomes and the subject's competencies. */
+        get: operations["getSyllabus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/syllabus/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview or save a file of competencies, learning outcomes, or an outcomes workbook (B2.3). */
+        post: operations["importSyllabus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/learning-outcomes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a learning outcome's Bloom level (then kept as the teacher's) or its competency. */
+        put: operations["updateLearningOutcome"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3604,6 +3672,77 @@ export interface components {
              * @enum {string}
              */
             status: "planned" | "done" | "not_needed" | "";
+        };
+        SyllabusPlace: {
+            /** Format: uuid */
+            levelId: string;
+            /** Format: uuid */
+            subjectId: string;
+            competencies: number;
+            lessons: number;
+            outcomes: number;
+        };
+        SyllabusCompetency: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string;
+            outcomes: number;
+        };
+        /** @enum {string} */
+        Bloom: "remember" | "understand" | "apply" | "analyse" | "evaluate" | "create";
+        LearningOutcome: {
+            /** Format: uuid */
+            id: string;
+            code?: string;
+            text: string;
+            /** Format: uuid */
+            competencyId?: string;
+            bloom: components["schemas"]["Bloom"];
+            /** @enum {string} */
+            bloomBy: "suggested" | "teacher";
+            note?: string;
+        };
+        SyllabusLesson: {
+            /** Format: uuid */
+            id: string;
+            seq: number;
+            name: string;
+            outcomes: components["schemas"]["LearningOutcome"][];
+        };
+        Syllabus: {
+            /** @enum {string} */
+            kind: "academic" | "co_curricular";
+            competencies: components["schemas"]["SyllabusCompetency"][];
+            lessons: components["schemas"]["SyllabusLesson"][];
+            unplaced: components["schemas"]["LearningOutcome"][];
+        };
+        ImportCounts: {
+            subjects: number;
+            competencies: number;
+            lessons: number;
+            outcomes: number;
+        };
+        SyllabusImportReport: {
+            /** @enum {string} */
+            shape: "competencies" | "outcomes" | "workbook";
+            rows: number;
+            created: components["schemas"]["ImportCounts"];
+            matched: components["schemas"]["ImportCounts"];
+            repeated: number;
+            noCompetency: number;
+            unknownSubjects: string[];
+            unknownLevels: string[];
+            problems: {
+                row: number;
+                message: string;
+            }[];
+            applied: boolean;
+        };
+        LearningOutcomeChange: {
+            bloom?: components["schemas"]["Bloom"];
+            /** @description Empty clears it. */
+            competencyId?: string;
         };
     };
     responses: {
@@ -7965,6 +8104,126 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReteachInput"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    syllabusSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every class and subject of the structure. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyllabusPlace"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getSyllabus: {
+        parameters: {
+            query: {
+                levelId: string;
+                subjectId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The syllabus. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Syllabus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    importSyllabus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** @description The class, for a learning outcomes file. */
+                    levelId?: string;
+                    /** @description The subject, for a learning outcomes file. */
+                    subjectId?: string;
+                    /** @enum {string} */
+                    apply?: "true" | "false";
+                    /** @enum {string} */
+                    createSubjects?: "true" | "false";
+                };
+            };
+        };
+        responses: {
+            /** @description What the file holds and what was, or would be, made. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyllabusImportReport"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateLearningOutcome: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearningOutcomeChange"];
+            };
+        };
+        responses: {
+            /** @description The outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearningOutcome"];
                 };
             };
             default: components["responses"]["Problem"];

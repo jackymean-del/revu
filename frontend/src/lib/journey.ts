@@ -11,7 +11,7 @@ import type { IconName } from '../components/icon-paths'
 import type { T, TermKey } from './terminology/terminology'
 
 export type Setup = components['schemas']['SetupStatus']
-export type ModuleKey = 'resources' | 'configuration' | 'create' | 'assign' | 'evaluate' | 'scheme' | 'reexam' | 'reports'
+export type ModuleKey = 'resources' | 'configuration' | 'create' | 'paper' | 'assign' | 'evaluate' | 'scheme' | 'reexam' | 'reports'
 
 type Role = 'admin' | 'coordinator' | 'principal' | 'teacher' | 'class_teacher' | 'viewer'
 
@@ -23,7 +23,7 @@ export interface PageLink {
 
 export interface Module {
   key: ModuleKey
-  /** Master data is set up once; the exam steps repeat each term. */
+  /** Master is set up once, by administrators; the exam steps repeat each term. Each group is numbered from 1. */
   group: 'master' | 'exams'
   n: number
   title: string
@@ -37,7 +37,11 @@ export interface Module {
 const ALL: Role[] = ['admin', 'coordinator', 'principal', 'teacher', 'class_teacher']
 const MARKS: Role[] = ['admin', 'coordinator', 'teacher', 'class_teacher']
 
-/** The eight steps, worded in the institution's own words. */
+/**
+ * The steps, worded in the institution's own words: three of master, six of
+ * each exam. Re-exam comes last and works both ways with Reports and analysis:
+ * the reports pick out who needs one, and its marks flow back into them.
+ */
 export function modules(t: T): Module[] {
   const lower = (k: TermKey, count = 2) => t(k, { count, lower: true })
   return [
@@ -53,6 +57,8 @@ export function modules(t: T): Module[] {
         { to: '/people', label: `${t('person.student', { count: 2 })} and staff`, roles: ['admin'] },
         { to: '/settings/structure', label: `${t('group.level', { count: 2 })} and ${lower('group.section')}`, roles: ['admin'] },
         { to: '/settings/years', label: `${t('period.year', { count: 2 })} and ${lower('period.term')}`, roles: ['admin'] },
+        { to: '/settings/teaching', label: 'Who teaches what', roles: ['admin'] },
+        { to: '/settings/branches', label: t('org.branch', { count: 2 }), roles: ['admin'] },
         { to: '/choices', label: `${t('course.subject')} choices`, roles: ['admin', 'coordinator', 'class_teacher'] },
       ],
     },
@@ -61,30 +67,41 @@ export function modules(t: T): Module[] {
       group: 'master',
       n: 2,
       title: 'Configuration',
-      blurb: `${t('course.subject', { count: 2 })}, the words your ${lower('org.institution', 1)} uses, and later the syllabus`,
+      blurb: `${t('course.subject', { count: 2 })}, the syllabus with competencies and learning outcomes, and the words your ${lower('org.institution', 1)} uses`,
       icon: 'configuration',
       built: true,
       pages: [
         { to: '/settings/subjects', label: t('course.subject', { count: 2 }), roles: ['admin'] },
+        { to: '/settings/syllabus', label: 'Syllabus', roles: ['admin', 'coordinator'] },
         { to: '/settings/words', label: 'Words', roles: ['admin'] },
       ],
     },
     {
       key: 'create',
-      group: 'exams',
+      group: 'master',
       n: 3,
       title: 'Create exam',
-      blurb: 'Each assessment with its parts and maximum marks, for the classes that sit it',
+      blurb: 'Name each exam and test, with its parts and maximum marks, for the classes that sit it',
       icon: 'create',
       built: true,
-      pages: [{ to: '/exams', label: 'Assessments', roles: MARKS }],
+      pages: [{ to: '/exams', label: 'Exams', roles: ['admin'] }],
+    },
+    {
+      key: 'paper',
+      group: 'exams',
+      n: 1,
+      title: 'Create question paper',
+      blurb: 'Blueprint, questions and papers with sets, from the syllabus',
+      icon: 'configuration',
+      built: false,
+      pages: [],
     },
     {
       key: 'assign',
       group: 'exams',
-      n: 4,
-      title: 'Assign exam',
-      blurb: `Papers, sets and dates for each ${lower('group.section', 1)}`,
+      n: 2,
+      title: 'Assign paper',
+      blurb: `Give each ${lower('group.section', 1)} or ${lower('person.student', 1)} its paper, set and date`,
       icon: 'assign',
       built: false,
       pages: [],
@@ -92,7 +109,7 @@ export function modules(t: T): Module[] {
     {
       key: 'evaluate',
       group: 'exams',
-      n: 5,
+      n: 3,
       title: 'Evaluate exam',
       blurb: 'Marks on a grid that saves as you type; absent is never zero',
       icon: 'evaluate',
@@ -102,7 +119,7 @@ export function modules(t: T): Module[] {
     {
       key: 'scheme',
       group: 'exams',
-      n: 6,
+      n: 4,
       title: 'Scheme',
       blurb: 'How marks become results, and every result explained',
       icon: 'scheme',
@@ -113,19 +130,9 @@ export function modules(t: T): Module[] {
       ],
     },
     {
-      key: 'reexam',
-      group: 'exams',
-      n: 7,
-      title: 'Re-exam',
-      blurb: 'Retests and improvement exams for those who need them',
-      icon: 'reexam',
-      built: false,
-      pages: [],
-    },
-    {
       key: 'reports',
       group: 'exams',
-      n: 8,
+      n: 5,
       title: 'Reports and analysis',
       blurb: `${t('report.report_card', { count: 2 })}, the aggregate, warnings, undertakings and what to teach again`,
       icon: 'reports',
@@ -134,6 +141,16 @@ export function modules(t: T): Module[] {
         { to: '/analysis', label: 'Analysis', roles: ALL },
         { to: '/reports', label: t('report.report_card', { count: 2 }), roles: ['admin', 'class_teacher'] },
       ],
+    },
+    {
+      key: 'reexam',
+      group: 'exams',
+      n: 6,
+      title: 'Re-exam',
+      blurb: 'Retests for those the reports pick out; their marks flow back into results and reports',
+      icon: 'reexam',
+      built: false,
+      pages: [],
     },
   ]
 }

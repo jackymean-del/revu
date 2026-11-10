@@ -55,10 +55,16 @@ export function Marks() {
       ) : entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
           <p className="font-bold">No assessments for your {t('group.section', { count: 2, lower: true })} yet</p>
-          <p className="mt-1 text-sm text-muted">Create one first; then its marks are entered here.</p>
-          <Link to="/exams" className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-            Create an assessment
-          </Link>
+          {roles.includes('admin') ? (
+            <>
+              <p className="mt-1 text-sm text-muted">Create one first; then its marks are entered here.</p>
+              <Link to="/exams" className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
+                Create an assessment
+              </Link>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-muted">Your administrator creates them; they appear here as soon as they do.</p>
+          )}
         </div>
       ) : (
         <>

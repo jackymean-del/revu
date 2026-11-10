@@ -29,7 +29,8 @@ test('an administrator adds a year and is told why a used item cannot go', async
   })
 
   await page.goto('/settings/years')
-  await expect(page.getByRole('tab', { name: 'Academic years and terms' })).toHaveAttribute('aria-selected', 'true')
+  // Each part of the structure has its own address; the heading names it.
+  await expect(page.getByRole('heading', { name: 'Academic years and terms', level: 1 })).toBeVisible()
   await expect(page.getByText('No academic years yet.')).toBeVisible()
 
   // Required fields are caught before anything is sent.
@@ -56,7 +57,7 @@ test('someone who is not an administrator sees the structure without editing con
   await page.route(/\/v1\/(years|levels|branches|subjects|sections|periods)(\?.*)?$/, (route) => route.fulfill({ json: [] }))
   await page.goto('/settings/structure')
   // The university's words, from the same screen code.
-  await expect(page.getByRole('tab', { name: 'Programme years and batches' })).toBeVisible()
-  await expect(page.getByText('Only an administrator can change the structure.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Programme years and batches', level: 1 })).toBeVisible()
+  await expect(page.getByText('Only an administrator can change it.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add' })).toHaveCount(0)
 })

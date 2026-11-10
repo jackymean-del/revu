@@ -1,5 +1,5 @@
 /**
- * The exam year as eight steps. Run: npx tsx journey-verify.mts
+ * The exam year as nine steps: three of master, six of each exam. Run: npx tsx journey-verify.mts
  *
  * The cards keep the order of the institution's notes; the next step is
  * always the first unfinished step this role can act on; a step revU does
@@ -20,12 +20,14 @@ const uni = makeT({ preset: 'university', overrides: [] })
 const ms = modules(school)
 
 ok(
-  ms.map((m) => m.title).join(' | ') === 'Resources | Configuration | Create exam | Assign exam | Evaluate exam | Scheme | Re-exam | Reports and analysis',
-  'the eight steps keep the order of the notes',
+  ms.map((m) => m.title).join(' | ') ===
+    'Resources | Configuration | Create exam | Create question paper | Assign paper | Evaluate exam | Scheme | Reports and analysis | Re-exam',
+  'the steps keep the order of the notes, papers after the exam is made',
 )
-ok(ms.every((m, i) => m.n === i + 1), 'numbered 1 to 8')
-ok(ms.filter((m) => m.group === 'master').map((m) => m.title).join() === 'Resources,Configuration', 'Resources and Configuration are master data, the rest exam steps')
-ok(ms.filter((m) => !m.built).map((m) => m.key).join() === 'assign,reexam', 'assign and re-exam are marked as coming')
+const numbers = (g: string) => ms.filter((m) => m.group === g).map((m) => m.n).join()
+ok(numbers('master') === '1,2,3' && numbers('exams') === '1,2,3,4,5,6', 'each group is numbered from 1', `${numbers('master')} / ${numbers('exams')}`)
+ok(ms.filter((m) => m.group === 'master').map((m) => m.title).join() === 'Resources,Configuration,Create exam', 'Resources, Configuration and Create exam are master; the rest are exam steps')
+ok(ms.filter((m) => !m.built).map((m) => m.key).join() === 'paper,assign,reexam', 'question papers, assigning them and re-exams are marked as coming')
 
 const empty: Setup = { years: 0, periods: 0, levels: 0, sections: 0, subjects: 0, levelSubjects: 0, staff: 1, students: 0, invitations: 0, done: false, assessments: 0, marks: 0, schemes: 0, results: 0, reports: 0 }
 const admin = ['admin']
@@ -57,7 +59,8 @@ ok(say(s)?.to === '/analysis', 'with everything done, the analysis')
 
 // A teacher is never sent to a screen only administrators open.
 const teacher = ['teacher']
-ok(say(empty, teacher)?.to === '/exams', 'a teacher in a new institution starts at creating an exam', say(empty, teacher)?.to)
+ok(say(empty, teacher)?.to === '/marks', 'a teacher is never sent to master, where exams are created; first, marks', say(empty, teacher)?.to)
+ok(visiblePages(ms.find((m) => m.key === 'create')!, teacher).length === 0, 'a teacher has no Create exam page in the menu')
 ok(say({ ...s, schemes: 0, results: 0 }, teacher)?.to !== '/schemes', 'a teacher is never sent to schemes')
 ok(say({ ...s, results: 0 }, teacher)?.to === '/results', 'a teacher is sent to results once a scheme is published')
 ok(say({ ...s, reports: 0 }, teacher)?.to === '/analysis', 'a teacher is not sent to report cards')
@@ -68,7 +71,7 @@ ok(st.resources === 'done' && st.evaluate === 'next' && st.reports === 'done' &&
 
 // Pages by role, and paths back to their step.
 ok(visiblePages(ms[0], teacher).length === 0, 'a teacher has no Resources pages')
-ok(visiblePages(ms[7], ['class_teacher']).map((p) => p.to).join() === '/analysis,/reports', 'a class teacher sees analysis and report cards')
+ok(visiblePages(ms.find((m) => m.key === 'reports')!, ['class_teacher']).map((p) => p.to).join() === '/analysis,/reports', 'a class teacher sees analysis and report cards')
 ok(moduleOf(ms, '/schemes/abc')?.module.key === 'scheme', 'a scheme editor page belongs to Scheme')
 ok(moduleOf(ms, '/settings/subjects')?.module.key === 'configuration' && moduleOf(ms, '/settings/structure')?.module.key === 'resources', 'subjects and structure belong to their steps')
 

@@ -1,4 +1,5 @@
 import { useRouterState } from '@tanstack/react-router'
+import { ClassesTable } from './structure/ClassesTable'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { listStructure, type Branch, type Level, type Section, type Staff, type StructurePath, type Subject, type SubjectGroup, type Year } from '../api/client'
@@ -51,9 +52,9 @@ export function Structure() {
   const { current, loading } = useOrg()
   const orgId = current?.id
   const canEdit = !!current?.roles.includes('admin')
-  // Each way in starts on its own tab: grades and sections, years and terms, or subjects.
+  // Each part has its own address, shown as a tab on the step bar.
   const path = useRouterState({ select: (s) => s.location.pathname })
-  const [tab, setTab] = useState<Tab>(path.endsWith('/subjects') ? 'subjects' : path.endsWith('/years') ? 'years' : 'levels')
+  const tab: Tab = (['years', 'subjects', 'teaching', 'branches'] as const).find((x) => path.endsWith('/' + x)) ?? 'levels'
 
   const years = useChoices<Year>(orgId, 'years')
   const levels = useChoices<Level>(orgId, 'levels')
@@ -81,7 +82,6 @@ export function Structure() {
 
   const yearOptions = years.map((y) => ({ value: y.id, label: y.label }))
   const levelOptions = levels.map((l) => ({ value: l.id, label: l.name }))
-  const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }))
   const subjectOptions = subjects.map((s) => ({ value: s.id, label: s.name }))
   const levelName = (id: string) => levels.find((l) => l.id === id)?.name ?? ''
   const sectionOptions = sections.map((s) => ({ value: s.id, label: `${levelName(s.levelId)} ${s.name}`.trim() }))
@@ -99,24 +99,11 @@ export function Structure() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
-      <p className="text-xs font-bold uppercase tracking-[0.08em] text-subtle">Settings</p>
-      <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Structure</h1>
-      <p className="mt-2 max-w-2xl text-muted">How your {t('org.institution', { lower: true })} is organised. Removing something can always be undone.</p>
-      {!canEdit && <p className="mt-2 text-sm text-muted">Only an administrator can change the structure.</p>}
-
-      <div role="tablist" aria-label="Structure" className="mt-6 flex flex-wrap gap-1 border-b border-line">
-        {tabs.map((x) => (
-          <button
-            key={x.id}
-            role="tab"
-            aria-selected={tab === x.id}
-            onClick={() => setTab(x.id)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${tab === x.id ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}
-          >
-            {x.label}
-          </button>
-        ))}
-      </div>
+      <h1 className="text-2xl font-extrabold tracking-tight">{tabs.find((x) => x.id === tab)?.label}</h1>
+      <p className="mt-1 max-w-2xl text-muted">
+        How your {t('org.institution', { lower: true })} is organised. Removing something can always be undone.
+        {!canEdit && ' Only an administrator can change it.'}
+      </p>
 
       <div role="tabpanel" className="mt-6 space-y-8">
         {tab === 'years' && (
@@ -160,38 +147,12 @@ export function Structure() {
         )}
 
         {tab === 'levels' && (
-          <>
-            <Block title={t('group.level', { count: 2 })}>
-              <EditableList
-                orgId={orgId}
-                path="levels"
-                canEdit={canEdit}
-                noun={t('group.level', { lower: true })}
-                empty={`No ${t('group.level', { count: 2, lower: true })} yet.`}
-                cols={[{ key: 'seq', label: 'Order', kind: 'number', required: true, width: '5rem' }, nameCol(), { key: 'stage', label: 'Stage', kind: 'text' }]}
-              />
-            </Block>
-            <Block title={t('group.section', { count: 2 })} tools={yearOptions.length > 0 && <Picker label={t('period.year')} value={yearId} options={yearOptions} onChange={setYear} />}>
-              {yearId ? (
-                <EditableList
-                  key={yearId}
-                  orgId={orgId}
-                  path="sections"
-                  scope={{ yearId }}
-                  canEdit={canEdit}
-                  noun={t('group.section', { lower: true })}
-                  empty={`No ${t('group.section', { count: 2, lower: true })} in this ${t('period.year', { lower: true })} yet.`}
-                  cols={[
-                    { key: 'levelId', label: t('group.level'), kind: 'select', required: true, options: levelOptions },
-                    nameCol('25%'),
-                    { key: 'branchId', label: t('org.branch'), kind: 'select', required: true, options: branchOptions },
-                  ]}
-                />
-              ) : (
-                noYears
-              )}
-            </Block>
-          </>
+          <Block
+            title={`${t('group.level', { count: 2 })} and ${t('group.section', { count: 2, lower: true })}`}
+            tools={yearOptions.length > 1 && <Picker label={t('period.year')} value={yearId} options={yearOptions} onChange={setYear} />}
+          >
+            {yearId ? <ClassesTable orgId={orgId} canEdit={canEdit} yearId={yearId} branches={branches} /> : noYears}
+          </Block>
         )}
 
         {tab === 'subjects' && (

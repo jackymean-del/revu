@@ -106,10 +106,25 @@ const yearsPage = createRoute({
   path: '/settings/years',
   component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
 })
+const teachingPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/teaching',
+  component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
+})
+const branchesPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/branches',
+  component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
+})
 const subjectsPage = createRoute({
   getParentRoute: () => root,
   path: '/settings/subjects',
   component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
+})
+const syllabusPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/syllabus',
+  component: lazyRouteComponent(() => import('./pages/Syllabus'), 'Syllabus'),
 })
 const words = createRoute({
   getParentRoute: () => root,
@@ -122,7 +137,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, subjectsPage, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, words, history])
 
 // Hovering or focusing a link loads that screen and its code before the
 // click, so moving around feels instant.

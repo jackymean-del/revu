@@ -4,7 +4,7 @@ import { expect, test, type Page } from '@playwright/test'
  * iKids end to end, against a real server and database: no API is mocked.
  * Runs only when IKIDS=1, with the API on :8080 in development sign-in
  * (DEV_USER_ID) after "server seed" made iKids, and the app built without
- * Clerk on :4173. It walks the eight steps in order as an administrator,
+ * Clerk on :4173. It walks the steps in order as an administrator,
  * from the home page's next step to a report card PDF.
  */
 test.skip(!process.env.IKIDS, 'set IKIDS=1 with a seeded local server to run')
@@ -29,10 +29,10 @@ test('iKids from the home page to a report card', async ({ page }) => {
   await open(page)
   const menu = page.getByRole('navigation', { name: 'Main' })
 
-  // Home: the eight steps, the work so far, and one next step.
+  // Home: the steps, the work so far, and one next step.
   const master = page.getByRole('region', { name: 'Master', exact: true }).getByRole('listitem')
   const exams = page.getByRole('region', { name: 'Exam steps' }).getByRole('listitem')
-  await expect(master).toHaveCount(2)
+  await expect(master).toHaveCount(3)
   await expect(exams).toHaveCount(6)
   await expect(master.nth(0)).toContainText('400 students, 20 sections')
   await expect(exams.nth(2)).toContainText('Done')

@@ -416,3 +416,26 @@ export const putAnalysisSettings = (orgId: string, body: AnalysisSettings) => ca
 export const getAssessmentAnalysis = (orgId: string, q: { assessmentId: string; sectionId: string }, signal?: AbortSignal) =>
   call<AssessmentAnalysis>(`/v1/analysis/assessment?${new URLSearchParams(q)}`, { orgId, signal })
 export const putReteach = (orgId: string, body: ReteachInput) => call<ReteachInput>('/v1/analysis/reteach', { orgId, method: 'PUT', body })
+
+// Syllabus (P0.11 H1): competencies, lessons and learning outcomes.
+export type Syllabus = components['schemas']['Syllabus']
+export type SyllabusPlace = components['schemas']['SyllabusPlace']
+export type LearningOutcome = components['schemas']['LearningOutcome']
+export type SyllabusImportReport = components['schemas']['SyllabusImportReport']
+type LearningOutcomeChange = components['schemas']['LearningOutcomeChange']
+
+export const getSyllabusSummary = (orgId: string, signal?: AbortSignal) => call<SyllabusPlace[]>('/v1/syllabus/summary', { orgId, signal })
+export const getSyllabus = (orgId: string, q: { levelId: string; subjectId: string }, signal?: AbortSignal) =>
+  call<Syllabus>(`/v1/syllabus?${new URLSearchParams(q)}`, { orgId, signal })
+export const updateLearningOutcome = (orgId: string, id: string, body: LearningOutcomeChange) =>
+  call<LearningOutcome>(`/v1/learning-outcomes/${id}`, { orgId, method: 'PUT', body })
+/** Previews, or with apply saves, a file of competencies, learning outcomes or an outcomes workbook. */
+export function importSyllabus(orgId: string, file: File, opts: { levelId?: string; subjectId?: string; apply: boolean; createSubjects: boolean }) {
+  const form = new FormData()
+  form.append('file', file)
+  if (opts.levelId) form.append('levelId', opts.levelId)
+  if (opts.subjectId) form.append('subjectId', opts.subjectId)
+  form.append('apply', String(opts.apply))
+  form.append('createSubjects', String(opts.createSubjects))
+  return call<SyllabusImportReport>('/v1/syllabus/import', { orgId, method: 'POST', form })
+}

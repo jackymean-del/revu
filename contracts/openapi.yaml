@@ -3323,6 +3323,115 @@ paths:
                 $ref: "#/components/schemas/ReteachInput"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/syllabus/summary:
+    get:
+      operationId: syllabusSummary
+      summary: How many competencies, lessons and learning outcomes each class and subject has.
+      tags: [syllabus]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Every class and subject of the structure.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SyllabusPlace"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/syllabus:
+    get:
+      operationId: getSyllabus
+      summary: One class and subject in full, its lessons with their learning outcomes and the subject's competencies.
+      tags: [syllabus]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: levelId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subjectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The syllabus.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Syllabus"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/syllabus/import:
+    post:
+      operationId: importSyllabus
+      summary: Preview or save a file of competencies, learning outcomes, or an outcomes workbook (B2.3).
+      tags: [syllabus]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  x-go-type: string
+                levelId:
+                  type: string
+                  description: The class, for a learning outcomes file.
+                subjectId:
+                  type: string
+                  description: The subject, for a learning outcomes file.
+                apply:
+                  type: string
+                  enum: ["true", "false"]
+                createSubjects:
+                  type: string
+                  enum: ["true", "false"]
+      responses:
+        "200":
+          description: What the file holds and what was, or would be, made.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyllabusImportReport"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/learning-outcomes/{id}:
+    put:
+      operationId: updateLearningOutcome
+      summary: Change a learning outcome's Bloom level (then kept as the teacher's) or its competency.
+      tags: [syllabus]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LearningOutcomeChange"
+      responses:
+        "200":
+          description: The outcome.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningOutcome"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -6414,3 +6523,148 @@ components:
           type: string
           enum: [planned, done, not_needed, ""]
           description: Empty clears the mark.
+    SyllabusPlace:
+      type: object
+      required: [levelId, subjectId, competencies, lessons, outcomes]
+      properties:
+        levelId:
+          type: string
+          format: uuid
+        subjectId:
+          type: string
+          format: uuid
+        competencies:
+          type: integer
+        lessons:
+          type: integer
+        outcomes:
+          type: integer
+    SyllabusCompetency:
+      type: object
+      required: [id, name, outcomes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        outcomes:
+          type: integer
+    Bloom:
+      type: string
+      enum: [remember, understand, apply, analyse, evaluate, create]
+    LearningOutcome:
+      type: object
+      required: [id, text, bloom, bloomBy]
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        text:
+          type: string
+        competencyId:
+          type: string
+          format: uuid
+        bloom:
+          $ref: "#/components/schemas/Bloom"
+        bloomBy:
+          type: string
+          enum: [suggested, teacher]
+        note:
+          type: string
+    SyllabusLesson:
+      type: object
+      required: [id, seq, name, outcomes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+        name:
+          type: string
+        outcomes:
+          type: array
+          items:
+            $ref: "#/components/schemas/LearningOutcome"
+    Syllabus:
+      type: object
+      required: [kind, competencies, lessons, unplaced]
+      properties:
+        kind:
+          type: string
+          enum: [academic, co_curricular]
+        competencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyllabusCompetency"
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyllabusLesson"
+        unplaced:
+          type: array
+          items:
+            $ref: "#/components/schemas/LearningOutcome"
+    ImportCounts:
+      type: object
+      required: [subjects, competencies, lessons, outcomes]
+      properties:
+        subjects:
+          type: integer
+        competencies:
+          type: integer
+        lessons:
+          type: integer
+        outcomes:
+          type: integer
+    SyllabusImportReport:
+      type: object
+      required: [shape, rows, created, matched, repeated, noCompetency, unknownSubjects, unknownLevels, problems, applied]
+      properties:
+        shape:
+          type: string
+          enum: [competencies, outcomes, workbook]
+        rows:
+          type: integer
+        created:
+          $ref: "#/components/schemas/ImportCounts"
+        matched:
+          $ref: "#/components/schemas/ImportCounts"
+        repeated:
+          type: integer
+        noCompetency:
+          type: integer
+        unknownSubjects:
+          type: array
+          items:
+            type: string
+        unknownLevels:
+          type: array
+          items:
+            type: string
+        problems:
+          type: array
+          items:
+            type: object
+            required: [row, message]
+            properties:
+              row:
+                type: integer
+              message:
+                type: string
+        applied:
+          type: boolean
+    LearningOutcomeChange:
+      type: object
+      additionalProperties: false
+      properties:
+        bloom:
+          $ref: "#/components/schemas/Bloom"
+        competencyId:
+          type: string
+          description: Empty clears it.

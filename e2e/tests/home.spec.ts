@@ -31,7 +31,7 @@ function fakeApi(page: Page, roles: string[]) {
   )
 }
 
-test('Home shows the eight steps in order and the one thing to do next', async ({ page }) => {
+test('Home shows the steps in order and the one thing to do next', async ({ page }) => {
   fakeApi(page, ['admin'])
   await page.goto('/')
   // The steps in the order of the institution's own notes: master data
@@ -39,11 +39,16 @@ test('Home shows the eight steps in order and the one thing to do next', async (
   const master = page.getByRole('region', { name: 'Master', exact: true }).getByRole('listitem')
   const exams = page.getByRole('region', { name: 'Exam steps' }).getByRole('listitem')
   const title = (els: Element[]) => els.map((el) => el.querySelector('.text-base')?.textContent ?? '')
-  expect(await master.evaluateAll(title)).toEqual(['Resources', 'Configuration'])
-  expect(await exams.evaluateAll(title)).toEqual(['Create exam', 'Assign exam', 'Evaluate exam', 'Scheme', 'Re-exam', 'Reports and analysis'])
+  expect(await master.evaluateAll(title)).toEqual(['Resources', 'Configuration', 'Create exam'])
+  expect(await exams.evaluateAll(title)).toEqual(['Create question paper', 'Assign paper', 'Evaluate exam', 'Scheme', 'Reports and analysis', 'Re-exam'])
   await expect(master.nth(0)).toContainText('Done')
+  await expect(exams.nth(0)).toContainText('Coming soon')
   await expect(exams.nth(1)).toContainText('Coming soon')
   await expect(exams.nth(2)).toContainText('Next')
+  // Reports and Re-exam work both ways, shown by the link between them.
+  await expect(page.getByRole('img', { name: /Works both ways with Re-exam/ })).toBeVisible()
+  // and re-exam marks go one way, into Evaluate exam.
+  await expect(page.getByRole('img', { name: 'Re-exam marks go to Evaluate exam' })).toBeVisible()
   // The menu groups them the same way.
   const menu = page.getByRole('navigation', { name: 'Main' })
   await expect(menu.getByText('Master', { exact: true })).toBeVisible()
@@ -52,7 +57,7 @@ test('Home shows the eight steps in order and the one thing to do next', async (
   // One assessment and no marks yet: the next step is entering marks.
   const next = page.getByRole('region', { name: 'Next step' })
   await expect(next).toContainText('Enter marks')
-  await expect(next).toContainText('Step 5 of 8, Evaluate exam')
+  await expect(next).toContainText('Exam step 3 of 6, Evaluate exam')
   await next.getByRole('link', { name: 'Start' }).click()
   await expect(page).toHaveURL(/\/marks$/)
   // The bar names the step; there is nothing further to point to on it.

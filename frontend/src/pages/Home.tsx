@@ -80,6 +80,7 @@ export function Home() {
   const ms = modules(t)
   const next = nextStep(ms, s, roles, t)
   const status = statuses(ms, s, roles, t)
+  const nextGroup = ms.find((m) => m.key === next?.module)?.group
 
   return shell(
     <>
@@ -96,7 +97,8 @@ export function Home() {
             </h2>
             <p className="mt-1 text-xl font-extrabold">{next.text}</p>
             <p className="mt-0.5 text-sm text-white/80">
-              Step {ms.find((m) => m.key === next.module)?.n} of 8, {ms.find((m) => m.key === next.module)?.title}
+              {nextGroup === 'master' ? 'Master' : 'Exam'} step {ms.find((m) => m.key === next.module)?.n} of {ms.filter((m) => m.group === nextGroup).length},{' '}
+              {ms.find((m) => m.key === next.module)?.title}
             </p>
           </div>
           <Link to={next.to} className="flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-base font-bold text-brand hover:bg-mist">
@@ -108,7 +110,7 @@ export function Home() {
 
       {(
         [
-          { id: 'master', title: 'Master', note: 'Set up once, changed when something changes', cols: 'sm:grid-cols-2' },
+          { id: 'master', title: 'Master', note: 'Set up once, changed when something changes', cols: 'sm:grid-cols-3' },
           { id: 'exams', title: 'Exam steps', note: 'Each term, in this order', cols: 'sm:grid-cols-2 lg:grid-cols-3' },
         ] as const
       ).map((g) => {
@@ -143,14 +145,40 @@ export function Home() {
                     <span className="block text-base font-extrabold leading-tight text-ink">{m.title}</span>
                     <span className="mt-1 block text-sm leading-snug text-muted">{m.blurb}</span>
                     {fact && <span className="mt-2 block text-xs font-semibold text-subtle">{fact}</span>}
+                {m.key === 'reexam' && (
+                  <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand lg:hidden">
+                    <Icon name="arrow" size={13} />
+                    Marks entered in Evaluate exam
+                  </span>
+                )}
                   </>
                 )
                 const box = `flex h-full flex-col rounded-2xl border bg-white p-4 text-left ${
                   st === 'next' ? 'border-brand ring-2 ring-brand/20' : 'border-line'
                 }`
                 return (
-                  <li key={m.key}>
-                    {st !== 'later' && pages.length > 0 ? (
+                  <li key={m.key} className="relative">
+                    {m.key === 'reports' && (
+                  <span
+                    role="img"
+                    aria-label="Works both ways with Re-exam: reports pick out who needs one, and its marks flow back"
+                    title="Reports pick out who needs a re-exam; re-exam marks flow back into results and reports"
+                    className="absolute -bottom-5 left-1/2 z-10 grid size-9 -translate-x-1/2 rotate-90 place-items-center rounded-full border border-brand/30 bg-white text-brand shadow-sm sm:-right-5 sm:bottom-auto sm:left-auto sm:top-1/2 sm:-translate-y-1/2 sm:translate-x-0 sm:rotate-0"
+                  >
+                    <Icon name="swap" size={18} />
+                  </span>
+                )}
+                {m.key === 'reexam' && (
+                  <span
+                    role="img"
+                    aria-label="Re-exam marks go to Evaluate exam"
+                    title="Re-exam marks are entered in Evaluate exam"
+                    className="absolute -top-5 left-1/2 z-10 hidden size-9 -translate-x-1/2 place-items-center rounded-full border border-brand/30 bg-white text-brand shadow-sm lg:grid"
+                  >
+                    <Icon name="up" size={18} />
+                  </span>
+                )}
+                {st !== 'later' && pages.length > 0 ? (
                       <Link to={pages[0].to} className={`${box} transition hover:-translate-y-0.5 hover:border-brand hover:shadow-md`}>
                         {body}
                       </Link>

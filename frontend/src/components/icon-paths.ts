@@ -18,6 +18,8 @@ export const PATHS = {
   left: 'M15 6l-6 6 6 6',
   right: 'M9 6l6 6-6 6',
   arrow: 'M5 12h14M13 6l6 6-6 6',
+  swap: 'M4 9h16M16 5l4 4-4 4M20 15H4M8 11l-4 4 4 4',
+  up: 'M12 20V5M6 11l6-6 6 6',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   lock: 'M6 11h12v10H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
 } as const

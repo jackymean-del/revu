@@ -294,6 +294,36 @@ func (e AssessmentScoreState) Valid() bool {
 	}
 }
 
+// Defines values for Bloom.
+const (
+	Analyse    Bloom = "analyse"
+	Apply      Bloom = "apply"
+	Create     Bloom = "create"
+	Evaluate   Bloom = "evaluate"
+	Remember   Bloom = "remember"
+	Understand Bloom = "understand"
+)
+
+// Valid indicates whether the value is a known member of the Bloom enum.
+func (e Bloom) Valid() bool {
+	switch e {
+	case Analyse:
+		return true
+	case Apply:
+		return true
+	case Create:
+		return true
+	case Evaluate:
+		return true
+	case Remember:
+		return true
+	case Understand:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BulkInputKind.
 const (
 	BlanksNotApplicable BulkInputKind = "blanks_not_applicable"
@@ -552,6 +582,24 @@ const (
 func (e LayoutInputSurface) Valid() bool {
 	switch e {
 	case EntryGrid:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LearningOutcomeBloomBy.
+const (
+	LearningOutcomeBloomBySuggested LearningOutcomeBloomBy = "suggested"
+	LearningOutcomeBloomByTeacher   LearningOutcomeBloomBy = "teacher"
+)
+
+// Valid indicates whether the value is a known member of the LearningOutcomeBloomBy enum.
+func (e LearningOutcomeBloomBy) Valid() bool {
+	switch e {
+	case LearningOutcomeBloomBySuggested:
+		return true
+	case LearningOutcomeBloomByTeacher:
 		return true
 	default:
 		return false
@@ -1542,6 +1590,45 @@ func (e SubjectInputKind) Valid() bool {
 	}
 }
 
+// Defines values for SyllabusKind.
+const (
+	Academic     SyllabusKind = "academic"
+	CoCurricular SyllabusKind = "co_curricular"
+)
+
+// Valid indicates whether the value is a known member of the SyllabusKind enum.
+func (e SyllabusKind) Valid() bool {
+	switch e {
+	case Academic:
+		return true
+	case CoCurricular:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyllabusImportReportShape.
+const (
+	Competencies SyllabusImportReportShape = "competencies"
+	Outcomes     SyllabusImportReportShape = "outcomes"
+	Workbook     SyllabusImportReportShape = "workbook"
+)
+
+// Valid indicates whether the value is a known member of the SyllabusImportReportShape enum.
+func (e SyllabusImportReportShape) Valid() bool {
+	switch e {
+	case Competencies:
+		return true
+	case Outcomes:
+		return true
+	case Workbook:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TileStatus.
 const (
 	Attention TileStatus = "attention"
@@ -1595,16 +1682,52 @@ func (e ValueState) Valid() bool {
 
 // Defines values for ImportSubjectChoicesMultipartBodyApply.
 const (
-	False ImportSubjectChoicesMultipartBodyApply = "false"
-	True  ImportSubjectChoicesMultipartBodyApply = "true"
+	ImportSubjectChoicesMultipartBodyApplyFalse ImportSubjectChoicesMultipartBodyApply = "false"
+	ImportSubjectChoicesMultipartBodyApplyTrue  ImportSubjectChoicesMultipartBodyApply = "true"
 )
 
 // Valid indicates whether the value is a known member of the ImportSubjectChoicesMultipartBodyApply enum.
 func (e ImportSubjectChoicesMultipartBodyApply) Valid() bool {
 	switch e {
-	case False:
+	case ImportSubjectChoicesMultipartBodyApplyFalse:
 		return true
-	case True:
+	case ImportSubjectChoicesMultipartBodyApplyTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportSyllabusMultipartBodyApply.
+const (
+	ImportSyllabusMultipartBodyApplyFalse ImportSyllabusMultipartBodyApply = "false"
+	ImportSyllabusMultipartBodyApplyTrue  ImportSyllabusMultipartBodyApply = "true"
+)
+
+// Valid indicates whether the value is a known member of the ImportSyllabusMultipartBodyApply enum.
+func (e ImportSyllabusMultipartBodyApply) Valid() bool {
+	switch e {
+	case ImportSyllabusMultipartBodyApplyFalse:
+		return true
+	case ImportSyllabusMultipartBodyApplyTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ImportSyllabusMultipartBodyCreateSubjects.
+const (
+	ImportSyllabusMultipartBodyCreateSubjectsFalse ImportSyllabusMultipartBodyCreateSubjects = "false"
+	ImportSyllabusMultipartBodyCreateSubjectsTrue  ImportSyllabusMultipartBodyCreateSubjects = "true"
+)
+
+// Valid indicates whether the value is a known member of the ImportSyllabusMultipartBodyCreateSubjects enum.
+func (e ImportSyllabusMultipartBodyCreateSubjects) Valid() bool {
+	switch e {
+	case ImportSyllabusMultipartBodyCreateSubjectsFalse:
+		return true
+	case ImportSyllabusMultipartBodyCreateSubjectsTrue:
 		return true
 	default:
 		return false
@@ -1912,6 +2035,9 @@ type AuditPage struct {
 	Items      []AuditEntry `json:"items"`
 	NextCursor string       `json:"nextCursor,omitempty"`
 }
+
+// Bloom defines model for Bloom.
+type Bloom string
 
 // Branch defines model for Branch.
 type Branch struct {
@@ -2289,6 +2415,14 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// ImportCounts defines model for ImportCounts.
+type ImportCounts struct {
+	Competencies int `json:"competencies"`
+	Lessons      int `json:"lessons"`
+	Outcomes     int `json:"outcomes"`
+	Subjects     int `json:"subjects"`
+}
+
 // ImportJob defines model for ImportJob.
 type ImportJob struct {
 	AppliedAt string          `json:"appliedAt,omitempty"`
@@ -2395,6 +2529,28 @@ type LayoutItem struct {
 	Pinned   bool   `json:"pinned"`
 	Position int    `json:"position"`
 	Visible  bool   `json:"visible"`
+}
+
+// LearningOutcome defines model for LearningOutcome.
+type LearningOutcome struct {
+	Bloom        Bloom                  `json:"bloom"`
+	BloomBy      LearningOutcomeBloomBy `json:"bloomBy"`
+	Code         string                 `json:"code,omitempty"`
+	CompetencyId string                 `json:"competencyId,omitempty"`
+	Id           string                 `json:"id"`
+	Note         string                 `json:"note,omitempty"`
+	Text         string                 `json:"text"`
+}
+
+// LearningOutcomeBloomBy defines model for LearningOutcome.BloomBy.
+type LearningOutcomeBloomBy string
+
+// LearningOutcomeChange defines model for LearningOutcomeChange.
+type LearningOutcomeChange struct {
+	Bloom Bloom `json:"bloom,omitempty"`
+
+	// CompetencyId Empty clears it.
+	CompetencyId string `json:"competencyId,omitempty"`
 }
 
 // Level defines model for Level.
@@ -3482,6 +3638,62 @@ type SubjectInput struct {
 // SubjectInputKind defines model for SubjectInput.Kind.
 type SubjectInputKind string
 
+// Syllabus defines model for Syllabus.
+type Syllabus struct {
+	Competencies []SyllabusCompetency `json:"competencies"`
+	Kind         SyllabusKind         `json:"kind"`
+	Lessons      []SyllabusLesson     `json:"lessons"`
+	Unplaced     []LearningOutcome    `json:"unplaced"`
+}
+
+// SyllabusKind defines model for Syllabus.Kind.
+type SyllabusKind string
+
+// SyllabusCompetency defines model for SyllabusCompetency.
+type SyllabusCompetency struct {
+	Description string `json:"description,omitempty"`
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Outcomes    int    `json:"outcomes"`
+}
+
+// SyllabusImportReport defines model for SyllabusImportReport.
+type SyllabusImportReport struct {
+	Applied      bool         `json:"applied"`
+	Created      ImportCounts `json:"created"`
+	Matched      ImportCounts `json:"matched"`
+	NoCompetency int          `json:"noCompetency"`
+	Problems     []struct {
+		Message string `json:"message"`
+		Row     int    `json:"row"`
+	} `json:"problems"`
+	Repeated        int                       `json:"repeated"`
+	Rows            int                       `json:"rows"`
+	Shape           SyllabusImportReportShape `json:"shape"`
+	UnknownLevels   []string                  `json:"unknownLevels"`
+	UnknownSubjects []string                  `json:"unknownSubjects"`
+}
+
+// SyllabusImportReportShape defines model for SyllabusImportReport.Shape.
+type SyllabusImportReportShape string
+
+// SyllabusLesson defines model for SyllabusLesson.
+type SyllabusLesson struct {
+	Id       string            `json:"id"`
+	Name     string            `json:"name"`
+	Outcomes []LearningOutcome `json:"outcomes"`
+	Seq      int               `json:"seq"`
+}
+
+// SyllabusPlace defines model for SyllabusPlace.
+type SyllabusPlace struct {
+	Competencies int    `json:"competencies"`
+	Lessons      int    `json:"lessons"`
+	LevelId      string `json:"levelId"`
+	Outcomes     int    `json:"outcomes"`
+	SubjectId    string `json:"subjectId"`
+}
+
 // SyncInput defines model for SyncInput.
 type SyncInput struct {
 	DeviceId string       `json:"deviceId,omitempty"`
@@ -4000,6 +4212,12 @@ type ResolveLayoutParams struct {
 	// ScopeId For an entry grid, the assessment.
 	ScopeId string `form:"scopeId" json:"scopeId"`
 
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateLearningOutcomeParams defines parameters for UpdateLearningOutcome.
+type UpdateLearningOutcomeParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -4603,6 +4821,46 @@ type RestoreSubjectParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// GetSyllabusParams defines parameters for GetSyllabus.
+type GetSyllabusParams struct {
+	LevelId   string `form:"levelId" json:"levelId"`
+	SubjectId string `form:"subjectId" json:"subjectId"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ImportSyllabusMultipartBody defines parameters for ImportSyllabus.
+type ImportSyllabusMultipartBody struct {
+	Apply          ImportSyllabusMultipartBodyApply          `json:"apply,omitempty"`
+	CreateSubjects ImportSyllabusMultipartBodyCreateSubjects `json:"createSubjects,omitempty"`
+	File           string                                    `json:"file"`
+
+	// LevelId The class, for a learning outcomes file.
+	LevelId string `json:"levelId,omitempty"`
+
+	// SubjectId The subject, for a learning outcomes file.
+	SubjectId string `json:"subjectId,omitempty"`
+}
+
+// ImportSyllabusParams defines parameters for ImportSyllabus.
+type ImportSyllabusParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ImportSyllabusMultipartBodyApply defines parameters for ImportSyllabus.
+type ImportSyllabusMultipartBodyApply string
+
+// ImportSyllabusMultipartBodyCreateSubjects defines parameters for ImportSyllabus.
+type ImportSyllabusMultipartBodyCreateSubjects string
+
+// SyllabusSummaryParams defines parameters for SyllabusSummary.
+type SyllabusSummaryParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // SyncEvidenceParams defines parameters for SyncEvidence.
 type SyncEvidenceParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -4761,6 +5019,9 @@ type CreateInvitationJSONRequestBody = InvitationInput
 // SaveMyLayoutJSONRequestBody defines body for SaveMyLayout for application/json ContentType.
 type SaveMyLayoutJSONRequestBody = LayoutInput
 
+// UpdateLearningOutcomeJSONRequestBody defines body for UpdateLearningOutcome for application/json ContentType.
+type UpdateLearningOutcomeJSONRequestBody = LearningOutcomeChange
+
 // CreateLevelSubjectJSONRequestBody defines body for CreateLevelSubject for application/json ContentType.
 type CreateLevelSubjectJSONRequestBody = LevelSubjectInput
 
@@ -4862,6 +5123,9 @@ type CreateSubjectJSONRequestBody = SubjectInput
 
 // UpdateSubjectJSONRequestBody defines body for UpdateSubject for application/json ContentType.
 type UpdateSubjectJSONRequestBody = SubjectInput
+
+// ImportSyllabusMultipartRequestBody defines body for ImportSyllabus for multipart/form-data ContentType.
+type ImportSyllabusMultipartRequestBody ImportSyllabusMultipartBody
 
 // SyncEvidenceJSONRequestBody defines body for SyncEvidence for application/json ContentType.
 type SyncEvidenceJSONRequestBody = SyncInput
