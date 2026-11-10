@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { draftQuestions, type Syllabus } from '../../api/client'
 import { ApiError } from '../../api/problem'
 import type { Need } from '../../lib/papers'
+import type { Taxonomy } from '../../lib/taxonomy'
 
 const button = 'rounded-lg border border-brand/40 bg-white px-3 py-1.5 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
 
@@ -10,11 +11,21 @@ const button = 'rounded-lg border border-brand/40 bg-white px-3 py-1.5 text-sm f
  * the syllabus only. They join the bank as drafts until a teacher approves
  * them; nothing about any learner is sent.
  */
-export function AiDraft({ orgId, place, need, syllabus, onDone }: { orgId: string; place: { levelId: string; subjectId: string }; need: Need; syllabus: Syllabus; onDone: () => void }) {
+export function AiDraft({ orgId, place, need, taxonomy, syllabus, onDone }: {
+  orgId: string
+  place: { levelId: string; subjectId: string }
+  need: Need
+  taxonomy: Taxonomy
+  syllabus: Syllabus
+  onDone: () => void
+}) {
   const lesson = syllabus.lessons.find((l) => l.id === need.lessonId)
   const draft = useMutation({
     mutationFn: () =>
-      draftQuestions(orgId, { ...place, lessonId: lesson?.id, qtype: need.qtype, bloom: need.bloom || undefined, marks: need.marks, count: Math.min(5, Math.max(1, need.count - need.have)) }),
+      draftQuestions(orgId, { ...place, lessonId: lesson?.id, qtype: need.qtype,
+        bloom: taxonomy === 'bloom' ? need.level || undefined : undefined,
+        ...(taxonomy === 'solo' || taxonomy === 'custom' ? { taxonomy, level: need.level } : {}),
+        marks: need.marks, count: Math.min(5, Math.max(1, need.count - need.have)) }),
     onSuccess: onDone,
   })
   return (

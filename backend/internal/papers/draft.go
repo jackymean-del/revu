@@ -28,7 +28,17 @@ type draftIn struct {
 	Bloom     string `json:"bloom"`
 	Marks     string `json:"marks"`
 	Count     int    `json:"count"`
-	Note      string `json:"note"` // anything the teacher wants, e.g. "use local examples"
+	Note      string `json:"note"`     // anything the teacher wants, e.g. "use local examples"
+	Taxonomy  string `json:"taxonomy"` // solo or custom, with Level; Bloom uses Bloom
+	Level     string `json:"level"`
+}
+
+var soloMeaning = map[string]string{
+	"prestructural":   "the learner has not yet grasped the point; questions here check basic recognition",
+	"unistructural":   "one relevant idea (identify, name, follow a simple procedure)",
+	"multistructural": "several relevant ideas, used separately (describe, list, combine)",
+	"relational":      "ideas linked into a whole (explain causes, compare, relate, apply)",
+	"extended":        "the whole taken to a new situation (generalise, hypothesise, reflect, create)",
 }
 
 var bloomVerbs = map[string]string{
@@ -84,6 +94,25 @@ func draftQuestions(d ai.Drafter) fiber.Handler {
 			return problem.Invalid(api.FieldError{Field: "qtype", Code: "required", Message: "Choose the question type; a note is up to 500 characters."})
 		}
 		in.Count = min(max(in.Count, 1), 5)
+		var customName string
+		switch in.Taxonomy {
+		case "", "bloom", "none":
+		case "solo":
+			if !slices.Contains(SOLO, in.Level) {
+				return problem.Invalid(api.FieldError{Field: "level", Code: "unknown", Message: "Choose a SOLO level."})
+			}
+		case "custom":
+			st, err := loadSettings(ctx, tx)
+			if err != nil {
+				return err
+			}
+			if !slices.Contains(st.Custom.Levels, in.Level) {
+				return problem.Invalid(api.FieldError{Field: "level", Code: "unknown", Message: "Choose one of your levels."})
+			}
+			customName = st.Custom.Name
+		default:
+			return problem.Invalid(api.FieldError{Field: "taxonomy", Code: "unknown", Message: "Not a taxonomy."})
+		}
 		if err := mayWrite(c, in.SubjectID); err != nil {
 			return err
 		}
@@ -150,6 +179,12 @@ func draftQuestions(d ai.Drafter) fiber.Handler {
 		if in.Bloom != "" {
 			fmt.Fprintf(&p, "Bloom level: %s, that is %s\n", in.Bloom, bloomVerbs[in.Bloom])
 		}
+		switch in.Taxonomy {
+		case "solo":
+			fmt.Fprintf(&p, "SOLO level: %s, that is %s\n", in.Level, soloMeaning[in.Level])
+		case "custom":
+			fmt.Fprintf(&p, "Level in the institution's %s: %s\n", customName, in.Level)
+		}
 		fmt.Fprintf(&p, "Question type: %s\nMarks for each question: %s\nHow many questions: %d\n", in.QType, in.Marks, in.Count)
 		if strings.TrimSpace(in.Note) != "" {
 			fmt.Fprintf(&p, "The teacher adds: %s\n", strings.TrimSpace(in.Note))
@@ -190,6 +225,12 @@ func draftQuestions(d ai.Drafter) fiber.Handler {
 				Difficulty: q.Difficulty, Text: strings.TrimSpace(q.Text), Answer: q.Answer, Options: q.Options, Source: "ai", Status: "draft"}
 			if x.Bloom == "" {
 				x.Bloom = q.Bloom
+			}
+			switch in.Taxonomy {
+			case "solo":
+				x.Solo = in.Level
+			case "custom":
+				x.Custom = in.Level
 			}
 			if len(x.Options) > 8 || len(x.Text) > 5000 {
 				continue

@@ -12,11 +12,11 @@ function fakeApi(page: Page) {
   })
   const bank = [q('q1', 'Multiple choice', '1', 'remember', 'Which is larger, 1/2 or 1/3?'), q('q2', 'Multiple choice', '1', 'remember', 'Name a proper fraction.'), q('q3', 'Short answer', '2', 'apply', 'Add 1/4 and 1/2.')]
   let bp = { assessmentId: 'ut', taxonomy: 'bloom', status: 'draft', version: 1, comment: '', max: '4', rows: [] as unknown[], byLevel: [], byChapter: [], questions: 0, allocated: '0', remaining: '4', checks: [], exists: false }
-  const item = (n: number, section: string, marks: string, bloom: string, question?: unknown) => ({ id: `i${n}`, seq: n, section, chapter: 'Fractions', lessonId: 'les', bloom, marks, locked: false, question })
+  const item = (n: number, section: string, marks: string, level: string, question?: unknown) => ({ id: `i${n}`, seq: n, section, chapter: 'Fractions', lessonId: 'les', level, marks, locked: false, question })
   let paper = {
-    id: 'pA', assessmentId: 'ut', set: 'A', status: 'draft', blueprintVersion: 1, instructions: '', filled: 3, total: '4',
+    id: 'pA', assessmentId: 'ut', set: 'Set A', status: 'draft', taxonomy: 'bloom', blueprintVersion: 1, instructions: '', filled: 3, total: '4',
     items: [item(1, 'Multiple choice', '1', 'remember', bank[0]), item(2, 'Multiple choice', '1', 'remember', bank[1]), item(3, 'Short answer', '2', 'apply', bank[2])],
-    bySection: [{ key: 'Multiple choice', wanted: '2', filled: '2', missing: 0 }, { key: 'Short answer', wanted: '2', filled: '2', missing: 0 }], byBloom: [], assignments: [] as unknown[],
+    bySection: [{ key: 'Multiple choice', wanted: '2', filled: '2', missing: 0 }, { key: 'Short answer', wanted: '2', filled: '2', missing: 0 }], byLevel: [], assignments: [] as unknown[],
   }
   let papers: unknown[] = []
   const summary = () => ({ id: paper.id, set: paper.set, status: paper.status, items: 3, filled: 3, blueprintVersion: 1 })
@@ -67,6 +67,12 @@ function fakeApi(page: Page) {
     return json(r, papers)
   })
   void page.route('**/v1/papers/pA', (r) => json(r, paper))
+  void page.route('**/v1/paper-settings', (r) => json(r, { setNames: ['Set A', 'Set B'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill'] } }))
+  void page.route(/\/v1\/papers\/pA\/html/, (r) => {
+    const u = new URL(r.request().url())
+    sent.push({ path: 'html', body: { key: u.searchParams.get('key'), space: u.searchParams.get('space') } })
+    return r.fulfill({ contentType: 'text/html', body: `<h1>Hill View</h1><p>Set A</p>${u.searchParams.get('space') === 'true' ? '<div class="space"></div>' : ''}${u.searchParams.get('key') === 'true' ? '<div class="key">A</div>' : ''}` })
+  })
   void page.route('**/v1/papers/pA/finalise', (r) => {
     sent.push({ path: 'finalise', body: null })
     paper = { ...paper, status: 'final' }
@@ -87,24 +93,34 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   await page.goto('/papers')
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /Create question paper/ })).toBeVisible()
 
-  // Blueprint: one row per lesson, then 2 recall marks and 2 applying.
+  // The taxonomy can be Bloom, SOLO, the institution's own, or none.
+  await expect(page.getByLabel('Taxonomy').locator('option')).toHaveText(["Bloom's taxonomy", 'SOLO taxonomy', 'Depth of knowledge', 'No taxonomy'])
+  // Blueprint: one row per lesson; 2 recall questions of 1 mark each, and 1 of 2 applying.
   await page.getByRole('button', { name: 'One row per lesson (1)' }).click()
+  await expect(page.getByLabel('Row 1 question type')).toHaveValue('Short answer')
+  await expect(page.getByLabel('Row 1 question type').locator('option')).toContainText(['Multiple choice', 'Long answer', 'Other, type a name'])
   await page.getByLabel('Row 1 Remember questions').fill('2')
-  await page.getByLabel('Row 1 Remember marks').fill('2')
+  await page.getByLabel('Row 1 Remember marks each').fill('1')
   await expect(page.getByRole('status').filter({ hasText: 'marks' })).toHaveText('2 marks still to allocate')
   await page.getByLabel('Row 1 Apply questions').fill('1')
-  await page.getByLabel('Row 1 Apply marks').fill('2')
+  await page.getByLabel('Row 1 Apply marks each').fill('2')
   await expect(page.getByRole('status').filter({ hasText: 'allocated' })).toHaveText('Every mark allocated')
   await page.getByRole('button', { name: 'Submit for approval' }).click()
   await page.getByRole('button', { name: 'Approve' }).click()
   expect(api.sent.map((s) => s.path)).toEqual(['blueprint', 'submit', 'approve'])
-  expect(api.sent[0].body).toEqual({ taxonomy: 'bloom', rows: [{ lessonId: 'les', chapter: 'Fractions', qtype: 'Short answer', cells: { remember: { questions: 2, marks: '2' }, apply: { questions: 1, marks: '2' } } }] })
+  expect(api.sent[0].body).toEqual({ taxonomy: 'bloom', rows: [{ lessonId: 'les', chapter: 'Fractions', qtype: 'Short answer', cells: { remember: { questions: 2, marks: '1' }, apply: { questions: 1, marks: '2' } } }] })
 
   // The next step is named: the bank has no short recall questions yet.
   await expect(page.getByRole('button', { name: /^Next:/ })).toContainText('Add the 2 questions the blueprint still needs')
   await page.getByRole('button', { name: /Paper sets/ }).click()
   await page.getByRole('button', { name: 'Make Set A' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'slots' })).toContainText('3 of 3 slots filled · 4 marks · ready to finalise')
+  // The paper as it prints, beside the slots: with space to answer, then as the key.
+  const preview = page.getByRole('complementary', { name: 'Print preview' })
+  await expect(preview.frameLocator('iframe').locator('.space')).toHaveCount(1)
+  await preview.getByLabel('Answer key').check()
+  await expect(preview.frameLocator('iframe').locator('.key')).toHaveCount(1)
+  expect(api.sent.filter((s) => s.path === 'html').at(-1)?.body).toEqual({ key: 'true', space: 'true' })
   await page.getByRole('button', { name: 'Finalise Set A' }).click()
   await expect(page.getByRole('button', { name: /Set A/ }).first()).toContainText('final')
 
@@ -125,7 +141,7 @@ test('AI drafts what the blueprint still needs, as drafts to approve', async ({ 
   await page.goto('/papers?a=ut&tab=blueprint')
   await page.getByRole('button', { name: 'One row per lesson (1)' }).click()
   await page.getByLabel('Row 1 Apply questions').fill('2')
-  await page.getByLabel('Row 1 Apply marks').fill('4')
+  await page.getByLabel('Row 1 Apply marks each').fill('2')
   await page.getByRole('button', { name: 'Save draft' }).click()
   await page.getByRole('button', { name: /Questions/ }).click()
   const need = page.getByRole('region', { name: 'Still needed' })
@@ -136,4 +152,23 @@ test('AI drafts what the blueprint still needs, as drafts to approve', async ({ 
   expect(api.sent.find((s) => s.path === 'draft')?.body).toEqual({ levelId: 'l6', subjectId: 'math', lessonId: 'les', qtype: 'Short answer', bloom: 'apply', marks: '2', count: 1 })
   await page.getByRole('button', { name: /Drafts to check \(1\)/ }).click()
   await expect(page.getByRole('region', { name: 'Question bank' })).toContainText('AI draft')
+})
+
+test('an administrator names the sets and sets the institution own levels', async ({ page }) => {
+  const api = fakeApi(page)
+  void page.route('**/v1/paper-settings', (r) => {
+    if (r.request().method() === 'PUT') {
+      const body = r.request().postDataJSON()
+      api.sent.push({ path: 'settings', body })
+      return r.fulfill({ json: body })
+    }
+    return r.fulfill({ json: { setNames: ['Set A', 'Set B', 'Set C', 'Set D'], custom: { name: '', levels: [] } } })
+  })
+  await page.goto('/settings/papers')
+  await page.getByLabel('Set names').fill('Red\nBlue')
+  await page.getByLabel('Taxonomy name').fill('Depth of knowledge')
+  await page.getByLabel('Levels').fill('Recall\nSkill\nStrategic')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('status')).toContainText('Saved')
+  expect(api.sent.at(-1)).toEqual({ path: 'settings', body: { setNames: ['Red', 'Blue'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill', 'Strategic'] } } })
 })

@@ -27,7 +27,7 @@ type Item struct {
 	Section  string    `json:"section"`
 	Chapter  string    `json:"chapter"`
 	LessonID string    `json:"lessonId,omitempty"`
-	Bloom    string    `json:"bloom,omitempty"`
+	Level    string    `json:"level,omitempty"` // of the paper's taxonomy
 	Marks    string    `json:"marks"`
 	Locked   bool      `json:"locked"`
 	Question *Question `json:"question,omitempty"`
@@ -54,13 +54,14 @@ type Paper struct {
 	AssessmentID     string       `json:"assessmentId"`
 	Set              string       `json:"set"`
 	Status           string       `json:"status"`
+	Taxonomy         string       `json:"taxonomy"`
 	BlueprintVersion int          `json:"blueprintVersion"`
 	Instructions     string       `json:"instructions"`
 	Items            []Item       `json:"items"`
 	Filled           int          `json:"filled"`
 	Total            string       `json:"total"`
 	BySection        []Gap        `json:"bySection"`
-	ByBloom          []Gap        `json:"byBloom"`
+	ByLevel          []Gap        `json:"byLevel"`
 	Assignments      []Assignment `json:"assignments"`
 }
 
@@ -70,8 +71,8 @@ func paperOf(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (Paper, assessment, e
 	if !records.UUIDShape.MatchString(id) {
 		return p, assessment{}, notFound
 	}
-	err := tx.QueryRow(c.Context(), `SELECT id::text, assessment_id::text, set_label, status, blueprint_version, instructions FROM papers WHERE id = $1::uuid`, id).
-		Scan(&p.ID, &p.AssessmentID, &p.Set, &p.Status, &p.BlueprintVersion, &p.Instructions)
+	err := tx.QueryRow(c.Context(), `SELECT id::text, assessment_id::text, set_label, status, taxonomy, blueprint_version, instructions FROM papers WHERE id = $1::uuid`, id).
+		Scan(&p.ID, &p.AssessmentID, &p.Set, &p.Status, &p.Taxonomy, &p.BlueprintVersion, &p.Instructions)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, assessment{}, notFound
 	}
@@ -86,11 +87,11 @@ func paperOf(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (Paper, assessment, e
 }
 
 func loadItems(ctx context.Context, tx pgx.Tx, p *Paper) error {
-	p.Items, p.BySection, p.ByBloom, p.Assignments = []Item{}, []Gap{}, []Gap{}, []Assignment{}
+	p.Items, p.BySection, p.ByLevel, p.Assignments = []Item{}, []Gap{}, []Gap{}, []Assignment{}
 	p.Filled = 0
 	var b pgx.Batch
 	b.Queue(`
-		SELECT i.id::text, i.seq, i.section, i.chapter, coalesce(i.lesson_id::text, ''), i.bloom, i.marks::text, i.locked, i.question_id IS NOT NULL,
+		SELECT i.id::text, i.seq, i.section, i.chapter, coalesce(i.lesson_id::text, ''), i.level, i.marks::text, i.locked, i.question_id IS NOT NULL,
 		       `+questionCols+`
 		  FROM paper_items i LEFT JOIN questions q ON q.id = i.question_id
 		 WHERE i.paper_id = $1::uuid ORDER BY i.seq`, p.ID).Query(func(rows pgx.Rows) error {
@@ -98,16 +99,16 @@ func loadItems(ctx context.Context, tx pgx.Tx, p *Paper) error {
 			var it Item
 			var has bool
 			var q Question
-			var qid, qlevel, qsubject, qlesson, qoutcome, qbloom, qtype, qmarks, qdiff, qtext, qanswer, qsource, qstatus *string
+			var qid, qlevel, qsubject, qlesson, qoutcome, qbloom, qsolo, qcustom, qtype, qmarks, qdiff, qtext, qanswer, qsource, qstatus *string
 			var qopts []byte
 			var qused *int
-			if err := rows.Scan(&it.ID, &it.Seq, &it.Section, &it.Chapter, &it.LessonID, &it.Bloom, &it.Marks, &it.Locked, &has,
-				&qid, &qlevel, &qsubject, &qlesson, &qoutcome, &qbloom, &qtype, &qmarks, &qdiff, &qtext, &qopts, &qanswer, &qsource, &qstatus, &qused); err != nil {
+			if err := rows.Scan(&it.ID, &it.Seq, &it.Section, &it.Chapter, &it.LessonID, &it.Level, &it.Marks, &it.Locked, &has,
+				&qid, &qlevel, &qsubject, &qlesson, &qoutcome, &qbloom, &qsolo, &qcustom, &qtype, &qmarks, &qdiff, &qtext, &qopts, &qanswer, &qsource, &qstatus, &qused); err != nil {
 				return err
 			}
 			it.Marks = trim(it.Marks)
 			if has {
-				q = Question{ID: *qid, LevelID: *qlevel, SubjectID: *qsubject, LessonID: *qlesson, OutcomeID: *qoutcome, Bloom: *qbloom, QType: *qtype, Marks: trim(*qmarks),
+				q = Question{ID: *qid, LevelID: *qlevel, SubjectID: *qsubject, LessonID: *qlesson, OutcomeID: *qoutcome, Bloom: *qbloom, Solo: *qsolo, Custom: *qcustom, QType: *qtype, Marks: trim(*qmarks),
 					Difficulty: *qdiff, Text: *qtext, Answer: *qanswer, Source: *qsource, Status: *qstatus, Used: *qused, Options: []string{}}
 				if len(qopts) > 0 {
 					_ = jsonUnmarshal(qopts, &q.Options)
@@ -136,7 +137,7 @@ func loadItems(ctx context.Context, tx pgx.Tx, p *Paper) error {
 		})
 	}
 	gaps("section", &p.BySection)
-	gaps("bloom", &p.ByBloom)
+	gaps("level", &p.ByLevel)
 	b.Queue(`SELECT coalesce(sum(marks), 0)::text FROM paper_items WHERE paper_id = $1::uuid`, p.ID).QueryRow(func(r pgx.Row) error { return r.Scan(&p.Total) })
 	b.Queue(`SELECT section_id::text, coalesce(student_id::text, ''), coalesce(sit_on::text, '') FROM paper_assignments WHERE paper_id = $1::uuid ORDER BY created_at`, p.ID).
 		Query(func(rows pgx.Rows) error {
@@ -178,7 +179,7 @@ func listPapers(c fiber.Ctx) error {
 	rows, err := tx.Query(c.Context(), `
 		SELECT p.id::text, p.set_label, p.status, (SELECT count(*) FROM paper_items i WHERE i.paper_id = p.id)::int,
 		       (SELECT count(*) FROM paper_items i WHERE i.paper_id = p.id AND i.question_id IS NOT NULL)::int, p.blueprint_version
-		  FROM papers p WHERE p.assessment_id = $1::uuid ORDER BY p.set_label`, a.id)
+		  FROM papers p WHERE p.assessment_id = $1::uuid ORDER BY p.created_at`, a.id)
 	if err != nil {
 		return err
 	}
@@ -196,7 +197,32 @@ func listPapers(c fiber.Ctx) error {
 }
 
 type createIn struct {
-	Fill bool `json:"fill"` // fill the slots from the question bank
+	Fill bool   `json:"fill"` // fill the slots from the question bank
+	Name string `json:"name"` // the set's name; the next of the institution's when empty
+}
+
+// setName is the name asked for, checked, or the next free one.
+func setName(c fiber.Ctx, tx pgx.Tx, assessmentID, asked string) (string, error) {
+	ctx := c.Context()
+	var n int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM papers WHERE assessment_id = $1::uuid`, assessmentID).Scan(&n); err != nil {
+		return "", err
+	}
+	if n >= 26 {
+		return "", problem.New(http.StatusConflict, "paper.too_many_sets", "An assessment has at most 26 sets.")
+	}
+	asked = strings.Join(strings.Fields(asked), " ")
+	if asked == "" {
+		return nextSetName(ctx, tx, assessmentID)
+	}
+	var taken bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM papers WHERE assessment_id = $1::uuid AND lower(set_label) = lower($2))`, assessmentID, asked).Scan(&taken); err != nil {
+		return "", err
+	}
+	if len(asked) > 30 || taken {
+		return "", problem.Invalid(api.FieldError{Field: "name", Code: "invalid", Message: "Give a name of up to 30 characters that no other set of this assessment has."})
+	}
+	return asked, nil
 }
 
 // createPaper lays out Set A as empty slots exactly as the approved
@@ -212,9 +238,9 @@ func createPaper(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	var bpID string
+	var bpID, taxonomy string
 	var version int
-	err = tx.QueryRow(ctx, `SELECT id::text, version FROM blueprints WHERE assessment_id = $1::uuid AND status = 'approved'`, a.id).Scan(&bpID, &version)
+	err = tx.QueryRow(ctx, `SELECT id::text, version, taxonomy FROM blueprints WHERE assessment_id = $1::uuid AND status = 'approved'`, a.id).Scan(&bpID, &version, &taxonomy)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return problem.New(http.StatusConflict, "blueprint.not_approved", "Papers are made from an approved blueprint; approve it first.")
 	}
@@ -224,33 +250,31 @@ func createPaper(c fiber.Ctx) error {
 	var in createIn
 	_ = httpx.Decode(c, &in)
 	m, _ := tenant.MemberFrom(c)
-	var set string
-	if err := tx.QueryRow(ctx, `SELECT chr(65 + count(*)::int) FROM papers WHERE assessment_id = $1::uuid`, a.id).Scan(&set); err != nil {
+	set, err := setName(c, tx, a.id, in.Name)
+	if err != nil {
 		return err
 	}
-	if set > "Z" {
-		return problem.New(http.StatusConflict, "paper.too_many_sets", "An assessment has at most 26 sets.")
+	levels, err := levelsOf(ctx, tx, taxonomy)
+	if err != nil {
+		return err
 	}
 	var p Paper
-	if err := tx.QueryRow(ctx, `INSERT INTO papers (org_id, assessment_id, set_label, blueprint_version, created_by) VALUES ($1, $2::uuid, $3, $4, $5) RETURNING id::text`,
-		m.OrgID, a.id, set, version, m.UserID).Scan(&p.ID); err != nil {
+	if err := tx.QueryRow(ctx, `INSERT INTO papers (org_id, assessment_id, set_label, taxonomy, blueprint_version, created_by) VALUES ($1, $2::uuid, $3, $4, $5, $6) RETURNING id::text`,
+		m.OrgID, a.id, set, taxonomy, version, m.UserID).Scan(&p.ID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, bloom, marks)
-		SELECT $1, $2::uuid, row_number() OVER (ORDER BY sec.first, r.seq, lv.ord, g.n), r.qtype, r.chapter, r.lesson_id, c.level,
-		       CASE WHEN g.n < c.questions THEN round(c.marks / c.questions, 2)
-		            ELSE c.marks - round(c.marks / c.questions, 2) * (c.questions - 1) END
+		INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, level, marks)
+		SELECT $1, $2::uuid, row_number() OVER (ORDER BY sec.first, r.seq, coalesce(array_position($4::text[], c.level), 0), g.n), r.qtype, r.chapter, r.lesson_id, c.level, c.marks_each
 		  FROM blueprint_rows r
 		  JOIN blueprint_cells c ON c.row_id = r.id
 		  JOIN (SELECT qtype, min(seq) AS first FROM blueprint_rows WHERE blueprint_id = $3::uuid GROUP BY qtype) sec ON sec.qtype = r.qtype
-		  JOIN (VALUES ('', 0), ('remember', 1), ('understand', 2), ('apply', 3), ('analyse', 4), ('evaluate', 5), ('create', 6)) lv(level, ord) ON lv.level = c.level
 		  CROSS JOIN LATERAL generate_series(1, c.questions) g(n)
-		 WHERE r.blueprint_id = $3::uuid`, m.OrgID, p.ID, bpID); err != nil {
+		 WHERE r.blueprint_id = $3::uuid`, m.OrgID, p.ID, bpID, levels); err != nil {
 		return err
 	}
 	if in.Fill {
-		if _, err := fill(ctx, tx, a, p.ID); err != nil {
+		if _, err := fill(ctx, tx, a, p.ID, taxonomy); err != nil {
 			return err
 		}
 	}
@@ -280,21 +304,21 @@ func getPaper(c fiber.Ctx) error {
 // class, subject and marks, the slot's lesson and Bloom level when it has
 // them, and its question type; approved, not already in the paper, the
 // least used first. A slot nothing fits stays empty.
-func fill(ctx context.Context, tx pgx.Tx, a assessment, paperID string) (int, error) {
-	type slot struct{ id, section, lesson, bloom, marks string }
+func fill(ctx context.Context, tx pgx.Tx, a assessment, paperID, taxonomy string) (int, error) {
+	type slot struct{ id, section, lesson, level, marks string }
 	type cand struct {
-		id, lesson, bloom, qtype, marks string
+		id, lesson, level, qtype, marks string
 		used                            int
 	}
 	var slots []slot
 	var cands []cand
 	used := map[string]bool{}
 	var b pgx.Batch
-	b.Queue(`SELECT id::text, section, coalesce(lesson_id::text, ''), bloom, marks::text FROM paper_items WHERE paper_id = $1::uuid AND question_id IS NULL AND NOT locked ORDER BY seq`, paperID).
+	b.Queue(`SELECT id::text, section, coalesce(lesson_id::text, ''), level, marks::text FROM paper_items WHERE paper_id = $1::uuid AND question_id IS NULL AND NOT locked ORDER BY seq`, paperID).
 		Query(func(rows pgx.Rows) error {
 			for rows.Next() {
 				var s slot
-				if err := rows.Scan(&s.id, &s.section, &s.lesson, &s.bloom, &s.marks); err != nil {
+				if err := rows.Scan(&s.id, &s.section, &s.lesson, &s.level, &s.marks); err != nil {
 					return err
 				}
 				slots = append(slots, s)
@@ -312,12 +336,12 @@ func fill(ctx context.Context, tx pgx.Tx, a assessment, paperID string) (int, er
 		return rows.Err()
 	})
 	b.Queue(`
-		SELECT q.id::text, coalesce(q.lesson_id::text, ''), q.bloom, lower(q.qtype), q.marks::text, (SELECT count(*) FROM paper_items i WHERE i.question_id = q.id)::int
+		SELECT q.id::text, coalesce(q.lesson_id::text, ''), CASE $3 WHEN 'bloom' THEN q.bloom WHEN 'solo' THEN coalesce(q.solo, '') WHEN 'custom' THEN coalesce(q.custom_level, '') ELSE '' END, lower(q.qtype), q.marks::text, (SELECT count(*) FROM paper_items i WHERE i.question_id = q.id)::int
 		  FROM questions q WHERE q.level_id = $1::uuid AND q.subject_id = $2::uuid AND q.status = 'approved'
-		 ORDER BY 6, q.created_at`, a.levelID, a.subjectID).Query(func(rows pgx.Rows) error {
+		 ORDER BY 6, q.created_at`, a.levelID, a.subjectID, taxonomy).Query(func(rows pgx.Rows) error {
 		for rows.Next() {
 			var x cand
-			if err := rows.Scan(&x.id, &x.lesson, &x.bloom, &x.qtype, &x.marks, &x.used); err != nil {
+			if err := rows.Scan(&x.id, &x.lesson, &x.level, &x.qtype, &x.marks, &x.used); err != nil {
 				return err
 			}
 			cands = append(cands, x)
@@ -331,7 +355,7 @@ func fill(ctx context.Context, tx pgx.Tx, a assessment, paperID string) (int, er
 	for _, s := range slots {
 		i := slices.IndexFunc(cands, func(x cand) bool {
 			return !used[x.id] && x.qtype == strings.ToLower(s.section) && trim(x.marks) == trim(s.marks) &&
-				(s.lesson == "" || x.lesson == s.lesson) && (s.bloom == "" || x.bloom == s.bloom)
+				(s.lesson == "" || x.lesson == s.lesson) && (s.level == "" || x.level == s.level)
 		})
 		if i < 0 {
 			continue
@@ -364,7 +388,7 @@ func fillPaper(c fiber.Ctx) error {
 	if err := draftOnly(p); err != nil {
 		return err
 	}
-	if _, err := fill(c.Context(), tx, a, p.ID); err != nil {
+	if _, err := fill(c.Context(), tx, a, p.ID, p.Taxonomy); err != nil {
 		return err
 	}
 	if err := loadItems(c.Context(), tx, &p); err != nil {
@@ -438,20 +462,20 @@ func duplicatePaper(c fiber.Ctx) error {
 		return err
 	}
 	m, _ := tenant.MemberFrom(c)
-	var set, id string
-	if err := tx.QueryRow(ctx, `SELECT chr(65 + count(*)::int) FROM papers WHERE assessment_id = $1::uuid`, a.id).Scan(&set); err != nil {
+	var in createIn
+	_ = httpx.Decode(c, &in)
+	set, err := setName(c, tx, a.id, in.Name)
+	if err != nil {
 		return err
 	}
-	if set > "Z" {
-		return problem.New(http.StatusConflict, "paper.too_many_sets", "An assessment has at most 26 sets.")
-	}
-	if err := tx.QueryRow(ctx, `INSERT INTO papers (org_id, assessment_id, set_label, blueprint_version, instructions, created_by) VALUES ($1, $2::uuid, $3, $4, $5, $6) RETURNING id::text`,
-		m.OrgID, a.id, set, p.BlueprintVersion, p.Instructions, m.UserID).Scan(&id); err != nil {
+	var id string
+	if err := tx.QueryRow(ctx, `INSERT INTO papers (org_id, assessment_id, set_label, taxonomy, blueprint_version, instructions, created_by) VALUES ($1, $2::uuid, $3, $4, $5, $6, $7) RETURNING id::text`,
+		m.OrgID, a.id, set, p.Taxonomy, p.BlueprintVersion, p.Instructions, m.UserID).Scan(&id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, bloom, marks, question_id, locked)
-		SELECT org_id, $2::uuid, seq, section, chapter, lesson_id, bloom, marks, question_id, locked FROM paper_items WHERE paper_id = $1::uuid`, p.ID, id); err != nil {
+		INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, level, marks, question_id, locked)
+		SELECT org_id, $2::uuid, seq, section, chapter, lesson_id, level, marks, question_id, locked FROM paper_items WHERE paper_id = $1::uuid`, p.ID, id); err != nil {
 		return err
 	}
 	if err := audit.Record(c, audit.Entry{Action: "create", Entity: "papers", EntityID: id, After: map[string]any{"set": set, "from": p.Set}}); err != nil {
@@ -605,25 +629,29 @@ h1{font-size:18px;margin:0}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px
 .meta{display:flex;justify-content:space-between;font-size:13px;margin-top:6px}
 ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-style:lower-alpha;margin:4px 0 0}
 .key{background:#f6f5fb;border:1px solid #ddd;padding:4px 8px;margin-top:4px;font-size:13px}
+.space{margin-top:6px}.space div{border-bottom:1px solid #bbb;height:26px}
+.box{display:inline-block;width:18px;height:14px;border:1px solid #888;margin-left:8px;vertical-align:middle}
+.pending{color:#a16207;font-style:italic}
 @media print{body{padding:0}}
 </style></head><body>
 <header><h1>{{.School}}</h1><div>{{.Title}}{{if .Key}} : answer key{{end}}</div>
-<div class="meta"><span>{{.Class}} · {{.Subject}}</span><span>Set {{.Set}}</span><span>Maximum marks: {{.Max}}</span></div></header>
+<div class="meta"><span>{{.Class}} · {{.Subject}}</span><span>{{.Set}}</span><span>Maximum marks: {{.Max}}</span></div></header>
 {{if .Instructions}}<p>{{.Instructions}}</p>{{end}}
 {{range .Sections}}<h2>{{.Name}} <span class="m">{{.Marks}} marks</span></h2><ol start="{{.Start}}">
-{{range .Items}}<li><span class="m">[{{.Marks}}]</span>{{.Text}}{{if .Options}}<ol class="opts">{{range .Options}}<li>{{.}}</li>{{end}}</ol>{{end}}
-{{if $.Key}}<div class="key">{{.Answer}}</div>{{end}}</li>{{end}}</ol>{{end}}
+{{range .Items}}<li><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Options}}<ol class="opts">{{range .Options}}<li>{{.}}{{if $.Space}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
+{{if $.Key}}<div class="key">{{.Answer}}</div>{{else if and $.Space .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}</li>{{end}}</ol>{{end}}
 </body></html>`))
 
 // paperHTML is the printable paper: for students without answers, mappings
-// or notes; with ?key=true the answer key for staff.
+// or notes; with ?key=true the answer key for staff; with ?space=true
+// ruled lines to answer on, more for more marks, none for choice questions.
 func paperHTML(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Context()
-	key := c.Query("key") == "true"
+	key, space := c.Query("key") == "true", c.Query("space") == "true"
 	p, a, err := paperOf(c, tx, c.Params("id"), key)
 	if err != nil {
 		return err
@@ -631,6 +659,8 @@ func paperHTML(c fiber.Ctx) error {
 	type pi struct {
 		Text, Marks, Answer string
 		Options             []string
+		Lines               []int
+		Pending             bool
 	}
 	type sec struct {
 		Name, Marks string
@@ -639,10 +669,10 @@ func paperHTML(c fiber.Ctx) error {
 	}
 	var view struct {
 		School, Title, Class, Subject, Set, Max, Instructions string
-		Key                                                   bool
+		Key, Space                                            bool
 		Sections                                              []*sec
 	}
-	view.Set, view.Key, view.Instructions, view.Title = p.Set, key, p.Instructions, a.title
+	view.Set, view.Key, view.Space, view.Instructions, view.Title = p.Set, key, space, p.Instructions, a.title
 	if err := tx.QueryRow(ctx, `
 		SELECT coalesce((SELECT display_name FROM branding_versions ORDER BY version DESC LIMIT 1), (SELECT name FROM orgs WHERE id = app_org_id())),
 		       (SELECT name FROM levels WHERE id = $1::uuid), (SELECT name FROM subjects WHERE id = $2::uuid)`, a.levelID, a.subjectID).
@@ -659,9 +689,12 @@ func paperHTML(c fiber.Ctx) error {
 			view.Sections = append(view.Sections, &sec{Name: it.Section, Marks: marks[it.Section], Start: i + 1})
 		}
 		s := view.Sections[len(view.Sections)-1]
-		x := pi{Marks: it.Marks, Text: "(question still to choose)"}
+		x := pi{Marks: it.Marks, Text: "Question still to choose", Pending: true}
 		if it.Question != nil {
-			x.Text, x.Options, x.Answer = it.Question.Text, it.Question.Options, it.Question.Answer
+			x.Text, x.Options, x.Answer, x.Pending = it.Question.Text, it.Question.Options, it.Question.Answer, false
+		}
+		if len(x.Options) == 0 && !choice(it.Section) {
+			x.Lines = make([]int, answerLines(it.Marks))
 		}
 		s.Items = append(s.Items, x)
 	}
@@ -671,4 +704,21 @@ func paperHTML(c fiber.Ctx) error {
 	}
 	c.Set(fiber.HeaderContentType, "text/html; charset=utf-8")
 	return c.Send(buf.Bytes())
+}
+
+// answerLines is how many ruled lines a question gets to answer on: two a
+// mark, at least two and at most twenty.
+func answerLines(marks string) int {
+	whole, _, _ := strings.Cut(marks, ".")
+	n := 0
+	for _, r := range whole {
+		n = n*10 + int(r-'0')
+	}
+	return min(max(2, n*2), 20)
+}
+
+// choice says whether a question type is answered by choosing, not writing.
+func choice(qtype string) bool {
+	t := strings.ToLower(qtype)
+	return strings.Contains(t, "choice") || strings.Contains(t, "true or false") || strings.Contains(t, "match")
 }

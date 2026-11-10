@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getBlueprint, getSyllabus, listPapers, listQuestions } from '../api/client'
 import { Icon } from '../components/Icon'
 import { needs } from '../lib/papers'
+import type { Taxonomy } from '../lib/taxonomy'
 import { useT } from '../lib/terminology/terms-context'
 import { AssessmentSelect } from './papers/AssessmentSelect'
 import { usePaperAssessments } from './papers/assessments'
@@ -39,7 +40,7 @@ export function Papers() {
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const bp = blueprint.data
-  const short = bp && bank.data ? needs(bp.rows, bank.data).reduce((n, x) => n + Math.max(0, x.count - x.have), 0) : 0
+  const short = bp && bank.data ? needs(bp.rows, bank.data, bp.taxonomy as Taxonomy).reduce((n, x) => n + Math.max(0, x.count - x.have), 0) : 0
   const sets = papers.data ?? []
   const next = !bp
     ? null
@@ -48,10 +49,10 @@ export function Papers() {
       : short > 0 && sets.length === 0
         ? { tab: 'questions' as const, text: `Add the ${short} ${short === 1 ? 'question' : 'questions'} the blueprint still needs` }
         : sets.length === 0
-          ? { tab: 'sets' as const, text: 'Make Set A from the bank' }
+          ? { tab: 'sets' as const, text: 'Make the first set from the bank' }
           : sets.some((s) => s.status === 'final')
             ? null
-            : { tab: 'sets' as const, text: `Fill every slot and finalise Set ${sets[0].set}` }
+            : { tab: 'sets' as const, text: `Fill every slot and finalise ${sets[0].set}` }
   const open = (to: PaperTab) => void navigate({ search: { a: id, tab: to } })
   const steps: { key: PaperTab; label: string; fact: string }[] = [
     { key: 'blueprint', label: 'Blueprint', fact: bp ? (bp.exists ? STATUS[bp.status] : 'Not started') : '' },

@@ -1,12 +1,15 @@
 /**
  * Helpers for Create question paper (P0.9). The server works out every
  * total exactly and is the one that decides; these only keep the totals
- * live while a blueprint is typed, in hundredths so 0.1 + 0.2 is 0.3.
+ * live while a blueprint is typed, in hundredths so 0.1 + 0.2 is 0.3. A
+ * cell's marks are marks for each question: 2 questions of 2 marks is 4.
  */
 import type { components } from '../api/schema.gen'
+import { questionLevel, type Taxonomy } from './taxonomy'
 
 type Row = components['schemas']['BlueprintRow']
 type Cell = components['schemas']['BlueprintCell']
+type Question = components['schemas']['Question']
 
 /** Marks as whole hundredths; anything not a mark is 0. */
 export function hundredths(s: string): number {
@@ -36,7 +39,7 @@ export interface Totals {
   marks: number
 }
 
-/** Every total of a blueprint being typed, in hundredths. */
+/** Every total of a blueprint being typed, in hundredths: questions times marks each. */
 export function totals(rows: Row[], levels: string[]): Totals {
   const out: Totals = { rows: [], byLevel: Object.fromEntries(levels.map((l) => [l, { questions: 0, marks: 0 }])), questions: 0, marks: 0 }
   for (const r of rows) {
@@ -44,7 +47,7 @@ export function totals(rows: Row[], levels: string[]): Totals {
     for (const l of levels) {
       const c = r.cells[l]
       if (!c) continue
-      const m = hundredths(c.marks)
+      const m = c.questions * hundredths(c.marks)
       t.questions += c.questions
       t.marks += m
       out.byLevel[l].questions += c.questions
@@ -80,7 +83,7 @@ export interface Need {
   lessonId?: string
   chapter: string
   qtype: string
-  bloom: string
+  level: string
   marks: string
   count: number
   have: number
@@ -88,24 +91,18 @@ export interface Need {
 
 /**
  * The questions a blueprint asks for, grouped as the bank must hold them,
- * and how many approved questions of the bank fit each. Slot marks are the
- * cell's marks shared across its questions, any remainder on the last, as
- * the server lays the paper out.
+ * and how many approved questions of the bank fit each: same type and
+ * marks, the row's lesson, and the cell's level in the blueprint's taxonomy.
  */
-export function needs(rows: Row[], bank: components['schemas']['Question'][]): Need[] {
+export function needs(rows: Row[], bank: Question[], taxonomy: Taxonomy): Need[] {
   const out = new Map<string, Need>()
   for (const r of rows) {
-    for (const [bloom, c] of Object.entries(r.cells)) {
+    for (const [level, c] of Object.entries(r.cells)) {
       if (blank(c) || c.questions <= 0) continue
-      const total = hundredths(c.marks)
-      const each = Math.round(total / c.questions)
-      const parts = [...Array<number>(c.questions - 1).fill(each), total - each * (c.questions - 1)]
-      for (const h of parts) {
-        const key = [r.lessonId || r.chapter.trim().toLowerCase(), r.qtype.trim().toLowerCase(), bloom, h].join('|')
-        const n = out.get(key) ?? { key, lessonId: r.lessonId || undefined, chapter: r.chapter.trim(), qtype: r.qtype.trim(), bloom, marks: marks(h), count: 0, have: 0 }
-        n.count++
-        out.set(key, n)
-      }
+      const key = [r.lessonId || r.chapter.trim().toLowerCase(), r.qtype.trim().toLowerCase(), level, hundredths(c.marks)].join('|')
+      const n = out.get(key) ?? { key, lessonId: r.lessonId || undefined, chapter: r.chapter.trim(), qtype: r.qtype.trim(), level, marks: marks(hundredths(c.marks)), count: 0, have: 0 }
+      n.count += c.questions
+      out.set(key, n)
     }
   }
   for (const n of out.values()) {
@@ -115,8 +112,39 @@ export function needs(rows: Row[], bank: components['schemas']['Question'][]): N
         q.qtype.toLowerCase() === n.qtype.toLowerCase() &&
         hundredths(q.marks) === hundredths(n.marks) &&
         (!n.lessonId || q.lessonId === n.lessonId) &&
-        (!n.bloom || q.bloom === n.bloom),
+        (!n.level || questionLevel(q, taxonomy) === n.level),
     ).length
   }
   return [...out.values()]
+}
+
+export interface Sitter {
+  id: string
+  name: string
+  admissionNo: string
+  rollNo?: string
+}
+
+export type ShareBy = 'roll' | 'name' | 'admission'
+
+/** Students in order of roll number, name or admission number, numbers read as numbers. */
+export function inOrder<T extends Sitter>(students: T[], by: ShareBy): T[] {
+  const key = (s: Sitter) => (by === 'roll' ? (s.rollNo ?? '') : by === 'name' ? s.name : s.admissionNo)
+  return [...students].sort((a, b) => {
+    const x = key(a)
+    const y = key(b)
+    if (!x !== !y) return x ? -1 : 1 // without a roll number, last
+    return x.localeCompare(y, undefined, { numeric: true, sensitivity: 'base' }) || a.name.localeCompare(b.name)
+  })
+}
+
+/**
+ * Shares sets out among a group's students: in the order chosen (roll
+ * number, name or admission number, numbers read as numbers), either
+ * alternately (A, B, A, B) or in equal blocks (the first half A, the rest B).
+ */
+export function share(students: Sitter[], sets: string[], by: ShareBy, how: 'alternate' | 'blocks'): Record<string, string> {
+  if (sets.length === 0) return {}
+  const order = inOrder(students, by)
+  return Object.fromEntries(order.map((s, i) => [s.id, sets[how === 'alternate' ? i % sets.length : Math.floor((i * sets.length) / order.length)]]))
 }

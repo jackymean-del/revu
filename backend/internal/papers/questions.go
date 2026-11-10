@@ -39,17 +39,19 @@ type Question struct {
 	Answer     string   `json:"answer"`
 	Source     string   `json:"source"`
 	Status     string   `json:"status"`
+	Solo       string   `json:"solo,omitempty"`
+	Custom     string   `json:"customLevel,omitempty"`
 	Used       int      `json:"used"` // papers it is in
 }
 
-const questionCols = `q.id::text, q.level_id::text, q.subject_id::text, coalesce(q.lesson_id::text, ''), coalesce(q.outcome_id::text, ''), q.bloom, q.qtype,
+const questionCols = `q.id::text, q.level_id::text, q.subject_id::text, coalesce(q.lesson_id::text, ''), coalesce(q.outcome_id::text, ''), q.bloom, coalesce(q.solo, ''), coalesce(q.custom_level, ''), q.qtype,
 	q.marks::text, q.difficulty, q.text, q.options, q.answer, q.source, q.status,
 	(SELECT count(DISTINCT i.paper_id) FROM paper_items i WHERE i.question_id = q.id)::int`
 
 func scanQuestion(r pgx.Row) (Question, error) {
 	var q Question
 	var opts []byte
-	err := r.Scan(&q.ID, &q.LevelID, &q.SubjectID, &q.LessonID, &q.OutcomeID, &q.Bloom, &q.QType, &q.Marks, &q.Difficulty, &q.Text, &opts, &q.Answer, &q.Source, &q.Status, &q.Used)
+	err := r.Scan(&q.ID, &q.LevelID, &q.SubjectID, &q.LessonID, &q.OutcomeID, &q.Bloom, &q.Solo, &q.Custom, &q.QType, &q.Marks, &q.Difficulty, &q.Text, &opts, &q.Answer, &q.Source, &q.Status, &q.Used)
 	q.Marks = trim(q.Marks)
 	q.Options = []string{}
 	if len(opts) > 0 {
@@ -122,6 +124,8 @@ type questionIn struct {
 	LessonID   string   `json:"lessonId"`
 	OutcomeID  string   `json:"outcomeId"`
 	Bloom      string   `json:"bloom"`
+	Solo       string   `json:"solo"`
+	Custom     string   `json:"customLevel"`
 	QType      string   `json:"qtype"`
 	Marks      string   `json:"marks"`
 	Difficulty string   `json:"difficulty"`
@@ -147,6 +151,13 @@ func (in *questionIn) valid() error {
 	}
 	if !slices.Contains(syllabus.Blooms, in.Bloom) {
 		f.Add("bloom", "unknown", "Choose a Bloom level.")
+	}
+	if in.Solo != "" && !slices.Contains(SOLO, in.Solo) {
+		f.Add("solo", "unknown", "Choose a SOLO level.")
+	}
+	in.Custom = strings.TrimSpace(in.Custom)
+	if len(in.Custom) > 40 {
+		f.Add("customLevel", "invalid", "A level is up to 40 characters.")
 	}
 	if strings.TrimSpace(in.QType) == "" {
 		f.Add("qtype", "required", "Choose the question type.")
@@ -221,11 +232,11 @@ func insertQuestion(c fiber.Ctx, in questionIn, orgID, userID string) (Question,
 	opts, _ := json.Marshal(in.Options)
 	return scanQuestion(tx.QueryRow(c.Context(), `
 		WITH n AS (
-			INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, difficulty, text, options, answer, source, status, created_by)
-			VALUES ($1, $2::uuid, $3::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8::numeric, $9, $10, $11::jsonb, $12, $13, $14, $15) RETURNING *)
+			INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, difficulty, text, options, answer, source, status, created_by, solo, custom_level)
+			VALUES ($1, $2::uuid, $3::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8::numeric, $9, $10, $11::jsonb, $12, $13, $14, $15, nullif($16, ''), nullif($17, '')) RETURNING *)
 		SELECT `+questionCols+` FROM n q`,
 		orgID, in.LevelID, in.SubjectID, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts),
-		strings.TrimSpace(in.Answer), in.Source, in.Status, userID))
+		strings.TrimSpace(in.Answer), in.Source, in.Status, userID, in.Solo, in.Custom))
 }
 
 // updateQuestion changes a question. A question already in a final paper
@@ -269,10 +280,10 @@ func updateQuestion(c fiber.Ctx) error {
 	q, err := scanQuestion(tx.QueryRow(ctx, `
 		WITH u AS (
 			UPDATE questions SET lesson_id = nullif($2, '')::uuid, outcome_id = nullif($3, '')::uuid, bloom = $4, qtype = $5, marks = $6::numeric, difficulty = $7,
-			       text = $8, options = $9::jsonb, answer = $10, status = $11, updated_at = now()
+			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), updated_at = now()
 			 WHERE id = $1::uuid RETURNING *)
 		SELECT `+questionCols+` FROM u q`,
-		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status))
+		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom))
 	if err != nil {
 		return err
 	}

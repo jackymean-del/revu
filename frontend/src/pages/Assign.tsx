@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getPaper, listPapers, listStudents, putPaperAssignments, type Paper, type PaperAssignment } from '../api/client'
+import { getPaper, listPapers, listStructure, listStudents, putPaperAssignments, type Enrolment, type Paper, type PaperAssignment } from '../api/client'
 import { ApiError } from '../api/problem'
 import { Icon } from '../components/Icon'
+import { inOrder, share, type ShareBy } from '../lib/papers'
 import { useT } from '../lib/terminology/terms-context'
 import { AssessmentSelect } from './papers/AssessmentSelect'
 import { usePaperAssessments } from './papers/assessments'
@@ -56,8 +57,8 @@ export function Assign() {
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">Assign paper</h1>
         <p className="mt-1 max-w-3xl text-muted">
-          Give each {t('group.section', { lower: true })} its set and date. With two or more sets, a few {t('person.student', { count: 2, lower: true })} can sit another one, for example
-          alternate seats.
+          Give each {t('group.section', { lower: true })} its set and date. With two or more sets, share them out among its {t('person.student', { count: 2, lower: true })}, alternately
+          or in equal blocks, in order of {t('person.roll_no', { lower: true })}, name or {t('person.admission_no', { lower: true })}.
         </p>
       </div>
       {pending ? (
@@ -119,7 +120,7 @@ function AssignTable({ orgId, assessmentId, sectionIds, papers, sectionName }: {
       void qc.invalidateQueries({ queryKey: ['setup', orgId] })
     },
   })
-  const setName = (id: string) => `Set ${papers.find((p) => p.id === id)?.set ?? ''}`
+  const setName = (id: string) => papers.find((p) => p.id === id)?.set ?? ''
 
   return (
     <section aria-label="Who sits which set" className="space-y-3">
@@ -135,18 +136,28 @@ function AssignTable({ orgId, assessmentId, sectionIds, papers, sectionName }: {
                   <option value="">Not yet</option>
                   {papers.map((p) => (
                     <option key={p.id} value={p.id}>
-                      Set {p.set}
+                      {p.set}
                     </option>
                   ))}
                 </select>
                 <input type="date" aria-label={`${sectionName(s)} date`} className={field} value={x.sitOn} onChange={(e) => set(s, { sitOn: e.target.value })} />
                 {papers.length > 1 && (
                   <button type="button" aria-expanded={open === s} className="text-sm font-semibold text-brand" onClick={() => setOpen(open === s ? '' : s)}>
-                    {others ? `${others} on another set` : 'Some on another set'}
+                    {others ? `Sets shared out, ${others} on another set` : 'Share out sets'}
                   </button>
                 )}
               </div>
-              {open === s && <Students orgId={orgId} sectionId={s} papers={papers} base={x.paper} others={x.others} onChange={(o) => set(s, { others: o })} setName={setName} />}
+              {open === s && (
+                <Students
+                  orgId={orgId}
+                  sectionId={s}
+                  papers={papers}
+                  base={x.paper}
+                  others={x.others}
+                  onChange={(o, base) => set(s, base === undefined ? { others: o } : { others: o, paper: base })}
+                  setName={setName}
+                />
+              )}
             </li>
           )
         })}
@@ -183,36 +194,70 @@ function Students({ orgId, sectionId, papers, base, others, onChange, setName }:
   papers: Paper[]
   base: string
   others: Record<string, string>
-  onChange: (o: Record<string, string>) => void
+  onChange: (o: Record<string, string>, base?: string) => void
   setName: (id: string) => string
 }) {
   const t = useT()
+  const [chosen, setChosen] = useState<string[]>(() => papers.map((p) => p.id))
+  const [by, setBy] = useState<ShareBy>('roll')
+  const [how, setHow] = useState<'alternate' | 'blocks'>('alternate')
   const students = useQuery({ queryKey: ['students', orgId, { sectionId }], queryFn: ({ signal }) => listStudents(orgId, { sectionId, limit: '200' }, signal) })
+  const rolls = useQuery({
+    queryKey: ['structure', orgId, 'enrolments', { sectionId }],
+    queryFn: ({ signal }) => listStructure<Enrolment>(orgId, 'enrolments', { sectionId }, signal),
+  })
   if (!students.data) return <p className="text-sm text-muted">Loading</p>
-  const list = students.data.items
-  // Alternate seats: every second one on the next set.
-  const alternate = () => {
-    const i = papers.findIndex((p) => p.id === base)
-    const next = papers[(i + 1) % papers.length].id
-    onChange(Object.fromEntries(list.map((s, j) => [s.id, j % 2 ? next : base])))
+  const roll = (id: string) => rolls.data?.find((e) => e.studentId === id)?.rollNo
+  // Listed in the order chosen, so a shared-out plan reads down the list.
+  const list = inOrder(students.data.items.map((s) => ({ ...s, rollNo: roll(s.id) })), by)
+  const sets = papers.filter((p) => chosen.includes(p.id)).map((p) => p.id)
+  // Shares the chosen sets out; the first is the group's, the rest are the students'.
+  const shareOut = () => {
+    const plan = share(list, sets, by, how)
+    onChange(plan, sets[0])
   }
+  const counts = papers.map((p) => [p.set, list.filter((s) => (others[s.id] || base) === p.id).length] as const)
   return (
-    <div className="rounded-xl bg-canvas p-3">
-      <div className="mb-2 flex items-center gap-2 text-sm">
-        <span className="flex-1 text-muted">
-          {list.length} {t('person.student', { count: list.length, lower: true })}; each sits {base ? setName(base) : 'the set chosen above'} unless changed here.
-        </span>
-        {base && (
-          <button type="button" className="font-semibold text-brand" onClick={alternate}>
-            Alternate seats
-          </button>
-        )}
+    <div className="space-y-3 rounded-xl bg-canvas p-3">
+      <div className="flex flex-wrap items-end gap-3 text-sm">
+        <fieldset className="flex flex-wrap items-center gap-2">
+          <legend className="mb-1 font-semibold">Sets to share</legend>
+          {papers.map((p) => (
+            <label key={p.id} className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2 py-1">
+              <input type="checkbox" checked={chosen.includes(p.id)} onChange={(e) => setChosen((c) => (e.target.checked ? [...c, p.id] : c.filter((x) => x !== p.id)))} />
+              {p.set}
+            </label>
+          ))}
+        </fieldset>
+        <label className="flex flex-col gap-1 font-semibold">
+          In order of
+          <select aria-label="In order of" className={field} value={by} onChange={(e) => setBy(e.target.value as ShareBy)}>
+            <option value="roll">{t('person.roll_no')}</option>
+            <option value="name">Name</option>
+            <option value="admission">{t('person.admission_no')}</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 font-semibold">
+          How
+          <select aria-label="How" className={field} value={how} onChange={(e) => setHow(e.target.value as 'alternate' | 'blocks')}>
+            <option value="alternate">Alternately, one after another</option>
+            <option value="blocks">In equal blocks</option>
+          </select>
+        </label>
+        <button type="button" className={primary} disabled={sets.length < 2} onClick={shareOut}>
+          Share out
+        </button>
       </div>
+      <p className="text-sm text-muted">
+        {counts.map(([n, c]) => `${n}: ${c}`).join(' · ')}. Change anyone below; each sits {base ? setName(base) : 'the set chosen above'} unless changed.
+      </p>
       <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         {list.map((s) => (
           <li key={s.id} className="flex items-center gap-2 rounded-lg bg-white px-2 py-1 text-sm">
+            <span className="w-8 shrink-0 text-xs tabular-nums text-muted">{roll(s.id)}</span>
             <span className="min-w-0 flex-1 truncate">{s.name}</span>
             <select aria-label={`${s.name} set`} className="rounded border border-line px-1 py-0.5 text-sm" value={others[s.id] || base} onChange={(e) => onChange({ ...others, [s.id]: e.target.value })}>
+              {!base && !others[s.id] && <option value="">Not yet</option>}
               {papers.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.set}

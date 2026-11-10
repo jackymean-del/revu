@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { putBlueprint, stepBlueprint, type Blueprint, type BlueprintRow, type Syllabus } from '../../api/client'
 import { ApiError } from '../../api/problem'
-import { BLOOMS } from '../../lib/syllabus'
 import { inconsistent, marks, remaining, toInput, totals } from '../../lib/papers'
-import { QUESTION_TYPES } from './types'
+import { levelsOf, taxonomyName, type Taxonomy } from '../../lib/taxonomy'
+import { usePaperSettings } from './settings'
+import { TypeSelect } from './TypeSelect'
 
 const primary = 'rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50'
 const button = 'rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
@@ -13,16 +14,20 @@ const TONE = { ok: 'text-emerald-700', short: 'text-amber-700', over: 'text-red-
 
 /**
  * The Blueprint Builder (B3.2): one row per chapter and question type, and
- * for each Bloom level how many questions and marks. Totals stay live while
+ * for each level of the chosen taxonomy (Bloom, SOLO, the institution's own
+ * or none) how many questions and the marks for each. Totals stay live while
  * typing; the server checks them exactly on save.
  */
 export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, approves }: { orgId: string; assessmentId: string; blueprint: Blueprint; syllabus: Syllabus; approves: boolean }) {
   const qc = useQueryClient()
-  const [taxonomy, setTaxonomy] = useState(blueprint.taxonomy)
+  const settings = usePaperSettings(orgId)
+  const [taxonomy, setTaxonomy] = useState<Taxonomy>(blueprint.taxonomy)
   const [rows, setRows] = useState<BlueprintRow[]>(blueprint.rows)
   const [dirty, setDirty] = useState(false)
   const [comment, setComment] = useState('')
-  const levels = taxonomy === 'bloom' ? BLOOMS.map((b) => b.key as string) : ['']
+  const tax = levelsOf(taxonomy, settings)
+  const levels = tax.map((l) => l.key)
+  const hasCustom = (settings?.custom.levels.length ?? 0) > 0
   const t = totals(rows, levels)
   const left = remaining(blueprint.max, t.marks)
   const lessonByName = (name: string) => syllabus.lessons.find((l) => l.name.toLowerCase() === name.trim().toLowerCase())
@@ -62,17 +67,25 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
           {blueprint.status === 'submitted' && <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700">Waiting for approval</span>}
           {blueprint.status === 'returned' && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">Returned: {blueprint.comment}</span>}
         </p>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={taxonomy === 'bloom'}
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          Levels
+          <select
+            aria-label="Taxonomy"
+            className="rounded-md border border-line bg-white px-2 py-1.5 text-sm font-normal"
+            value={taxonomy}
             onChange={(e) => {
-              setTaxonomy(e.target.checked ? 'bloom' : 'none')
+              setTaxonomy(e.target.value as Taxonomy)
               setRows((rs) => rs.map((r) => ({ ...r, cells: {} })))
               setDirty(true)
             }}
-          />
-          By Bloom level
+          >
+            {(['bloom', 'solo', 'custom', 'none'] as const).map((k) => (
+              <option key={k} value={k} disabled={k === 'custom' && !hasCustom}>
+                {taxonomyName(k, settings)}
+                {k === 'custom' && !hasCustom ? ' (set in Configuration)' : ''}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
       {blueprint.status === 'approved' && dirty && (
@@ -96,25 +109,15 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <datalist id="bp-lessons">
-            {syllabus.lessons.map((l) => (
-              <option key={l.id} value={l.name} />
-            ))}
-          </datalist>
-          <datalist id="bp-types">
-            {QUESTION_TYPES.map((q) => (
-              <option key={q} value={q} />
-            ))}
-          </datalist>
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
                 <th className="py-2 pr-2 font-semibold">Chapter</th>
                 <th className="py-2 pr-2 font-semibold">Question type</th>
-                {levels.map((l) => (
-                  <th key={l} className="px-1 py-2 text-center font-semibold" title={BLOOMS.find((b) => b.key === l)?.hint}>
-                    {BLOOMS.find((b) => b.key === l)?.label ?? 'Questions and marks'}
-                    <span className="block font-normal">qs · marks</span>
+                {tax.map((l) => (
+                  <th key={l.key} className="px-1 py-2 text-center font-semibold" title={l.hint}>
+                    {l.label}
+                    <span className="block font-normal">qs × marks each</span>
                   </th>
                 ))}
                 <th className="px-1 py-2 text-right font-semibold">Row</th>
@@ -125,25 +128,27 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
               {rows.map((r, i) => (
                 <tr key={i} className="border-b border-line/60 align-top">
                   <td className="py-1.5 pr-2">
-                    <input
-                      aria-label={`Row ${i + 1} chapter`}
-                      list="bp-lessons"
-                      className="w-40 rounded border border-line px-2 py-1"
+                    <TypeSelect
+                      label={`Row ${i + 1} chapter`}
+                      noun="chapter"
+                      options={syllabus.lessons.map((l) => l.name)}
+                      className="w-44"
                       value={r.chapter}
-                      onChange={(e) => edit(i, { chapter: e.target.value, lessonId: lessonByName(e.target.value)?.id })}
+                      onChange={(v) => edit(i, { chapter: v, lessonId: lessonByName(v)?.id })}
                     />
                   </td>
                   <td className="py-1.5 pr-2">
-                    <input aria-label={`Row ${i + 1} question type`} list="bp-types" className="w-36 rounded border border-line px-2 py-1" value={r.qtype} onChange={(e) => edit(i, { qtype: e.target.value })} />
+                    <TypeSelect label={`Row ${i + 1} question type`} className="w-40" also={rows.map((x) => x.qtype)} value={r.qtype} onChange={(v) => edit(i, { qtype: v })} />
                   </td>
                   {levels.map((l) => {
                     const c = r.cells[l]
-                    const label = `Row ${i + 1} ${BLOOMS.find((b) => b.key === l)?.label ?? ''}`.trim()
+                    const label = `Row ${i + 1} ${l ? (tax.find((x) => x.key === l)?.label ?? l) : ''}`.trim()
                     return (
                       <td key={l} className={`px-1 py-1.5 text-center ${inconsistent(c) ? 'bg-red-50' : ''}`}>
                         <div className="flex justify-center gap-1">
                           <input aria-label={`${label} questions`} inputMode="numeric" className={cell} value={c?.questions || ''} onChange={(e) => setCell(i, l, 'questions', e.target.value)} />
-                          <input aria-label={`${label} marks`} inputMode="decimal" className={cell} value={c?.marks ?? ''} onChange={(e) => setCell(i, l, 'marks', e.target.value)} />
+                          <span aria-hidden="true" className="self-center text-xs text-muted">×</span>
+                          <input aria-label={`${label} marks each`} inputMode="decimal" className={cell} value={c?.marks ?? ''} onChange={(e) => setCell(i, l, 'marks', e.target.value)} />
                         </div>
                       </td>
                     )

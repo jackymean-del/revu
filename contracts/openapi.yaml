@@ -3726,11 +3726,16 @@ paths:
   /v1/papers/{id}/duplicate:
     post:
       operationId: duplicatePaper
-      summary: Make the next set as an independent copy.
+      summary: Make another set as an independent copy, named or with the next set name.
       tags: [papers]
       parameters:
         - $ref: "#/components/parameters/OrgId"
         - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperCreate"
       responses:
         "201":
           description: The new set.
@@ -3769,6 +3774,11 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: space
+          in: query
+          description: Ruled lines to answer on, more for more marks.
+          schema:
+            type: boolean
       responses:
         "200":
           description: The page.
@@ -3776,6 +3786,43 @@ paths:
             text/html:
               schema:
                 type: string
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/paper-settings:
+    get:
+      operationId: getPaperSettings
+      summary: The institution's set names and its own taxonomy.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The settings, or the defaults.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaperSettings"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putPaperSettings
+      summary: Set the set names and the institution's own taxonomy (administrators).
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperSettings"
+      responses:
+        "200":
+          description: The settings as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaperSettings"
         default:
           $ref: "#/components/responses/Problem"
   /v1/papers/{id}/assignments:
@@ -7051,7 +7098,7 @@ components:
           type: integer
         marks:
           type: string
-          description: A decimal with up to two places.
+          description: Marks for each question, a decimal with up to two places.
     BlueprintRow:
       type: object
       required: [chapter, qtype, cells]
@@ -7066,7 +7113,7 @@ components:
           type: string
         cells:
           type: object
-          description: By Bloom level, or '' with no taxonomy.
+          description: By level of the blueprint's taxonomy, or '' with none.
           additionalProperties:
             $ref: "#/components/schemas/BlueprintCell"
         questions:
@@ -7105,7 +7152,7 @@ components:
           type: string
         taxonomy:
           type: string
-          enum: [bloom, none]
+          enum: [bloom, solo, custom, none]
         status:
           type: string
           enum: [draft, submitted, approved, returned]
@@ -7145,7 +7192,7 @@ components:
       properties:
         taxonomy:
           type: string
-          enum: [bloom, none]
+          enum: [bloom, solo, custom, none]
         rows:
           type: array
           maxItems: 200
@@ -7173,6 +7220,10 @@ components:
           type: string
         bloom:
           $ref: "#/components/schemas/Bloom"
+        solo:
+          type: string
+        customLevel:
+          type: string
         qtype:
           type: string
         marks:
@@ -7212,6 +7263,12 @@ components:
         bloom:
           type: string
           description: Suggested from the wording when empty.
+        solo:
+          type: string
+          description: prestructural, unistructural, multistructural, relational or extended.
+        customLevel:
+          type: string
+          description: A level of the institution's own taxonomy.
         qtype:
           type: string
         marks:
@@ -7248,8 +7305,9 @@ components:
           type: string
         lessonId:
           type: string
-        bloom:
+        level:
           type: string
+          description: Of the paper's taxonomy.
         marks:
           type: string
         locked:
@@ -7290,7 +7348,7 @@ components:
             $ref: "#/components/schemas/PaperAssignment"
     Paper:
       type: object
-      required: [id, assessmentId, set, status, blueprintVersion, instructions, items, filled, total, bySection, byBloom, assignments]
+      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, items, filled, total, bySection, byLevel, assignments]
       properties:
         id:
           type: string
@@ -7301,6 +7359,9 @@ components:
         status:
           type: string
           enum: [draft, final]
+        taxonomy:
+          type: string
+          enum: [bloom, solo, custom, none]
         blueprintVersion:
           type: integer
         instructions:
@@ -7317,7 +7378,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PaperGap"
-        byBloom:
+        byLevel:
           type: array
           items:
             $ref: "#/components/schemas/PaperGap"
@@ -7347,6 +7408,33 @@ components:
       properties:
         fill:
           type: boolean
+        name:
+          type: string
+          maxLength: 30
+          description: The set's name; the next of the institution's set names when empty.
+    PaperSettings:
+      type: object
+      required: [setNames, custom]
+      properties:
+        setNames:
+          type: array
+          maxItems: 26
+          items:
+            type: string
+            maxLength: 30
+        custom:
+          type: object
+          required: [name, levels]
+          properties:
+            name:
+              type: string
+              maxLength: 40
+            levels:
+              type: array
+              maxItems: 12
+              items:
+                type: string
+                maxLength: 40
     PaperItemChange:
       type: object
       properties:
@@ -7380,3 +7468,9 @@ components:
         note:
           type: string
           maxLength: 500
+        taxonomy:
+          type: string
+          enum: [bloom, solo, custom, none]
+        level:
+          type: string
+          description: The SOLO or custom level, with that taxonomy.

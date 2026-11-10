@@ -138,6 +138,11 @@ const subjectsPage = createRoute({
   path: '/settings/subjects',
   component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
 })
+const paperSettingsPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/papers',
+  component: lazyRouteComponent(() => import('./pages/PaperSettings'), 'PaperSettings'),
+})
 const syllabusPage = createRoute({
   getParentRoute: () => root,
   path: '/settings/syllabus',
@@ -154,7 +159,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, paperSettingsPage, words, history])
 
 // Hovering or focusing a link loads that screen and its code before the
 // click, so moving around feels instant.

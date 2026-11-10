@@ -22,7 +22,6 @@ import (
 	"github.com/jackymean-del/revu/internal/httpx"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/records"
-	"github.com/jackymean-del/revu/internal/syllabus"
 	"github.com/jackymean-del/revu/internal/tenant"
 )
 
@@ -49,6 +48,8 @@ func Routes(g fiber.Router, o Options) {
 	g.Post("/papers/:id/finalise", finalisePaper)
 	g.Get("/papers/:id/html", paperHTML)
 	g.Put("/papers/:id/assignments", putAssignments)
+	g.Get("/paper-settings", getSettings)
+	g.Put("/paper-settings", putSettings)
 }
 
 // QuestionTypes are the kinds offered when none is typed; any name may be used.
@@ -57,7 +58,7 @@ var QuestionTypes = []string{"Multiple choice", "Fill in the blanks", "True or f
 // Cell is one taxonomy level of a row.
 type Cell struct {
 	Questions int    `json:"questions"`
-	Marks     string `json:"marks"`
+	Marks     string `json:"marks"` // for each question
 }
 
 // Row is a chapter and question type of a blueprint.
@@ -159,7 +160,7 @@ func loadBlueprint(ctx context.Context, tx pgx.Tx, a assessment) (Blueprint, err
 	bp.Exists = true
 	var b pgx.Batch
 	b.Queue(`
-		SELECT r.id::text, coalesce(r.lesson_id::text, ''), r.chapter, r.qtype, c.level, c.questions, c.marks::text
+		SELECT r.id::text, coalesce(r.lesson_id::text, ''), r.chapter, r.qtype, c.level, c.questions, c.marks_each::text
 		  FROM blueprint_rows r LEFT JOIN blueprint_cells c ON c.row_id = r.id
 		 WHERE r.blueprint_id = $1::uuid ORDER BY r.seq, c.level`, id).Query(func(rows pgx.Rows) error {
 		at := map[string]int{}
@@ -185,7 +186,7 @@ func loadBlueprint(ctx context.Context, tx pgx.Tx, a assessment) (Blueprint, err
 	})
 	// Every total from the cells, in exact numeric arithmetic.
 	b.Queue(`
-		SELECT r.id::text, sum(c.questions)::int, coalesce(sum(c.marks), 0)::text
+		SELECT r.id::text, sum(c.questions)::int, coalesce(sum(c.questions * c.marks_each), 0)::text
 		  FROM blueprint_rows r LEFT JOIN blueprint_cells c ON c.row_id = r.id WHERE r.blueprint_id = $1::uuid GROUP BY r.id`, id).Query(func(rows pgx.Rows) error {
 		for rows.Next() {
 			var rid, marks string
@@ -204,9 +205,9 @@ func loadBlueprint(ctx context.Context, tx pgx.Tx, a assessment) (Blueprint, err
 		}
 		return rows.Err()
 	})
-	weight := `CASE WHEN $2::numeric > 0 THEN round(sum(c.marks) * 100 / $2::numeric)::text ELSE '' END`
+	weight := `CASE WHEN $2::numeric > 0 THEN round(sum(c.questions * c.marks_each) * 100 / $2::numeric)::text ELSE '' END`
 	b.Queue(`
-		SELECT c.level, sum(c.questions)::int, sum(c.marks)::text, `+weight+`
+		SELECT c.level, sum(c.questions)::int, sum(c.questions * c.marks_each)::text, `+weight+`
 		  FROM blueprint_cells c JOIN blueprint_rows r ON r.id = c.row_id WHERE r.blueprint_id = $1::uuid GROUP BY c.level`, id, a.max).Query(func(rows pgx.Rows) error {
 		for rows.Next() {
 			var t Total
@@ -219,7 +220,7 @@ func loadBlueprint(ctx context.Context, tx pgx.Tx, a assessment) (Blueprint, err
 		return rows.Err()
 	})
 	b.Queue(`
-		SELECT r.chapter, coalesce(sum(c.questions), 0)::int, coalesce(sum(c.marks), 0)::text, `+weight+`
+		SELECT r.chapter, coalesce(sum(c.questions), 0)::int, coalesce(sum(c.questions * c.marks_each), 0)::text, `+weight+`
 		  FROM blueprint_rows r LEFT JOIN blueprint_cells c ON c.row_id = r.id WHERE r.blueprint_id = $1::uuid
 		 GROUP BY r.chapter ORDER BY min(r.seq)`, id, a.max).Query(func(rows pgx.Rows) error {
 		for rows.Next() {
@@ -233,7 +234,7 @@ func loadBlueprint(ctx context.Context, tx pgx.Tx, a assessment) (Blueprint, err
 		return rows.Err()
 	})
 	b.Queue(`
-		SELECT coalesce(sum(c.questions), 0)::int, coalesce(sum(c.marks), 0)::text, ($2::numeric - coalesce(sum(c.marks), 0))::text
+		SELECT coalesce(sum(c.questions), 0)::int, coalesce(sum(c.questions * c.marks_each), 0)::text, ($2::numeric - coalesce(sum(c.questions * c.marks_each), 0))::text
 		  FROM blueprint_cells c JOIN blueprint_rows r ON r.id = c.row_id WHERE r.blueprint_id = $1::uuid`, id, a.max).QueryRow(func(r pgx.Row) error {
 		return r.Scan(&bp.Questions, &bp.Allocated, &bp.Remaining)
 	})
@@ -241,9 +242,11 @@ func loadBlueprint(ctx context.Context, tx pgx.Tx, a assessment) (Blueprint, err
 		return bp, err
 	}
 	bp.Allocated, bp.Remaining = trim(bp.Allocated), trim(bp.Remaining)
-	slices.SortStableFunc(bp.ByLevel, func(x, y Total) int {
-		return slices.Index(syllabus.Blooms, x.Key) - slices.Index(syllabus.Blooms, y.Key)
-	})
+	order, err := levelsOf(ctx, tx, bp.Taxonomy)
+	if err != nil {
+		return bp, err
+	}
+	slices.SortStableFunc(bp.ByLevel, func(x, y Total) int { return slices.Index(order, x.Key) - slices.Index(order, y.Key) })
 	bp.Checks = check(bp)
 	return bp, nil
 }
@@ -327,15 +330,18 @@ func putBlueprint(c fiber.Ctx) error {
 	if err := httpx.Decode(c, &in); err != nil {
 		return err
 	}
-	if in.Taxonomy != "bloom" && in.Taxonomy != "none" {
-		return problem.Invalid(api.FieldError{Field: "taxonomy", Code: "unknown", Message: "Choose Bloom or none."})
+	if !slices.Contains([]string{"bloom", "solo", "custom", "none"}, in.Taxonomy) {
+		return problem.Invalid(api.FieldError{Field: "taxonomy", Code: "unknown", Message: "Choose Bloom, SOLO, your own levels or none."})
 	}
 	if len(in.Rows) > 200 {
 		return problem.Invalid(api.FieldError{Field: "rows", Code: "too_many", Message: "A blueprint has at most 200 rows."})
 	}
-	levels := syllabus.Blooms
-	if in.Taxonomy == "none" {
-		levels = []string{""}
+	levels, err := levelsOf(ctx, tx, in.Taxonomy)
+	if err != nil {
+		return err
+	}
+	if len(levels) == 0 {
+		return problem.Invalid(api.FieldError{Field: "taxonomy", Code: "unknown", Message: "Your own levels are not set yet; an administrator sets them in Configuration."})
 	}
 	for i, r := range in.Rows {
 		where := fmt.Sprintf("Row %d", i+1)
@@ -389,7 +395,7 @@ func putBlueprint(c fiber.Ctx) error {
 			if cell.Questions == 0 {
 				continue // a blank cell is not stored
 			}
-			b.Queue(`INSERT INTO blueprint_cells (org_id, row_id, level, questions, marks) VALUES ($1, $2::uuid, $3, $4, $5::numeric)`, m.OrgID, rid, level, cell.Questions, cell.Marks)
+			b.Queue(`INSERT INTO blueprint_cells (org_id, row_id, level, questions, marks_each) VALUES ($1, $2::uuid, $3, $4, $5::numeric)`, m.OrgID, rid, level, cell.Questions, cell.Marks)
 		}
 	}
 	if b.Len() > 0 {

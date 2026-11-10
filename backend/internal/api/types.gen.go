@@ -350,8 +350,10 @@ func (e BlueprintStatus) Valid() bool {
 
 // Defines values for BlueprintTaxonomy.
 const (
-	BlueprintTaxonomyBloom BlueprintTaxonomy = "bloom"
-	BlueprintTaxonomyNone  BlueprintTaxonomy = "none"
+	BlueprintTaxonomyBloom  BlueprintTaxonomy = "bloom"
+	BlueprintTaxonomyCustom BlueprintTaxonomy = "custom"
+	BlueprintTaxonomyNone   BlueprintTaxonomy = "none"
+	BlueprintTaxonomySolo   BlueprintTaxonomy = "solo"
 )
 
 // Valid indicates whether the value is a known member of the BlueprintTaxonomy enum.
@@ -359,7 +361,11 @@ func (e BlueprintTaxonomy) Valid() bool {
 	switch e {
 	case BlueprintTaxonomyBloom:
 		return true
+	case BlueprintTaxonomyCustom:
+		return true
 	case BlueprintTaxonomyNone:
+		return true
+	case BlueprintTaxonomySolo:
 		return true
 	default:
 		return false
@@ -386,8 +392,10 @@ func (e BlueprintCheckLevel) Valid() bool {
 
 // Defines values for BlueprintInputTaxonomy.
 const (
-	BlueprintInputTaxonomyBloom BlueprintInputTaxonomy = "bloom"
-	BlueprintInputTaxonomyNone  BlueprintInputTaxonomy = "none"
+	BlueprintInputTaxonomyBloom  BlueprintInputTaxonomy = "bloom"
+	BlueprintInputTaxonomyCustom BlueprintInputTaxonomy = "custom"
+	BlueprintInputTaxonomyNone   BlueprintInputTaxonomy = "none"
+	BlueprintInputTaxonomySolo   BlueprintInputTaxonomy = "solo"
 )
 
 // Valid indicates whether the value is a known member of the BlueprintInputTaxonomy enum.
@@ -395,7 +403,11 @@ func (e BlueprintInputTaxonomy) Valid() bool {
 	switch e {
 	case BlueprintInputTaxonomyBloom:
 		return true
+	case BlueprintInputTaxonomyCustom:
+		return true
 	case BlueprintInputTaxonomyNone:
+		return true
+	case BlueprintInputTaxonomySolo:
 		return true
 	default:
 		return false
@@ -909,6 +921,30 @@ func (e PaperStatus) Valid() bool {
 	}
 }
 
+// Defines values for PaperTaxonomy.
+const (
+	PaperTaxonomyBloom  PaperTaxonomy = "bloom"
+	PaperTaxonomyCustom PaperTaxonomy = "custom"
+	PaperTaxonomyNone   PaperTaxonomy = "none"
+	PaperTaxonomySolo   PaperTaxonomy = "solo"
+)
+
+// Valid indicates whether the value is a known member of the PaperTaxonomy enum.
+func (e PaperTaxonomy) Valid() bool {
+	switch e {
+	case PaperTaxonomyBloom:
+		return true
+	case PaperTaxonomyCustom:
+		return true
+	case PaperTaxonomyNone:
+		return true
+	case PaperTaxonomySolo:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PaperSummaryStatus.
 const (
 	PaperSummaryStatusDraft PaperSummaryStatus = "draft"
@@ -1083,6 +1119,30 @@ func (e QuestionStatus) Valid() bool {
 	}
 }
 
+// Defines values for QuestionDraftRequestTaxonomy.
+const (
+	QuestionDraftRequestTaxonomyBloom  QuestionDraftRequestTaxonomy = "bloom"
+	QuestionDraftRequestTaxonomyCustom QuestionDraftRequestTaxonomy = "custom"
+	QuestionDraftRequestTaxonomyNone   QuestionDraftRequestTaxonomy = "none"
+	QuestionDraftRequestTaxonomySolo   QuestionDraftRequestTaxonomy = "solo"
+)
+
+// Valid indicates whether the value is a known member of the QuestionDraftRequestTaxonomy enum.
+func (e QuestionDraftRequestTaxonomy) Valid() bool {
+	switch e {
+	case QuestionDraftRequestTaxonomyBloom:
+		return true
+	case QuestionDraftRequestTaxonomyCustom:
+		return true
+	case QuestionDraftRequestTaxonomyNone:
+		return true
+	case QuestionDraftRequestTaxonomySolo:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QuestionInputSource.
 const (
 	QuestionInputSourceAi       QuestionInputSource = "ai"
@@ -1166,22 +1226,22 @@ func (e ReportPaperOrientation) Valid() bool {
 
 // Defines values for ReportPaperSize.
 const (
-	A4     ReportPaperSize = "A4"
-	A5     ReportPaperSize = "A5"
-	Custom ReportPaperSize = "custom"
-	Letter ReportPaperSize = "Letter"
+	ReportPaperSizeA4     ReportPaperSize = "A4"
+	ReportPaperSizeA5     ReportPaperSize = "A5"
+	ReportPaperSizeCustom ReportPaperSize = "custom"
+	ReportPaperSizeLetter ReportPaperSize = "Letter"
 )
 
 // Valid indicates whether the value is a known member of the ReportPaperSize enum.
 func (e ReportPaperSize) Valid() bool {
 	switch e {
-	case A4:
+	case ReportPaperSizeA4:
 		return true
-	case A5:
+	case ReportPaperSizeA5:
 		return true
-	case Custom:
+	case ReportPaperSizeCustom:
 		return true
-	case Letter:
+	case ReportPaperSizeLetter:
 		return true
 	default:
 		return false
@@ -2284,7 +2344,7 @@ type BlueprintTaxonomy string
 
 // BlueprintCell defines model for BlueprintCell.
 type BlueprintCell struct {
-	// Marks A decimal with up to two places.
+	// Marks Marks for each question, a decimal with up to two places.
 	Marks     string `json:"marks"`
 	Questions int    `json:"questions"`
 }
@@ -2310,7 +2370,7 @@ type BlueprintInputTaxonomy string
 
 // BlueprintRow defines model for BlueprintRow.
 type BlueprintRow struct {
-	// Cells By Bloom level, or '' with no taxonomy.
+	// Cells By level of the blueprint's taxonomy, or '' with none.
 	Cells     map[string]BlueprintCell `json:"cells"`
 	Chapter   string                   `json:"chapter"`
 	Id        string                   `json:"id,omitempty"`
@@ -3076,7 +3136,7 @@ type Paper struct {
 	AssessmentId     string            `json:"assessmentId"`
 	Assignments      []PaperAssignment `json:"assignments"`
 	BlueprintVersion int               `json:"blueprintVersion"`
-	ByBloom          []PaperGap        `json:"byBloom"`
+	ByLevel          []PaperGap        `json:"byLevel"`
 	BySection        []PaperGap        `json:"bySection"`
 	Filled           int               `json:"filled"`
 	Id               string            `json:"id"`
@@ -3084,11 +3144,15 @@ type Paper struct {
 	Items            []PaperItem       `json:"items"`
 	Set              string            `json:"set"`
 	Status           PaperStatus       `json:"status"`
+	Taxonomy         PaperTaxonomy     `json:"taxonomy"`
 	Total            string            `json:"total"`
 }
 
 // PaperStatus defines model for Paper.Status.
 type PaperStatus string
+
+// PaperTaxonomy defines model for Paper.Taxonomy.
+type PaperTaxonomy string
 
 // PaperAssignment defines model for PaperAssignment.
 type PaperAssignment struct {
@@ -3107,6 +3171,9 @@ type PaperAssignments struct {
 // PaperCreate defines model for PaperCreate.
 type PaperCreate struct {
 	Fill bool `json:"fill,omitempty"`
+
+	// Name The set's name; the next of the institution's set names when empty.
+	Name string `json:"name,omitempty"`
 }
 
 // PaperGap defines model for PaperGap.
@@ -3119,10 +3186,12 @@ type PaperGap struct {
 
 // PaperItem defines model for PaperItem.
 type PaperItem struct {
-	Bloom    string   `json:"bloom,omitempty"`
-	Chapter  string   `json:"chapter"`
-	Id       string   `json:"id"`
-	LessonId string   `json:"lessonId,omitempty"`
+	Chapter  string `json:"chapter"`
+	Id       string `json:"id"`
+	LessonId string `json:"lessonId,omitempty"`
+
+	// Level Of the paper's taxonomy.
+	Level    string   `json:"level,omitempty"`
 	Locked   bool     `json:"locked"`
 	Marks    string   `json:"marks"`
 	Question Question `json:"question,omitempty"`
@@ -3136,6 +3205,15 @@ type PaperItemChange struct {
 
 	// QuestionId Empty clears the slot.
 	QuestionId string `json:"questionId,omitempty"`
+}
+
+// PaperSettings defines model for PaperSettings.
+type PaperSettings struct {
+	Custom struct {
+		Levels []string `json:"levels"`
+		Name   string   `json:"name"`
+	} `json:"custom"`
+	SetNames []string `json:"setNames"`
 }
 
 // PaperSummary defines model for PaperSummary.
@@ -3279,20 +3357,22 @@ type PromotionRequest struct {
 
 // Question defines model for Question.
 type Question struct {
-	Answer     string             `json:"answer"`
-	Bloom      Bloom              `json:"bloom"`
-	Difficulty QuestionDifficulty `json:"difficulty"`
-	Id         string             `json:"id"`
-	LessonId   string             `json:"lessonId,omitempty"`
-	LevelId    string             `json:"levelId"`
-	Marks      string             `json:"marks"`
-	Options    []string           `json:"options"`
-	OutcomeId  string             `json:"outcomeId,omitempty"`
-	Qtype      string             `json:"qtype"`
-	Source     QuestionSource     `json:"source"`
-	Status     QuestionStatus     `json:"status"`
-	SubjectId  string             `json:"subjectId"`
-	Text       string             `json:"text"`
+	Answer      string             `json:"answer"`
+	Bloom       Bloom              `json:"bloom"`
+	CustomLevel string             `json:"customLevel,omitempty"`
+	Difficulty  QuestionDifficulty `json:"difficulty"`
+	Id          string             `json:"id"`
+	LessonId    string             `json:"lessonId,omitempty"`
+	LevelId     string             `json:"levelId"`
+	Marks       string             `json:"marks"`
+	Options     []string           `json:"options"`
+	OutcomeId   string             `json:"outcomeId,omitempty"`
+	Qtype       string             `json:"qtype"`
+	Solo        string             `json:"solo,omitempty"`
+	Source      QuestionSource     `json:"source"`
+	Status      QuestionStatus     `json:"status"`
+	SubjectId   string             `json:"subjectId"`
+	Text        string             `json:"text"`
 
 	// Used How many papers it is in.
 	Used int `json:"used"`
@@ -3309,34 +3389,47 @@ type QuestionStatus string
 
 // QuestionDraftRequest defines model for QuestionDraftRequest.
 type QuestionDraftRequest struct {
-	Bloom     string `json:"bloom,omitempty"`
-	Count     int    `json:"count,omitempty"`
-	LessonId  string `json:"lessonId,omitempty"`
-	LevelId   string `json:"levelId"`
-	Marks     string `json:"marks"`
-	Note      string `json:"note,omitempty"`
-	OutcomeId string `json:"outcomeId,omitempty"`
-	Qtype     string `json:"qtype"`
-	SubjectId string `json:"subjectId"`
+	Bloom    string `json:"bloom,omitempty"`
+	Count    int    `json:"count,omitempty"`
+	LessonId string `json:"lessonId,omitempty"`
+
+	// Level The SOLO or custom level, with that taxonomy.
+	Level     string                       `json:"level,omitempty"`
+	LevelId   string                       `json:"levelId"`
+	Marks     string                       `json:"marks"`
+	Note      string                       `json:"note,omitempty"`
+	OutcomeId string                       `json:"outcomeId,omitempty"`
+	Qtype     string                       `json:"qtype"`
+	SubjectId string                       `json:"subjectId"`
+	Taxonomy  QuestionDraftRequestTaxonomy `json:"taxonomy,omitempty"`
 }
+
+// QuestionDraftRequestTaxonomy defines model for QuestionDraftRequest.Taxonomy.
+type QuestionDraftRequestTaxonomy string
 
 // QuestionInput defines model for QuestionInput.
 type QuestionInput struct {
 	Answer string `json:"answer,omitempty"`
 
 	// Bloom Suggested from the wording when empty.
-	Bloom      string              `json:"bloom,omitempty"`
-	Difficulty string              `json:"difficulty,omitempty"`
-	LessonId   string              `json:"lessonId,omitempty"`
-	LevelId    string              `json:"levelId"`
-	Marks      string              `json:"marks"`
-	Options    []string            `json:"options,omitempty"`
-	OutcomeId  string              `json:"outcomeId,omitempty"`
-	Qtype      string              `json:"qtype"`
-	Source     QuestionInputSource `json:"source,omitempty"`
-	Status     QuestionInputStatus `json:"status,omitempty"`
-	SubjectId  string              `json:"subjectId"`
-	Text       string              `json:"text"`
+	Bloom string `json:"bloom,omitempty"`
+
+	// CustomLevel A level of the institution's own taxonomy.
+	CustomLevel string   `json:"customLevel,omitempty"`
+	Difficulty  string   `json:"difficulty,omitempty"`
+	LessonId    string   `json:"lessonId,omitempty"`
+	LevelId     string   `json:"levelId"`
+	Marks       string   `json:"marks"`
+	Options     []string `json:"options,omitempty"`
+	OutcomeId   string   `json:"outcomeId,omitempty"`
+	Qtype       string   `json:"qtype"`
+
+	// Solo prestructural, unistructural, multistructural, relational or extended.
+	Solo      string              `json:"solo,omitempty"`
+	Source    QuestionInputSource `json:"source,omitempty"`
+	Status    QuestionInputStatus `json:"status,omitempty"`
+	SubjectId string              `json:"subjectId"`
+	Text      string              `json:"text"`
 }
 
 // QuestionInputSource defines model for QuestionInput.Source.
@@ -4810,6 +4903,18 @@ type RemoveGroupAdminParams struct {
 	Email string `form:"email" json:"email"`
 }
 
+// GetPaperSettingsParams defines parameters for GetPaperSettings.
+type GetPaperSettingsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutPaperSettingsParams defines parameters for PutPaperSettings.
+type PutPaperSettingsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // GetPaperParams defines parameters for GetPaper.
 type GetPaperParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -4843,6 +4948,9 @@ type FinalisePaperParams struct {
 // PaperHtmlParams defines parameters for PaperHtml.
 type PaperHtmlParams struct {
 	Key bool `form:"key,omitempty" json:"key,omitempty"`
+
+	// Space Ruled lines to answer on, more for more marks.
+	Space bool `form:"space,omitempty" json:"space,omitempty"`
 
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
@@ -5620,8 +5728,14 @@ type AddGroupAdminJSONRequestBody = GroupAdminInput
 // CreateOwnerOrgJSONRequestBody defines body for CreateOwnerOrg for application/json ContentType.
 type CreateOwnerOrgJSONRequestBody = OwnerOrgInput
 
+// PutPaperSettingsJSONRequestBody defines body for PutPaperSettings for application/json ContentType.
+type PutPaperSettingsJSONRequestBody = PaperSettings
+
 // PutPaperAssignmentsJSONRequestBody defines body for PutPaperAssignments for application/json ContentType.
 type PutPaperAssignmentsJSONRequestBody = PaperAssignments
+
+// DuplicatePaperJSONRequestBody defines body for DuplicatePaper for application/json ContentType.
+type DuplicatePaperJSONRequestBody = PaperCreate
 
 // PutPaperItemJSONRequestBody defines body for PutPaperItem for application/json ContentType.
 type PutPaperItemJSONRequestBody = PaperItemChange

@@ -4,8 +4,11 @@ import { createQuestion, updateQuestion, type Blueprint, type Question, type Que
 import { ApiError } from '../../api/problem'
 import { needs, type Need } from '../../lib/papers'
 import { BLOOMS } from '../../lib/syllabus'
+import { levelLabel, SOLO, type Taxonomy } from '../../lib/taxonomy'
 import { AiDraft } from './AiDraft'
-import { QUESTION_TYPES, hasOptions } from './types'
+import { usePaperSettings } from './settings'
+import { TypeSelect } from './TypeSelect'
+import { hasOptions } from './types'
 
 const primary = 'rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50'
 const button = 'rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
@@ -19,6 +22,8 @@ const toInput = (q: Question): Draft => ({
   lessonId: q.lessonId,
   outcomeId: q.outcomeId,
   bloom: q.bloom,
+  solo: q.solo,
+  customLevel: q.customLevel,
   qtype: q.qtype,
   marks: q.marks,
   difficulty: q.difficulty,
@@ -38,7 +43,9 @@ export function QuestionBank({ orgId, place, blueprint, syllabus, bank }: { orgI
   const qc = useQueryClient()
   const [draft, setDraft] = useState<Draft | null>(null)
   const [filter, setFilter] = useState({ lessonId: '', bloom: '', status: 'approved' })
-  const want = needs(blueprint.rows, bank).filter((n) => n.count > n.have)
+  const settings = usePaperSettings(orgId)
+  const tax = blueprint.taxonomy as Taxonomy
+  const want = needs(blueprint.rows, bank, tax).filter((n) => n.count > n.have)
   const lessonName = (id?: string) => syllabus.lessons.find((l) => l.id === id)?.name ?? ''
   const outcomeText = (id?: string) => syllabus.lessons.flatMap((l) => l.outcomes).find((o) => o.id === id)?.text ?? ''
   const refresh = () => qc.invalidateQueries({ queryKey: ['questions', orgId, place] })
@@ -50,7 +57,17 @@ export function QuestionBank({ orgId, place, blueprint, syllabus, bank }: { orgI
     onSuccess: () => (setDraft(null), refresh()),
   })
   const quick = useMutation({ mutationFn: (v: { q: Question; status: 'approved' | 'retired' }) => updateQuestion(orgId, v.q.id, { ...toInput(v.q), ...place, status: v.status }), onSuccess: refresh })
-  const fromNeed = (n: Need): Draft => ({ lessonId: n.lessonId, qtype: n.qtype, bloom: n.bloom || undefined, marks: n.marks, text: '', options: [], answer: '' })
+  const fromNeed = (n: Need): Draft => ({
+    lessonId: n.lessonId,
+    qtype: n.qtype,
+    bloom: tax === 'bloom' ? n.level || undefined : undefined,
+    solo: tax === 'solo' ? n.level : undefined,
+    customLevel: tax === 'custom' ? n.level : undefined,
+    marks: n.marks,
+    text: '',
+    options: [],
+    answer: '',
+  })
   const shown = bank.filter((q) => (!filter.lessonId || q.lessonId === filter.lessonId) && (!filter.bloom || q.bloom === filter.bloom) && q.status === filter.status)
   const drafts = bank.filter((q) => q.status === 'draft').length
 
@@ -64,9 +81,9 @@ export function QuestionBank({ orgId, place, blueprint, syllabus, bank }: { orgI
               <li key={n.key} className="flex flex-wrap items-center gap-2 py-2 text-sm">
                 <span className="min-w-0 flex-1">
                   <b>{n.count - n.have}</b> × {n.qtype}, {n.marks} {n.marks === '1' ? 'mark' : 'marks'}
-                  {n.bloom && <>, {bloomLabel(n.bloom)}</>} <span className="text-muted">· {n.chapter}</span>
+                  {n.level && <>, {levelLabel(tax, n.level, settings)}</>} <span className="text-muted">· {n.chapter}</span>
                 </span>
-                <AiDraft orgId={orgId} place={place} need={n} syllabus={syllabus} onDone={refresh} />
+                <AiDraft orgId={orgId} place={place} need={n} taxonomy={tax} syllabus={syllabus} onDone={refresh} />
                 <button type="button" className={button} onClick={() => setDraft(fromNeed(n))}>
                   Write one
                 </button>
@@ -77,7 +94,7 @@ export function QuestionBank({ orgId, place, blueprint, syllabus, bank }: { orgI
       )}
 
       {draft ? (
-        <QuestionForm draft={draft} syllabus={syllabus} pending={save.isPending} error={save.error} onCancel={() => (setDraft(null), save.reset())} onSave={(d) => save.mutate(d)} />
+        <QuestionForm draft={draft} syllabus={syllabus} custom={settings?.custom} pending={save.isPending} error={save.error} onCancel={() => (setDraft(null), save.reset())} onSave={(d) => save.mutate(d)} />
       ) : (
         <button type="button" className={primary} onClick={() => setDraft({ qtype: 'Short answer', marks: '', text: '', options: [], answer: '' })}>
           New question
@@ -135,6 +152,8 @@ export function QuestionBank({ orgId, place, blueprint, syllabus, bank }: { orgI
                   <span className="rounded bg-canvas px-1.5 py-0.5 font-semibold">{q.qtype}</span>
                   <span className="rounded bg-canvas px-1.5 py-0.5 font-semibold tabular-nums">{q.marks} m</span>
                   <span className="rounded bg-mist px-1.5 py-0.5 font-semibold text-brand">{bloomLabel(q.bloom)}</span>
+                  {q.solo && <span className="rounded bg-mist px-1.5 py-0.5 font-semibold text-brand">SOLO: {levelLabel('solo', q.solo)}</span>}
+                  {q.customLevel && <span className="rounded bg-mist px-1.5 py-0.5 font-semibold text-brand">{q.customLevel}</span>}
                   {q.lessonId && <span className="text-muted">{lessonName(q.lessonId)}</span>}
                   {q.outcomeId && <span className="truncate text-muted">· {outcomeText(q.outcomeId)}</span>}
                   {q.source === 'ai' && <span className="rounded bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700">AI draft</span>}
@@ -167,7 +186,15 @@ export function QuestionBank({ orgId, place, blueprint, syllabus, bank }: { orgI
   )
 }
 
-function QuestionForm({ draft, syllabus, pending, error, onCancel, onSave }: { draft: Draft; syllabus: Syllabus; pending: boolean; error: Error | null; onCancel: () => void; onSave: (d: Draft) => void }) {
+function QuestionForm({ draft, syllabus, custom, pending, error, onCancel, onSave }: {
+  draft: Draft
+  syllabus: Syllabus
+  custom?: { name: string; levels: string[] }
+  pending: boolean
+  error: Error | null
+  onCancel: () => void
+  onSave: (d: Draft) => void
+}) {
   const [d, setD] = useState(draft)
   const lesson = syllabus.lessons.find((l) => l.id === d.lessonId)
   const options = d.options ?? []
@@ -187,12 +214,7 @@ function QuestionForm({ draft, syllabus, pending, error, onCancel, onSave }: { d
       <div className="grid gap-3 sm:grid-cols-4">
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Type
-          <input required list="qb-types" className={field} value={d.qtype} onChange={(e) => setD({ ...d, qtype: e.target.value })} />
-          <datalist id="qb-types">
-            {QUESTION_TYPES.map((q) => (
-              <option key={q} value={q} />
-            ))}
-          </datalist>
+          <TypeSelect label="Type" className="py-1.5" value={d.qtype} onChange={(v) => setD({ ...d, qtype: v })} />
         </label>
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Marks
@@ -217,6 +239,30 @@ function QuestionForm({ draft, syllabus, pending, error, onCancel, onSave }: { d
             <option value="hard">Hard</option>
           </select>
         </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold">
+          SOLO level
+          <select className={field} value={d.solo ?? ''} onChange={(e) => setD({ ...d, solo: e.target.value || undefined })}>
+            <option value="">None</option>
+            {SOLO.map((l) => (
+              <option key={l.key} value={l.key}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {custom && custom.levels.length > 0 && (
+          <label className="flex flex-col gap-1 text-sm font-semibold">
+            {custom.name}
+            <select className={field} value={d.customLevel ?? ''} onChange={(e) => setD({ ...d, customLevel: e.target.value || undefined })}>
+              <option value="">None</option>
+              {custom.levels.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-semibold">

@@ -2192,7 +2192,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Make the next set as an independent copy. */
+        /** Make another set as an independent copy, named or with the next set name. */
         post: operations["duplicatePaper"];
         delete?: never;
         options?: never;
@@ -2227,6 +2227,24 @@ export interface paths {
         /** The printable set; with key=true the answer key for staff. */
         get: operations["paperHtml"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/paper-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The institution's set names and its own taxonomy. */
+        get: operations["getPaperSettings"];
+        /** Set the set names and the institution's own taxonomy (administrators). */
+        put: operations["putPaperSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3974,7 +3992,7 @@ export interface components {
         };
         BlueprintCell: {
             questions: number;
-            /** @description A decimal with up to two places. */
+            /** @description Marks for each question, a decimal with up to two places. */
             marks: string;
         };
         BlueprintRow: {
@@ -3982,7 +4000,7 @@ export interface components {
             lessonId?: string;
             chapter: string;
             qtype: string;
-            /** @description By Bloom level, or '' with no taxonomy. */
+            /** @description By level of the blueprint's taxonomy, or '' with none. */
             cells: {
                 [key: string]: components["schemas"]["BlueprintCell"];
             };
@@ -4005,7 +4023,7 @@ export interface components {
         Blueprint: {
             assessmentId: string;
             /** @enum {string} */
-            taxonomy: "bloom" | "none";
+            taxonomy: "bloom" | "solo" | "custom" | "none";
             /** @enum {string} */
             status: "draft" | "submitted" | "approved" | "returned";
             version: number;
@@ -4022,7 +4040,7 @@ export interface components {
         };
         BlueprintInput: {
             /** @enum {string} */
-            taxonomy: "bloom" | "none";
+            taxonomy: "bloom" | "solo" | "custom" | "none";
             rows: components["schemas"]["BlueprintRow"][];
         };
         BlueprintStep: {
@@ -4036,6 +4054,8 @@ export interface components {
             lessonId?: string;
             outcomeId?: string;
             bloom: components["schemas"]["Bloom"];
+            solo?: string;
+            customLevel?: string;
             qtype: string;
             marks: string;
             /** @enum {string} */
@@ -4057,6 +4077,10 @@ export interface components {
             outcomeId?: string;
             /** @description Suggested from the wording when empty. */
             bloom?: string;
+            /** @description prestructural, unistructural, multistructural, relational or extended. */
+            solo?: string;
+            /** @description A level of the institution's own taxonomy. */
+            customLevel?: string;
             qtype: string;
             marks: string;
             difficulty?: string;
@@ -4074,7 +4098,8 @@ export interface components {
             section: string;
             chapter: string;
             lessonId?: string;
-            bloom?: string;
+            /** @description Of the paper's taxonomy. */
+            level?: string;
             marks: string;
             locked: boolean;
             question?: components["schemas"]["Question"];
@@ -4100,13 +4125,15 @@ export interface components {
             set: string;
             /** @enum {string} */
             status: "draft" | "final";
+            /** @enum {string} */
+            taxonomy: "bloom" | "solo" | "custom" | "none";
             blueprintVersion: number;
             instructions: string;
             items: components["schemas"]["PaperItem"][];
             filled: number;
             total: string;
             bySection: components["schemas"]["PaperGap"][];
-            byBloom: components["schemas"]["PaperGap"][];
+            byLevel: components["schemas"]["PaperGap"][];
             assignments: components["schemas"]["PaperAssignment"][];
         };
         PaperSummary: {
@@ -4120,6 +4147,15 @@ export interface components {
         };
         PaperCreate: {
             fill?: boolean;
+            /** @description The set's name; the next of the institution's set names when empty. */
+            name?: string;
+        };
+        PaperSettings: {
+            setNames: string[];
+            custom: {
+                name: string;
+                levels: string[];
+            };
         };
         PaperItemChange: {
             /** @description Empty clears the slot. */
@@ -4136,6 +4172,10 @@ export interface components {
             marks: string;
             count?: number;
             note?: string;
+            /** @enum {string} */
+            taxonomy?: "bloom" | "solo" | "custom" | "none";
+            /** @description The SOLO or custom level, with that taxonomy. */
+            level?: string;
         };
     };
     responses: {
@@ -8982,7 +9022,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PaperCreate"];
+            };
+        };
         responses: {
             /** @description The new set. */
             201: {
@@ -9026,6 +9070,8 @@ export interface operations {
         parameters: {
             query?: {
                 key?: boolean;
+                /** @description Ruled lines to answer on, more for more marks. */
+                space?: boolean;
             };
             header: {
                 /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
@@ -9045,6 +9091,58 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPaperSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings, or the defaults. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaperSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPaperSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperSettings"];
+            };
+        };
+        responses: {
+            /** @description The settings as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaperSettings"];
                 };
             };
             default: components["responses"]["Problem"];

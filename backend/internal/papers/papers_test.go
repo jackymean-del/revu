@@ -103,8 +103,8 @@ func TestBlueprintToPaper(t *testing.T) {
 			t.Fatalf("empty blueprint %+v", bp)
 		}
 		rows := []papers.Row{
-			{LessonID: lesson, Chapter: "Fractions", QType: "Short answer", Cells: map[string]papers.Cell{"apply": {Questions: 2, Marks: "6"}, "understand": {Questions: 1, Marks: "4"}}},
-			{Chapter: "Decimals", QType: "Multiple choice", Cells: map[string]papers.Cell{"remember": {Questions: 10, Marks: "12"}}},
+			{LessonID: lesson, Chapter: "Fractions", QType: "Short answer", Cells: map[string]papers.Cell{"apply": {Questions: 2, Marks: "3"}, "understand": {Questions: 1, Marks: "4"}}},
+			{Chapter: "Decimals", QType: "Multiple choice", Cells: map[string]papers.Cell{"remember": {Questions: 10, Marks: "1.2"}}},
 		}
 		teacher.json(403, "PUT", base+"/blueprint", map[string]any{"taxonomy": "bloom", "rows": rows}, nil)
 		admin.json(422, "PUT", base+"/blueprint", map[string]any{"taxonomy": "bloom", "rows": []papers.Row{{Chapter: "X", QType: "Y", Cells: map[string]papers.Cell{"apply": {Questions: 0, Marks: "3"}}}}}, nil)
@@ -113,7 +113,7 @@ func TestBlueprintToPaper(t *testing.T) {
 			t.Fatalf("over by two: %+v", bp)
 		}
 		admin.json(409, "POST", base+"/blueprint/submit", nil, nil)
-		rows[1].Cells["remember"] = papers.Cell{Questions: 10, Marks: "10"}
+		rows[1].Cells["remember"] = papers.Cell{Questions: 10, Marks: "1"}
 		admin.json(200, "PUT", base+"/blueprint", map[string]any{"taxonomy": "bloom", "rows": rows}, &bp)
 		if bp.Remaining != "0" || len(bp.ByLevel) != 3 || bp.ByLevel[0].Key != "remember" || bp.ByLevel[0].Weight != "50" {
 			t.Fatalf("balanced: %+v", bp)
@@ -151,7 +151,7 @@ func TestBlueprintToPaper(t *testing.T) {
 			t.Fatalf("an AI question is a draft until accepted: %+v", ai)
 		}
 		admin.json(201, "POST", base+"/papers", map[string]bool{"fill": true}, &paper)
-		if paper.Set != "A" || len(paper.Items) != 13 || paper.Filled != 12 || paper.Total != "20" {
+		if paper.Set != "Set A" || len(paper.Items) != 13 || paper.Filled != 12 || paper.Total != "20" {
 			t.Fatalf("set A: set %s, %d slots, %d filled, total %s", paper.Set, len(paper.Items), paper.Filled, paper.Total)
 		}
 		if paper.Items[0].Section != "Short answer" || paper.Items[3].Section != "Multiple choice" || len(paper.BySection) != 2 || paper.BySection[1].Missing != 1 {
@@ -185,6 +185,17 @@ func TestBlueprintToPaper(t *testing.T) {
 		}
 	})
 
+	t.Run("answer space: ruled lines by marks, boxes for choices, none on the key", func(t *testing.T) {
+		_, body := admin.raw("GET", "/v1/papers/"+paper.ID+"/html?space=true", nil)
+		if n := strings.Count(string(body), `<div class="space">`); n != 3 {
+			t.Fatalf("%d questions with lines, want the 3 written ones", n)
+		}
+		_, key := admin.raw("GET", "/v1/papers/"+paper.ID+"/html?space=true&key=true", nil)
+		if strings.Contains(string(key), `<div class="space">`) {
+			t.Fatal("the key has no answer lines")
+		}
+	})
+
 	t.Run("finalise sets the parts, tagged with outcomes", func(t *testing.T) {
 		admin, teacher, other := admin.on(t), teacher.on(t), other.on(t)
 		_, _, _ = admin, teacher, other
@@ -210,7 +221,7 @@ func TestBlueprintToPaper(t *testing.T) {
 		_, _, _ = admin, teacher, other
 		var setB papers.Paper
 		admin.json(201, "POST", "/v1/papers/"+paper.ID+"/duplicate", nil, &setB)
-		if setB.Set != "B" || setB.Status != "draft" || setB.Filled != 13 {
+		if setB.Set != "Set B" || setB.Status != "draft" || setB.Filled != 13 {
 			t.Fatalf("set B %+v", setB)
 		}
 		admin.json(200, "PUT", "/v1/papers/"+paper.ID+"/assignments", map[string]any{"assignments": []papers.Assignment{{SectionID: a.SectionID, SitOn: "2026-11-20"}}}, &paper)
@@ -222,7 +233,7 @@ func TestBlueprintToPaper(t *testing.T) {
 		admin.json(422, "PUT", "/v1/papers/"+paper.ID+"/assignments", map[string]any{"assignments": []papers.Assignment{{SectionID: a.SectionID, SitOn: "20 Nov"}}}, nil)
 		var list []papers.PaperSummary
 		admin.json(200, "GET", base+"/papers", nil, &list)
-		if len(list) != 2 || list[0].Status != "final" || list[1].Set != "B" {
+		if len(list) != 2 || list[0].Status != "final" || list[1].Set != "Set B" {
 			t.Fatalf("list %+v", list)
 		}
 	})
@@ -279,4 +290,63 @@ func TestDraftQuestions(t *testing.T) {
 		}
 	}
 	admin.json(422, "POST", "/v1/questions/draft", map[string]any{"levelId": a.LevelID, "subjectId": a.SubjectID, "qtype": "Short answer", "marks": "0"}, nil)
+}
+
+// SOLO and an institution's own levels, set names from Configuration.
+func TestTaxonomiesAndSetNames(t *testing.T) {
+	owner, appPool := dbtest.Open(t)
+	a := dbtest.SeedOrg(t, owner, "Org A")
+	app := server.New(config.Config{Version: "test"}, server.Deps{DB: appPool, Auth: headerAuth{}})
+	admin := caller{t, app, a.UserID, a.ID}
+	ctx := context.Background()
+	one := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		if err := owner.QueryRow(ctx, sql, args...).Scan(&v); err != nil {
+			t.Fatalf("%v\n%s", err, sql)
+		}
+		return v
+	}
+	exam := one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Quiz', 'total') RETURNING id`,
+		a.ID, a.YearID, a.PeriodID, a.LevelID, a.SubjectID)
+	one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 6) RETURNING id`, a.ID, exam)
+	base := "/v1/assessments/" + exam
+
+	var st papers.Settings
+	admin.json(200, "GET", "/v1/paper-settings", nil, &st)
+	if strings.Join(st.SetNames, ",") != "Set A,Set B,Set C,Set D" {
+		t.Fatalf("default names %v", st.SetNames)
+	}
+	row := func(level string) []papers.Row {
+		return []papers.Row{{Chapter: "Fractions", QType: "Short answer", Cells: map[string]papers.Cell{level: {Questions: 2, Marks: "3"}}}}
+	}
+	admin.json(422, "PUT", base+"/blueprint", map[string]any{"taxonomy": "custom", "rows": row("Deep")}, nil)
+	admin.json(422, "PUT", "/v1/paper-settings", map[string]any{"setNames": []string{"Red", "red"}, "custom": map[string]any{"name": "", "levels": []string{}}}, nil)
+	admin.json(200, "PUT", "/v1/paper-settings", map[string]any{"setNames": []string{"Red", "Blue"}, "custom": map[string]any{"name": "Depth of knowledge", "levels": []string{"Recall", "Skill", "Strategic", "Extended"}}}, &st)
+
+	var bp papers.Blueprint
+	admin.json(422, "PUT", base+"/blueprint", map[string]any{"taxonomy": "solo", "rows": row("apply")}, nil)
+	admin.json(200, "PUT", base+"/blueprint", map[string]any{"taxonomy": "solo", "rows": row("relational")}, &bp)
+	if bp.Allocated != "6" || bp.Remaining != "0" || bp.ByLevel[0].Key != "relational" {
+		t.Fatalf("2 questions of 3 marks each are 6: %+v", bp)
+	}
+	admin.json(200, "PUT", base+"/blueprint", map[string]any{"taxonomy": "custom", "rows": row("Strategic")}, &bp)
+	admin.json(200, "POST", base+"/blueprint/submit", nil, nil)
+	admin.json(200, "POST", base+"/blueprint/approve", nil, nil)
+	for _, text := range []string{"Plan how to share 3/4 of a pizza among 3.", "Design a fraction game for a friend."} {
+		admin.json(201, "POST", "/v1/questions", map[string]any{"levelId": a.LevelID, "subjectId": a.SubjectID, "qtype": "Short answer", "marks": "3", "text": text, "customLevel": "Strategic", "solo": "extended"}, nil)
+	}
+	admin.json(201, "POST", "/v1/questions", map[string]any{"levelId": a.LevelID, "subjectId": a.SubjectID, "qtype": "Short answer", "marks": "3", "text": "Recall what a numerator is.", "customLevel": "Recall"}, nil)
+	var p papers.Paper
+	admin.json(201, "POST", base+"/papers", map[string]bool{"fill": true}, &p)
+	if p.Set != "Red" || p.Taxonomy != "custom" || p.Filled != 2 || p.Items[0].Level != "Strategic" || p.Items[0].Marks != "3" {
+		t.Fatalf("filled at the custom level only: %+v", p)
+	}
+	var blue, named papers.Paper
+	admin.json(201, "POST", "/v1/papers/"+p.ID+"/duplicate", nil, &blue)
+	admin.json(201, "POST", "/v1/papers/"+p.ID+"/duplicate", map[string]string{"name": "Makeup"}, &named)
+	admin.json(422, "POST", "/v1/papers/"+p.ID+"/duplicate", map[string]string{"name": "makeup"}, nil)
+	if blue.Set != "Blue" || named.Set != "Makeup" {
+		t.Fatalf("names %q %q", blue.Set, named.Set)
+	}
 }

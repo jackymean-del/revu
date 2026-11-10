@@ -460,18 +460,23 @@ export const listQuestions = (orgId: string, q: Record<string, string>, signal?:
 export const createQuestion = (orgId: string, body: QuestionInput) => call<Question>('/v1/questions', { orgId, method: 'POST', body })
 export const updateQuestion = (orgId: string, id: string, body: QuestionInput) => call<Question>(`/v1/questions/${id}`, { orgId, method: 'PUT', body })
 export const listPapers = (orgId: string, id: string, signal?: AbortSignal) => call<PaperSummary[]>(`/v1/assessments/${id}/papers`, { orgId, signal })
-export const createPaper = (orgId: string, id: string, fill: boolean) => call<Paper>(`/v1/assessments/${id}/papers`, { orgId, method: 'POST', body: { fill } })
+export const createPaper = (orgId: string, id: string, fill: boolean, name = '') => call<Paper>(`/v1/assessments/${id}/papers`, { orgId, method: 'POST', body: { fill, name } })
 export const getPaper = (orgId: string, id: string, signal?: AbortSignal) => call<Paper>(`/v1/papers/${id}`, { orgId, signal })
 export const putPaperItem = (orgId: string, id: string, item: string, body: { questionId?: string; locked?: boolean }) =>
   call<Paper>(`/v1/papers/${id}/items/${item}`, { orgId, method: 'PUT', body })
-export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise') => call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST' })
+export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise', name = '') =>
+  call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST', body: step === 'duplicate' ? { name } : undefined })
 export const putPaperAssignments = (orgId: string, id: string, assignments: PaperAssignment[]) =>
   call<Paper>(`/v1/papers/${id}/assignments`, { orgId, method: 'PUT', body: { assignments } })
-/** The printable paper, or with key its answer key, as HTML. */
-export async function getPaperHtml(orgId: string, id: string, key: boolean): Promise<string> {
-  const res = await fetch(`${BASE}/v1/papers/${id}/html?key=${key}`, { headers: await orgHeaders(orgId) })
+/** The printable paper, or with key its answer key, as HTML; with space, lines to answer on. */
+export async function getPaperHtml(orgId: string, id: string, key: boolean, space = false, signal?: AbortSignal): Promise<string> {
+  const res = await fetch(`${BASE}/v1/papers/${id}/html?key=${key}&space=${space}`, { headers: await orgHeaders(orgId), signal })
   if (!res.ok) throw await toApiError(res)
   return res.text()
 }
 export const draftQuestions = (orgId: string, body: components['schemas']['QuestionDraftRequest']) =>
   call<Question[]>('/v1/questions/draft', { orgId, method: 'POST', body })
+export type PaperSettings = components['schemas']['PaperSettings']
+export const getPaperSettings = (orgId: string, signal?: AbortSignal) => call<PaperSettings>('/v1/paper-settings', { orgId, signal })
+export const putPaperSettings = (orgId: string, body: PaperSettings) => call<PaperSettings>('/v1/paper-settings', { orgId, method: 'PUT', body })
+export type Enrolment = components['schemas']['Enrolment']
