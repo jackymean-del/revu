@@ -61,7 +61,7 @@ export function Promotion({ orgId, canEdit }: { orgId: string; canEdit: boolean 
       </div>
       {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
       {plan && (
-        <div className="overflow-x-auto rounded-xl border border-line bg-white">
+        <div className="relative overflow-x-auto rounded-xl border border-line bg-white">
           <table className="w-full min-w-[32rem] text-sm">
             <caption className="sr-only">Promotion preview</caption>
             <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-subtle">

@@ -126,7 +126,7 @@ export function Owner() {
         <h2 id="orgs-heading" className="font-extrabold">
           Institutions ({orgs.data?.length ?? 0})
         </h2>
-        <div className="mt-3 overflow-x-auto">
+        <div className="mt-3 relative overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase tracking-wide text-muted">
               <tr>

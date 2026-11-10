@@ -279,7 +279,7 @@ function QuestionForm({ draft, syllabus, custom, pending, error, onCancel, onSav
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Learning outcome
           <select className={field} value={d.outcomeId ?? ''} disabled={!lesson} onChange={(e) => setD({ ...d, outcomeId: e.target.value || undefined })}>
-            <option value="">None</option>
+            <option value="">{lesson ? 'None' : 'Choose a lesson first'}</option>
             {lesson?.outcomes.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.text}

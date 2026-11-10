@@ -126,7 +126,7 @@ export function EditableList({ orgId, path, scope = {}, cols, canEdit, noun, emp
   const list = items.data ?? []
   return (
     <div className="rounded-xl border border-line bg-white">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[34rem] text-sm">
           <caption className="sr-only">{noun}</caption>
           <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-subtle">

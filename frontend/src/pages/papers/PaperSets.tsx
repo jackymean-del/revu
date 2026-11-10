@@ -113,6 +113,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
         )}
       </div>
       {err && <Problem error={err} />}
+      {draft && empty > 0 && <p className="text-xs text-muted">Finalising needs a question in every slot: {empty} still to choose.</p>}
 
       {!p ? (
         <p className="text-sm text-muted">Loading</p>

@@ -172,7 +172,7 @@ export function Results() {
             {data.access === 'counts' ? (
               <p className="text-sm text-muted">Your role shows how many results are in each state. The marks stay with the staff who teach them (confidential by default).</p>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-line bg-white">
+              <div className="relative overflow-x-auto rounded-xl border border-line bg-white">
                 <table className="w-full min-w-max text-sm">
                   <caption className="sr-only">
                     {subjectName} results, {data.scheme?.name} version {data.scheme?.version}

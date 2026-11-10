@@ -153,7 +153,7 @@ function Editor({ orgId, saved, canEdit }: { orgId: string; saved: TerminologyDo
         <fieldset disabled={!canEdit}>
           <legend className="text-sm font-bold">Your words</legend>
           <p className="mt-1 text-sm text-muted">Leave a word blank to use the starting set.</p>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-white">
+          <div className="mt-3 relative overflow-x-auto rounded-xl border border-line bg-white">
             <table className="w-full min-w-[36rem] text-sm">
               <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-subtle">
                 <tr>

@@ -18,14 +18,17 @@ export function TypeSelect({ value, onChange, label, also = [], options = QUESTI
   className?: string
 }) {
   const known = [...new Set([...options, ...also.map((x) => x.trim()).filter(Boolean)])]
-  const [typing, setTyping] = useState(() => value !== '' && !known.includes(value))
+  // With nothing to choose from (no syllabus yet), the name is simply typed.
+  const [typing, setTyping] = useState(() => known.length === 0 || (value !== '' && !known.includes(value)))
   if (typing)
     return (
       <span className={`flex gap-1 ${className}`}>
-        <input autoFocus aria-label={label} placeholder={`Name the ${noun}`} className="min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm" value={value} onChange={(e) => onChange(e.target.value)} />
-        <button type="button" className="rounded border border-line px-1.5 text-xs text-muted hover:bg-canvas" onClick={() => (setTyping(false), onChange(options[0] ?? ''))} aria-label={`${label}: choose from the list`}>
-          List
-        </button>
+        <input autoFocus={known.length > 0} aria-label={label} placeholder={`Name the ${noun}`} className="min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm" value={value} onChange={(e) => onChange(e.target.value)} />
+        {known.length > 0 && (
+          <button type="button" className="rounded border border-line px-1.5 text-xs text-muted hover:bg-canvas" onClick={() => (setTyping(false), onChange(options[0] ?? ''))} aria-label={`${label}: choose from the list`}>
+            List
+          </button>
+        )}
       </span>
     )
   return (

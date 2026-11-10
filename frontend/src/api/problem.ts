@@ -3,8 +3,9 @@ import type { components } from './schema.gen'
 export type Problem = components['schemas']['Problem']
 
 /**
- * A failed API call. Branch on code (stable, from the contract), show detail
- * to the person, and quote requestId when reporting it.
+ * A failed API call. Branch on code (stable, from the contract), show the
+ * message to the person (what to fix, when fields need attention), and
+ * quote requestId when reporting it.
  */
 export class ApiError extends Error {
   readonly status: number
@@ -13,7 +14,8 @@ export class ApiError extends Error {
   readonly fields: Problem['errors']
 
   constructor(p: Problem) {
-    super(p.detail ?? p.title)
+    // A validation failure says what to fix, not only that something is wrong.
+    super(p.errors?.length ? [...new Set(p.errors.map((e) => e.message))].join(' ') : (p.detail ?? p.title))
     this.name = 'ApiError'
     this.status = p.status
     this.code = p.code

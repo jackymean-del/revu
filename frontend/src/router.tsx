@@ -1,4 +1,5 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '@tanstack/react-router'
+import { RouteError } from './components/RouteError'
 import { Shell } from './components/Shell'
 import { Home } from './pages/Home'
 
@@ -163,7 +164,7 @@ const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, o
 
 // Hovering or focusing a link loads that screen and its code before the
 // click, so moving around feels instant.
-export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultPreloadDelay: 40 })
+export const router = createRouter({ routeTree, defaultPreload: 'intent', defaultPreloadDelay: 40, defaultErrorComponent: RouteError })
 
 declare module '@tanstack/react-router' {
   interface Register {

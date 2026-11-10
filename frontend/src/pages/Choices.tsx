@@ -208,9 +208,12 @@ export function Choices() {
             >
               Give them this option
             </button>
+            {!busy && (selected.length === 0 || !bulk.subject) && (
+              <span className="text-xs text-muted">{selected.length === 0 ? 'Tick the names first.' : 'Choose the group and the option first.'}</span>
+            )}
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-line bg-white">
+          <div className="relative overflow-x-auto rounded-xl border border-line bg-white">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
                 <tr>

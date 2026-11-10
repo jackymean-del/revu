@@ -150,7 +150,7 @@ export function Audit() {
 
           {pages.error instanceof ApiError && <p role="alert" className="mt-4 text-sm font-semibold text-red-700">{pages.error.fields?.[0]?.message ?? pages.error.message}</p>}
 
-          <div className="mt-4 overflow-x-auto rounded-xl border border-line bg-white">
+          <div className="mt-4 relative overflow-x-auto rounded-xl border border-line bg-white">
             <table className="w-full min-w-[40rem] text-sm">
               <caption className="sr-only">History</caption>
               <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-subtle">

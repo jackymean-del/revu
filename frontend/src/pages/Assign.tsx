@@ -247,6 +247,7 @@ function Students({ orgId, sectionId, papers, base, others, onChange, setName }:
         <button type="button" className={primary} disabled={sets.length < 2} onClick={shareOut}>
           Share out
         </button>
+        {sets.length < 2 && <span className="self-center text-xs text-amber-800">Tick at least two sets to share.</span>}
       </div>
       <p className="text-sm text-muted">
         {counts.map(([n, c]) => `${n}: ${c}`).join(' · ')}. Change anyone below; each sits {base ? setName(base) : 'the set chosen above'} unless changed.

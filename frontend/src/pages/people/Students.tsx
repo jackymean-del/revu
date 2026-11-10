@@ -215,7 +215,7 @@ export function Students({ orgId, canEdit }: { orgId: string; canEdit: boolean }
           </label>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-line bg-white">
+        <div className="relative overflow-x-auto rounded-xl border border-line bg-white">
           <table className="w-full min-w-[34rem] text-sm">
             <caption className="sr-only">{t('person.student', { count: 2 })}</caption>
             <thead className="border-b border-line text-left text-xs uppercase tracking-wide text-subtle">

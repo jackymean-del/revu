@@ -113,6 +113,12 @@ export function Syllabus() {
         </div>
       </div>
 
+      {change.isError && (
+        <p role="alert" className="text-sm font-semibold text-red-700">
+          {change.error instanceof ApiError ? change.error.message : 'That change did not save. Try again.'}
+        </p>
+      )}
+
       {!subjectId ? (
         <p className="text-sm text-muted">This {t('group.level', { lower: true })} has no {t('course.subject', { count: 2, lower: true })} yet. Add them in Configuration.</p>
       ) : syllabus.isPending ? (

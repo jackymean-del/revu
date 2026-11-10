@@ -30,7 +30,9 @@ const res = (body: string, status: number, type = 'application/problem+json') =>
 const a = await toApiError(res(JSON.stringify(problem), 422))
 ok(a instanceof ApiError && a instanceof Error, 'a problem body becomes an ApiError')
 ok(a.code === 'validation.failed' && a.status === 422, 'code and status come from the body', `${a.code} ${String(a.status)}`)
-ok(a.message === 'Some fields need attention.', 'message is the detail, written for people')
+ok(a.message === 'Enter a name.', 'with fields, the message says what to fix', a.message)
+const plain = await toApiError(res(JSON.stringify({ ...problem, errors: undefined, code: 'paper.final', detail: 'This set is final.' }), 409))
+ok(plain.message === 'This set is final.', 'without fields, the message is the detail, written for people')
 ok(a.requestId === 'req-123', 'request id is kept for support')
 ok(a.fields?.[0]?.field === 'name' && a.fields.length === 1, 'field errors are kept')
 

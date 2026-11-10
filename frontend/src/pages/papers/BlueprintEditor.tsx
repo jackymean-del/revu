@@ -32,9 +32,12 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
   const left = remaining(blueprint.max, t.marks)
   const lessonByName = (name: string) => syllabus.lessons.find((l) => l.name.toLowerCase() === name.trim().toLowerCase())
 
+  const [tried, setTried] = useState<'' | 'save' | 'submit'>('')
+  const [saved, setSaved] = useState('')
   const edit = (i: number, change: Partial<BlueprintRow>) => {
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...change } : r)))
     setDirty(true)
+    setSaved('')
   }
   const setCell = (i: number, level: string, field: 'questions' | 'marks', v: string) => {
     const r = rows[i]
@@ -47,7 +50,12 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
       if (dirty || !blueprint.exists) await putBlueprint(orgId, assessmentId, { taxonomy, rows: toInput(rows) })
       if (then) await stepBlueprint(orgId, assessmentId, then)
     },
-    onSuccess: () => (setDirty(false), refresh()),
+    onSuccess: (_, then) => {
+      setDirty(false)
+      setTried('')
+      setSaved(then === 'submit' ? 'Submitted for approval.' : 'Draft saved.')
+      void refresh()
+    },
   })
   const step = useMutation({ mutationFn: (s: 'approve' | 'return') => stepBlueprint(orgId, assessmentId, s, comment), onSuccess: refresh })
   const err = (save.error ?? step.error) as Error | null
@@ -56,6 +64,19 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
     setDirty(true)
   }
   const badCell = rows.some((r) => Object.values(r.cells).some(inconsistent))
+  // What stops a save, said where it can be fixed, rather than a greyed-out button.
+  const problems = [
+    ...rows.flatMap((r, i) => [!r.chapter.trim() && `Row ${i + 1}: choose or type a chapter.`, !r.qtype.trim() && `Row ${i + 1}: choose a question type.`]),
+    badCell && 'A cell has questions without marks, or marks without questions.',
+    tried === 'submit' && rows.length === 0 && 'Add at least one row.',
+    tried === 'submit' && left.tone !== 'ok' && `${left.text}; every mark must be allocated before submitting.`,
+  ].filter((x): x is string => !!x)
+  const go = (then?: 'submit') => {
+    setTried(then ?? 'save')
+    setSaved('')
+    const blocking = problems.length > 0 || (then === 'submit' && (left.tone !== 'ok' || rows.length === 0))
+    if (!blocking) save.mutate(then)
+  }
   const errors = blueprint.checks.filter((c) => c.level === 'error')
 
   return (
@@ -95,7 +116,12 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line p-6 text-center">
           <p className="font-bold">No rows yet</p>
-          <p className="mt-1 text-sm text-muted">One row per chapter and question type. Start from the syllabus, one row per lesson, or add rows one by one.</p>
+          <p className="mt-1 text-sm text-muted">
+            One row per chapter and question type.{' '}
+            {syllabus.lessons.length > 0
+              ? 'Start from the syllabus, one row per lesson, or add rows one by one.'
+              : 'Add rows one by one and type each chapter, or import the syllabus in Configuration to start from its lessons.'}
+          </p>
           <div className="mt-3 flex justify-center gap-2">
             {syllabus.lessons.length > 0 && (
               <button type="button" className={primary} onClick={fromSyllabus}>
@@ -108,7 +134,7 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
@@ -132,13 +158,13 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
                       label={`Row ${i + 1} chapter`}
                       noun="chapter"
                       options={syllabus.lessons.map((l) => l.name)}
-                      className="w-44"
+                      className={`w-44 ${tried && !r.chapter.trim() ? 'ring-2 ring-red-300' : ''}`}
                       value={r.chapter}
                       onChange={(v) => edit(i, { chapter: v, lessonId: lessonByName(v)?.id })}
                     />
                   </td>
                   <td className="py-1.5 pr-2">
-                    <TypeSelect label={`Row ${i + 1} question type`} className="w-40" also={rows.map((x) => x.qtype)} value={r.qtype} onChange={(v) => edit(i, { qtype: v })} />
+                    <TypeSelect label={`Row ${i + 1} question type`} className={`w-40 ${tried && !r.qtype.trim() ? 'ring-2 ring-red-300' : ''}`} also={rows.map((x) => x.qtype)} value={r.qtype} onChange={(v) => edit(i, { qtype: v })} />
                   </td>
                   {levels.map((l) => {
                     const c = r.cells[l]
@@ -201,19 +227,37 @@ export function BlueprintEditor({ orgId, assessmentId, blueprint, syllabus, appr
           ))}
         </ul>
       )}
+      {tried && problems.length > 0 && (
+        <ul role="alert" aria-label="To fix before saving" className="space-y-0.5 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+          {problems.map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+        </ul>
+      )}
       {err && (
         <p role="alert" className="text-sm font-semibold text-red-700">
-          {err instanceof ApiError ? err.message : 'That did not save.'}
+          {err instanceof ApiError ? err.message : 'That did not save. Check the connection and try again.'}
+        </p>
+      )}
+      {saved && (
+        <p role="status" className="text-sm font-semibold text-emerald-700">
+          {saved}
         </p>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={button} disabled={!dirty || save.isPending || badCell} onClick={() => save.mutate(undefined)}>
-          Save draft
+        <button
+          type="button"
+          className={button}
+          disabled={save.isPending || (!dirty && blueprint.exists)}
+          title={!dirty && blueprint.exists ? 'Nothing has changed since the last save' : undefined}
+          onClick={() => go()}
+        >
+          {save.isPending && tried === 'save' ? 'Saving' : 'Save draft'}
         </button>
         {(blueprint.status === 'draft' || blueprint.status === 'returned' || dirty) && (
-          <button type="button" className={primary} disabled={save.isPending || badCell || left.tone !== 'ok' || rows.length === 0} onClick={() => save.mutate('submit')}>
-            Submit for approval
+          <button type="button" className={primary} disabled={save.isPending} onClick={() => go('submit')}>
+            {save.isPending && tried === 'submit' ? 'Submitting' : 'Submit for approval'}
           </button>
         )}
         {approves && blueprint.status === 'submitted' && !dirty && (

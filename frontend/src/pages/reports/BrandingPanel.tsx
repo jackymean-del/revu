@@ -70,6 +70,7 @@ export function BrandingPanel({ orgId }: { orgId: string }) {
         <button type="button" className={primary} disabled={busy || !form.displayName.trim()} onClick={() => void act(() => putBranding(orgId, form), 'Saved.')}>
           Save the details
         </button>
+        {!form.displayName.trim() && <span className="text-xs text-amber-800">The name as printed is needed before saving.</span>}
       </div>
       <div className="space-y-2 border-t border-line pt-4">
         <p className="text-sm font-semibold">Logo</p>

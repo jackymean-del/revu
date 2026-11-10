@@ -172,3 +172,30 @@ test('an administrator names the sets and sets the institution own levels', asyn
   await expect(page.getByRole('status')).toContainText('Saved')
   expect(api.sent.at(-1)).toEqual({ path: 'settings', body: { setNames: ['Red', 'Blue'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill', 'Strategic'] } } })
 })
+
+test('a blueprint that cannot be saved says why, on the spot', async ({ page }) => {
+  const api = fakeApi(page)
+  await page.goto('/papers?a=ut&tab=blueprint')
+  await page.getByRole('button', { name: 'Add a row' }).click()
+  await page.getByLabel('Row 1 Analyse questions').fill('1')
+  await page.getByLabel('Row 1 Analyse marks each').fill('4')
+  // The chapter is still to choose: nothing is sent, and the reason is named.
+  await page.getByRole('button', { name: 'Submit for approval' }).click()
+  await expect(page.getByRole('alert')).toContainText('Row 1: choose or type a chapter.')
+  expect(api.sent.filter((s) => s.path === 'blueprint')).toHaveLength(0)
+
+  // A refusal from the server shows what to fix, not only that something is wrong.
+  await page.route('**/v1/assessments/ut/blueprint', (r) =>
+    r.request().method() === 'PUT'
+      ? r.fulfill({
+          status: 422,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ type: 'about:blank', title: 'Unprocessable Entity', status: 422, code: 'validation.failed', detail: 'Some fields need attention.',
+            errors: [{ field: 'rows', code: 'required', message: 'Row 1 needs a chapter and a question type.' }] }),
+        })
+      : r.fallback(),
+  )
+  await page.getByLabel('Row 1 chapter').selectOption('Fractions')
+  await page.getByRole('button', { name: 'Save draft' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Row 1 needs a chapter and a question type.')
+})
