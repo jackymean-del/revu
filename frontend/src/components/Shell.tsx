@@ -22,6 +22,8 @@ interface Item {
   icon: IconName
   n?: number
   key?: string
+  /** A step revU does not do yet: listed in its place, not a link. */
+  soon?: boolean
   exact?: boolean
 }
 interface Section {
@@ -40,13 +42,15 @@ function useSections(ms: Module[]): Section[] {
   const admin = roles.includes('admin')
   const out: Section[] = [{ heading: '', items: [{ to: '/', label: 'Home', icon: 'home', exact: true }] }]
   if (current) {
-    const steps = (group: Module['group']) =>
+    // Every step in its place, as on Home: one not built yet is listed as
+    // coming, so the menu and the cards always match.
+    const steps = (group: Module['group']): Item[] =>
       ms
-        .filter((m) => m.built && m.group === group)
+        .filter((m) => m.group === group)
         .map((m) => ({ m, pages: visiblePages(m, roles) }))
-        .filter((x) => x.pages.length > 0)
-        .map(({ m, pages }) => ({ to: pages[0].to, label: m.title, icon: m.icon, n: m.n, key: m.key }))
-    const master = steps('master')
+        .filter((x) => x.pages.length > 0 || !x.m.built)
+        .map(({ m, pages }) => ({ to: pages[0]?.to ?? '', label: m.title, icon: m.icon, n: m.n, key: m.key, soon: !m.built }))
+    const master = steps('master').filter((i) => !i.soon)
     const exams = steps('exams')
     if (master.length) out.push({ heading: 'Master', items: master })
     if (exams.length) out.push({ heading: 'Exam steps', items: exams })
@@ -230,6 +234,24 @@ export function Shell() {
               {s.items.map((item) => {
                 const here =
                   item.key !== undefined ? moduleOf(ms, path)?.module.key === item.key : item.exact ? path === item.to : path === item.to || path.startsWith(item.to + '/')
+                if (item.soon)
+                  return (
+                    <span
+                      key={item.key}
+                      aria-disabled="true"
+                      title={wide ? 'Coming soon' : `${item.label}, coming soon`}
+                      className={`mb-0.5 flex cursor-default items-center rounded-lg text-sm font-medium text-subtle/70 ${wide ? 'gap-2.5 px-2.5 py-2' : 'justify-center py-2.5'}`}
+                    >
+                      <Icon name={item.icon} className="shrink-0" />
+                      {wide && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+                      {wide && <span className="rounded bg-canvas px-1.5 text-[10px] font-bold uppercase tracking-wide">Soon</span>}
+                      {wide && (
+                        <span aria-hidden="true" className="text-[11px] font-bold tabular-nums">
+                          {item.n}
+                        </span>
+                      )}
+                    </span>
+                  )
                 return (
                   <Link
                     key={item.to}

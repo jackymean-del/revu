@@ -21,6 +21,7 @@ type Config struct {
 	Production     bool
 	DevUserID      string // local only: signs every request in as this user
 	ClerkSecretKey string // verifies sign-in tokens; required in production
+	AnthropicKey   string // drafts with Claude for people to check; optional
 	ClerkWebhook   string // signing secret of the Clerk webhook endpoint (whsec_...)
 	// PlatformOwners are the verified addresses that run the platform
 	// (Part 56.2): the owner console, never an institution's content.
@@ -40,6 +41,7 @@ func Load(getenv func(string) string) (Config, error) {
 		Production:     getenv("APP_ENV") == "production",
 		DevUserID:      strings.TrimSpace(getenv("DEV_USER_ID")),
 		ClerkSecretKey: strings.TrimSpace(getenv("CLERK_SECRET_KEY")),
+		AnthropicKey:   strings.TrimSpace(getenv("ANTHROPIC_API_KEY")),
 		ClerkWebhook:   strings.TrimSpace(getenv("CLERK_WEBHOOK_SECRET")),
 	}
 	if c.MigrationsDir == "" {

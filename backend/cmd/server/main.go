@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/jackymean-del/revu/internal/ai"
 	"github.com/jackymean-del/revu/internal/auth"
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/db"
@@ -66,7 +67,10 @@ func main() {
 		return
 	}
 
-	deps := server.Deps{}
+	deps := server.Deps{AI: ai.NewClaude(cfg.AnthropicKey)}
+	if deps.AI == nil {
+		slog.Warn("no ANTHROPIC_API_KEY: AI drafting is off")
+	}
 	switch {
 	case cfg.ClerkSecretKey != "":
 		deps.Auth = auth.NewClerk(cfg.ClerkSecretKey, cfg.AllowedOrigins)

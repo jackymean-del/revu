@@ -127,7 +127,7 @@ test('a teacher sees Home with their classes and no settings', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Print' })).toHaveCount(0)
   const nav = page.getByRole('navigation', { name: 'Main' })
   // A teacher's menu: the steps they work in, by name; the numbers beside them are decoration.
-  const names = ['Home', 'Evaluate exam', 'Scheme', 'Reports and analysis', 'System status']
+  const names = ['Home', 'Create question paper', 'Assign paper', 'Evaluate exam', 'Scheme', 'Reports and analysis', 'System status']
   await expect(nav.getByRole('link')).toHaveCount(names.length)
   for (const name of names) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Getting started' })).toHaveCount(0)

@@ -38,9 +38,11 @@ func load(ctx context.Context, tx pgx.Tx) (api.SetupStatus, error) {
 		       (SELECT count(*) FROM (SELECT 1 FROM evidence WHERE state <> 'pending' LIMIT 10000) e),
 		       (SELECT count(*) FROM schemes WHERE status = 'published' AND deleted_at IS NULL),
 		       (SELECT count(*) FROM (SELECT 1 FROM computed_results WHERE component_code = '_subject' AND state = 'complete' LIMIT 10000) r),
-		       (SELECT count(*) FROM report_runs)`).
+		       (SELECT count(*) FROM report_runs),
+		       (SELECT count(*) FROM papers WHERE status = 'final'),
+		       (SELECT count(*) FROM paper_assignments)`).
 		Scan(&s.Years, &s.Periods, &s.Levels, &s.Sections, &s.Subjects, &s.LevelSubjects, &s.Staff, &s.Students, &s.Invitations, &s.Done,
-			&s.Assessments, &s.Marks, &s.Schemes, &s.Results, &s.Reports)
+			&s.Assessments, &s.Marks, &s.Schemes, &s.Results, &s.Reports, &s.Papers, &s.Assigned)
 	return s, err
 }
 

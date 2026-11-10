@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/requestid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackymean-del/revu/internal/ai"
 	"github.com/jackymean-del/revu/internal/analysis"
 	"github.com/jackymean-del/revu/internal/assessment"
 	"github.com/jackymean-del/revu/internal/audit"
@@ -25,6 +26,7 @@ import (
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/layout"
 	"github.com/jackymean-del/revu/internal/org"
+	"github.com/jackymean-del/revu/internal/papers"
 	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/platform"
 	"github.com/jackymean-del/revu/internal/problem"
@@ -51,6 +53,9 @@ type Deps struct {
 	// and group pages only, which read across institutions by counts. nil
 	// when no MIGRATE_DATABASE_URL is set; those pages then answer 503.
 	Owner *pgxpool.Pool
+	// AI drafts questions and report comments for people to check; nil
+	// when no ANTHROPIC_API_KEY is set, and drafting then answers 503.
+	AI ai.Drafter
 }
 
 // New returns the app with every route registered. Without a database,
@@ -108,6 +113,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	results.Routes(inOrg)
 	analysis.Routes(inOrg, d.Now)
 	syllabus.Routes(inOrg)
+	papers.Routes(inOrg, papers.Options{AI: d.AI})
 	reports.Routes(inOrg, reports.Options{Renderer: reports.Renderer{URL: cfg.GotenbergURL}, AppURL: cfg.AppURL, Now: d.Now})
 	tables.Routes(inOrg)
 	audit.Routes(inOrg)

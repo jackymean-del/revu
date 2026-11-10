@@ -83,6 +83,7 @@ const seedScheme = `{"schema": 1, "rounding": {"mode": "half_up", "places": 2, "
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
+	"paper_assignments", "paper_items", "papers", "questions", "blueprint_cells", "blueprint_rows", "blueprints",
 	"group_members", "part_tags", "learning_outcomes", "lessons", "competencies", "reteach_marks", "report_run_items", "report_runs", "report_template_versions", "report_templates", "branding_versions", "computed_results", "scheme_assignments", "schemes", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
 	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
 	"student_subject_choices", "subject_group_options", "subject_groups",
@@ -161,6 +162,15 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	lo := one(`INSERT INTO learning_outcomes (org_id, level_id, subject_id, lesson_id, competency_id, text, bloom) VALUES ($1, $2, $3, $4, $5, 'Add fractions with unlike denominators.', 'apply') RETURNING id`,
 		o.ID, o.LevelID, o.SubjectID, les, comp)
 	one(`INSERT INTO part_tags (org_id, part_id, outcome_id) VALUES ($1, $2, $3) RETURNING part_id`, o.ID, o.PartID, lo)
+	bp := one(`INSERT INTO blueprints (org_id, assessment_id, status) VALUES ($1, $2, 'approved') RETURNING id`, o.ID, o.AssessmentID)
+	row := one(`INSERT INTO blueprint_rows (org_id, blueprint_id, seq, lesson_id, chapter, qtype) VALUES ($1, $2, 1, $3, 'Fractions', 'Short answer') RETURNING id`, o.ID, bp, les)
+	one(`INSERT INTO blueprint_cells (org_id, row_id, level, questions, marks) VALUES ($1, $2, 'apply', 1, 40) RETURNING level`, o.ID, row)
+	q := one(`INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, text) VALUES ($1, $2, $3, $4, $5, 'apply', 'Short answer', 40, 'Add 1/2 and 1/3.') RETURNING id`,
+		o.ID, o.LevelID, o.SubjectID, les, lo)
+	paper := one(`INSERT INTO papers (org_id, assessment_id, set_label, blueprint_version) VALUES ($1, $2, 'A', 1) RETURNING id`, o.ID, o.AssessmentID)
+	one(`INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, bloom, marks, question_id) VALUES ($1, $2, 1, 'Short answer', 'Fractions', $3, 'apply', 40, $4) RETURNING id`,
+		o.ID, paper, les, q)
+	one(`INSERT INTO paper_assignments (org_id, paper_id, section_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, paper, o.SectionID)
 	one(`INSERT INTO branding_versions (org_id, version, display_name) VALUES ($1, 1, $2) RETURNING display_name`, o.ID, name)
 	tpl := one(`INSERT INTO report_templates (org_id, name, config) VALUES ($1, 'Report card', $2::jsonb) RETURNING id`, o.ID, seedTemplate)
 	one(`INSERT INTO report_template_versions (org_id, template_id, version, config) VALUES ($1, $2, 1, '{}') RETURNING template_id`, o.ID, tpl)

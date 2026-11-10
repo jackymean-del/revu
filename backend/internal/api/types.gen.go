@@ -77,22 +77,22 @@ func (e AnalysisCellState) Valid() bool {
 
 // Defines values for AnalysisRuleAction.
 const (
-	Retest      AnalysisRuleAction = "retest"
-	Support     AnalysisRuleAction = "support"
-	Undertaking AnalysisRuleAction = "undertaking"
-	Warning     AnalysisRuleAction = "warning"
+	AnalysisRuleActionRetest      AnalysisRuleAction = "retest"
+	AnalysisRuleActionSupport     AnalysisRuleAction = "support"
+	AnalysisRuleActionUndertaking AnalysisRuleAction = "undertaking"
+	AnalysisRuleActionWarning     AnalysisRuleAction = "warning"
 )
 
 // Valid indicates whether the value is a known member of the AnalysisRuleAction enum.
 func (e AnalysisRuleAction) Valid() bool {
 	switch e {
-	case Retest:
+	case AnalysisRuleActionRetest:
 		return true
-	case Support:
+	case AnalysisRuleActionSupport:
 		return true
-	case Undertaking:
+	case AnalysisRuleActionUndertaking:
 		return true
-	case Warning:
+	case AnalysisRuleActionWarning:
 		return true
 	default:
 		return false
@@ -318,6 +318,84 @@ func (e Bloom) Valid() bool {
 	case Remember:
 		return true
 	case Understand:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BlueprintStatus.
+const (
+	BlueprintStatusApproved  BlueprintStatus = "approved"
+	BlueprintStatusDraft     BlueprintStatus = "draft"
+	BlueprintStatusReturned  BlueprintStatus = "returned"
+	BlueprintStatusSubmitted BlueprintStatus = "submitted"
+)
+
+// Valid indicates whether the value is a known member of the BlueprintStatus enum.
+func (e BlueprintStatus) Valid() bool {
+	switch e {
+	case BlueprintStatusApproved:
+		return true
+	case BlueprintStatusDraft:
+		return true
+	case BlueprintStatusReturned:
+		return true
+	case BlueprintStatusSubmitted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BlueprintTaxonomy.
+const (
+	BlueprintTaxonomyBloom BlueprintTaxonomy = "bloom"
+	BlueprintTaxonomyNone  BlueprintTaxonomy = "none"
+)
+
+// Valid indicates whether the value is a known member of the BlueprintTaxonomy enum.
+func (e BlueprintTaxonomy) Valid() bool {
+	switch e {
+	case BlueprintTaxonomyBloom:
+		return true
+	case BlueprintTaxonomyNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BlueprintCheckLevel.
+const (
+	BlueprintCheckLevelError   BlueprintCheckLevel = "error"
+	BlueprintCheckLevelWarning BlueprintCheckLevel = "warning"
+)
+
+// Valid indicates whether the value is a known member of the BlueprintCheckLevel enum.
+func (e BlueprintCheckLevel) Valid() bool {
+	switch e {
+	case BlueprintCheckLevelError:
+		return true
+	case BlueprintCheckLevelWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for BlueprintInputTaxonomy.
+const (
+	BlueprintInputTaxonomyBloom BlueprintInputTaxonomy = "bloom"
+	BlueprintInputTaxonomyNone  BlueprintInputTaxonomy = "none"
+)
+
+// Valid indicates whether the value is a known member of the BlueprintInputTaxonomy enum.
+func (e BlueprintInputTaxonomy) Valid() bool {
+	switch e {
+	case BlueprintInputTaxonomyBloom:
+		return true
+	case BlueprintInputTaxonomyNone:
 		return true
 	default:
 		return false
@@ -813,6 +891,42 @@ func (e OwnerOrgInputType) Valid() bool {
 	}
 }
 
+// Defines values for PaperStatus.
+const (
+	PaperStatusDraft PaperStatus = "draft"
+	PaperStatusFinal PaperStatus = "final"
+)
+
+// Valid indicates whether the value is a known member of the PaperStatus enum.
+func (e PaperStatus) Valid() bool {
+	switch e {
+	case PaperStatusDraft:
+		return true
+	case PaperStatusFinal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PaperSummaryStatus.
+const (
+	PaperSummaryStatusDraft PaperSummaryStatus = "draft"
+	PaperSummaryStatusFinal PaperSummaryStatus = "final"
+)
+
+// Valid indicates whether the value is a known member of the PaperSummaryStatus enum.
+func (e PaperSummaryStatus) Valid() bool {
+	switch e {
+	case PaperSummaryStatusDraft:
+		return true
+	case PaperSummaryStatusFinal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ParticipationStatus.
 const (
 	ParticipationStatusAbsent        ParticipationStatus = "absent"
@@ -900,6 +1014,111 @@ func (e PromotionMoveOutcome) Valid() bool {
 	case NoMatch:
 		return true
 	case Promote:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuestionDifficulty.
+const (
+	Easy   QuestionDifficulty = "easy"
+	Hard   QuestionDifficulty = "hard"
+	Medium QuestionDifficulty = "medium"
+)
+
+// Valid indicates whether the value is a known member of the QuestionDifficulty enum.
+func (e QuestionDifficulty) Valid() bool {
+	switch e {
+	case Easy:
+		return true
+	case Hard:
+		return true
+	case Medium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuestionSource.
+const (
+	QuestionSourceAi       QuestionSource = "ai"
+	QuestionSourceImported QuestionSource = "imported"
+	QuestionSourceTyped    QuestionSource = "typed"
+)
+
+// Valid indicates whether the value is a known member of the QuestionSource enum.
+func (e QuestionSource) Valid() bool {
+	switch e {
+	case QuestionSourceAi:
+		return true
+	case QuestionSourceImported:
+		return true
+	case QuestionSourceTyped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuestionStatus.
+const (
+	QuestionStatusApproved QuestionStatus = "approved"
+	QuestionStatusDraft    QuestionStatus = "draft"
+	QuestionStatusRetired  QuestionStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the QuestionStatus enum.
+func (e QuestionStatus) Valid() bool {
+	switch e {
+	case QuestionStatusApproved:
+		return true
+	case QuestionStatusDraft:
+		return true
+	case QuestionStatusRetired:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuestionInputSource.
+const (
+	QuestionInputSourceAi       QuestionInputSource = "ai"
+	QuestionInputSourceImported QuestionInputSource = "imported"
+	QuestionInputSourceTyped    QuestionInputSource = "typed"
+)
+
+// Valid indicates whether the value is a known member of the QuestionInputSource enum.
+func (e QuestionInputSource) Valid() bool {
+	switch e {
+	case QuestionInputSourceAi:
+		return true
+	case QuestionInputSourceImported:
+		return true
+	case QuestionInputSourceTyped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuestionInputStatus.
+const (
+	QuestionInputStatusApproved QuestionInputStatus = "approved"
+	QuestionInputStatusDraft    QuestionInputStatus = "draft"
+	QuestionInputStatusRetired  QuestionInputStatus = "retired"
+)
+
+// Valid indicates whether the value is a known member of the QuestionInputStatus enum.
+func (e QuestionInputStatus) Valid() bool {
+	switch e {
+	case QuestionInputStatusApproved:
+		return true
+	case QuestionInputStatusDraft:
+		return true
+	case QuestionInputStatusRetired:
 		return true
 	default:
 		return false
@@ -2039,6 +2258,84 @@ type AuditPage struct {
 // Bloom defines model for Bloom.
 type Bloom string
 
+// Blueprint defines model for Blueprint.
+type Blueprint struct {
+	Allocated    string            `json:"allocated"`
+	AssessmentId string            `json:"assessmentId"`
+	ByChapter    []BlueprintTotal  `json:"byChapter"`
+	ByLevel      []BlueprintTotal  `json:"byLevel"`
+	Checks       []BlueprintCheck  `json:"checks"`
+	Comment      string            `json:"comment"`
+	Exists       bool              `json:"exists"`
+	Max          string            `json:"max"`
+	Questions    int               `json:"questions"`
+	Remaining    string            `json:"remaining"`
+	Rows         []BlueprintRow    `json:"rows"`
+	Status       BlueprintStatus   `json:"status"`
+	Taxonomy     BlueprintTaxonomy `json:"taxonomy"`
+	Version      int               `json:"version"`
+}
+
+// BlueprintStatus defines model for Blueprint.Status.
+type BlueprintStatus string
+
+// BlueprintTaxonomy defines model for Blueprint.Taxonomy.
+type BlueprintTaxonomy string
+
+// BlueprintCell defines model for BlueprintCell.
+type BlueprintCell struct {
+	// Marks A decimal with up to two places.
+	Marks     string `json:"marks"`
+	Questions int    `json:"questions"`
+}
+
+// BlueprintCheck defines model for BlueprintCheck.
+type BlueprintCheck struct {
+	Level   BlueprintCheckLevel `json:"level"`
+	Message string              `json:"message"`
+	Row     int                 `json:"row,omitempty"`
+}
+
+// BlueprintCheckLevel defines model for BlueprintCheck.Level.
+type BlueprintCheckLevel string
+
+// BlueprintInput defines model for BlueprintInput.
+type BlueprintInput struct {
+	Rows     []BlueprintRow         `json:"rows"`
+	Taxonomy BlueprintInputTaxonomy `json:"taxonomy"`
+}
+
+// BlueprintInputTaxonomy defines model for BlueprintInput.Taxonomy.
+type BlueprintInputTaxonomy string
+
+// BlueprintRow defines model for BlueprintRow.
+type BlueprintRow struct {
+	// Cells By Bloom level, or '' with no taxonomy.
+	Cells     map[string]BlueprintCell `json:"cells"`
+	Chapter   string                   `json:"chapter"`
+	Id        string                   `json:"id,omitempty"`
+	LessonId  string                   `json:"lessonId,omitempty"`
+	Marks     string                   `json:"marks,omitempty"`
+	Qtype     string                   `json:"qtype"`
+	Questions int                      `json:"questions,omitempty"`
+}
+
+// BlueprintStep defines model for BlueprintStep.
+type BlueprintStep struct {
+	// Comment Required to return a blueprint.
+	Comment string `json:"comment,omitempty"`
+}
+
+// BlueprintTotal defines model for BlueprintTotal.
+type BlueprintTotal struct {
+	Key       string `json:"key"`
+	Marks     string `json:"marks"`
+	Questions int    `json:"questions"`
+
+	// Weight Percent of the maximum, whole.
+	Weight string `json:"weight"`
+}
+
 // Branch defines model for Branch.
 type Branch struct {
 	Address string `json:"address,omitempty"`
@@ -2774,6 +3071,86 @@ type OwnerOrgInput struct {
 // OwnerOrgInputType defines model for OwnerOrgInput.Type.
 type OwnerOrgInputType string
 
+// Paper defines model for Paper.
+type Paper struct {
+	AssessmentId     string            `json:"assessmentId"`
+	Assignments      []PaperAssignment `json:"assignments"`
+	BlueprintVersion int               `json:"blueprintVersion"`
+	ByBloom          []PaperGap        `json:"byBloom"`
+	BySection        []PaperGap        `json:"bySection"`
+	Filled           int               `json:"filled"`
+	Id               string            `json:"id"`
+	Instructions     string            `json:"instructions"`
+	Items            []PaperItem       `json:"items"`
+	Set              string            `json:"set"`
+	Status           PaperStatus       `json:"status"`
+	Total            string            `json:"total"`
+}
+
+// PaperStatus defines model for Paper.Status.
+type PaperStatus string
+
+// PaperAssignment defines model for PaperAssignment.
+type PaperAssignment struct {
+	SectionId string `json:"sectionId"`
+
+	// SitOn YYYY-MM-DD.
+	SitOn     string `json:"sitOn,omitempty"`
+	StudentId string `json:"studentId,omitempty"`
+}
+
+// PaperAssignments defines model for PaperAssignments.
+type PaperAssignments struct {
+	Assignments []PaperAssignment `json:"assignments"`
+}
+
+// PaperCreate defines model for PaperCreate.
+type PaperCreate struct {
+	Fill bool `json:"fill,omitempty"`
+}
+
+// PaperGap defines model for PaperGap.
+type PaperGap struct {
+	Filled  string `json:"filled"`
+	Key     string `json:"key"`
+	Missing int    `json:"missing"`
+	Wanted  string `json:"wanted"`
+}
+
+// PaperItem defines model for PaperItem.
+type PaperItem struct {
+	Bloom    string   `json:"bloom,omitempty"`
+	Chapter  string   `json:"chapter"`
+	Id       string   `json:"id"`
+	LessonId string   `json:"lessonId,omitempty"`
+	Locked   bool     `json:"locked"`
+	Marks    string   `json:"marks"`
+	Question Question `json:"question,omitempty"`
+	Section  string   `json:"section"`
+	Seq      int      `json:"seq"`
+}
+
+// PaperItemChange defines model for PaperItemChange.
+type PaperItemChange struct {
+	Locked bool `json:"locked,omitempty"`
+
+	// QuestionId Empty clears the slot.
+	QuestionId string `json:"questionId,omitempty"`
+}
+
+// PaperSummary defines model for PaperSummary.
+type PaperSummary struct {
+	BlueprintVersion int                `json:"blueprintVersion"`
+	Filled           int                `json:"filled"`
+	Id               string             `json:"id"`
+	Items            int                `json:"items"`
+	Set              string             `json:"set"`
+	Status           PaperSummaryStatus `json:"status"`
+}
+
+// PaperSummaryStatus defines model for PaperSummary.Status.
+type PaperSummaryStatus string
+
 // Participation defines model for Participation.
 type Participation struct {
 	AssessmentId string `json:"assessmentId"`
@@ -2899,6 +3276,74 @@ type PromotionRequest struct {
 	FromYearId string `json:"fromYearId"`
 	ToYearId   string `json:"toYearId"`
 }
+
+// Question defines model for Question.
+type Question struct {
+	Answer     string             `json:"answer"`
+	Bloom      Bloom              `json:"bloom"`
+	Difficulty QuestionDifficulty `json:"difficulty"`
+	Id         string             `json:"id"`
+	LessonId   string             `json:"lessonId,omitempty"`
+	LevelId    string             `json:"levelId"`
+	Marks      string             `json:"marks"`
+	Options    []string           `json:"options"`
+	OutcomeId  string             `json:"outcomeId,omitempty"`
+	Qtype      string             `json:"qtype"`
+	Source     QuestionSource     `json:"source"`
+	Status     QuestionStatus     `json:"status"`
+	SubjectId  string             `json:"subjectId"`
+	Text       string             `json:"text"`
+
+	// Used How many papers it is in.
+	Used int `json:"used"`
+}
+
+// QuestionDifficulty defines model for Question.Difficulty.
+type QuestionDifficulty string
+
+// QuestionSource defines model for Question.Source.
+type QuestionSource string
+
+// QuestionStatus defines model for Question.Status.
+type QuestionStatus string
+
+// QuestionDraftRequest defines model for QuestionDraftRequest.
+type QuestionDraftRequest struct {
+	Bloom     string `json:"bloom,omitempty"`
+	Count     int    `json:"count,omitempty"`
+	LessonId  string `json:"lessonId,omitempty"`
+	LevelId   string `json:"levelId"`
+	Marks     string `json:"marks"`
+	Note      string `json:"note,omitempty"`
+	OutcomeId string `json:"outcomeId,omitempty"`
+	Qtype     string `json:"qtype"`
+	SubjectId string `json:"subjectId"`
+}
+
+// QuestionInput defines model for QuestionInput.
+type QuestionInput struct {
+	Answer string `json:"answer,omitempty"`
+
+	// Bloom Suggested from the wording when empty.
+	Bloom      string              `json:"bloom,omitempty"`
+	Difficulty string              `json:"difficulty,omitempty"`
+	LessonId   string              `json:"lessonId,omitempty"`
+	LevelId    string              `json:"levelId"`
+	Marks      string              `json:"marks"`
+	Options    []string            `json:"options,omitempty"`
+	OutcomeId  string              `json:"outcomeId,omitempty"`
+	Qtype      string              `json:"qtype"`
+	Source     QuestionInputSource `json:"source,omitempty"`
+	Status     QuestionInputStatus `json:"status,omitempty"`
+	SubjectId  string              `json:"subjectId"`
+	Text       string              `json:"text"`
+}
+
+// QuestionInputSource defines model for QuestionInput.Source.
+type QuestionInputSource string
+
+// QuestionInputStatus defines model for QuestionInput.Status.
+type QuestionInputStatus string
 
 // ReasonInput defines model for ReasonInput.
 type ReasonInput struct {
@@ -3428,6 +3873,9 @@ type SectionResultsAccess string
 type SetupStatus struct {
 	Assessments int `json:"assessments"`
 
+	// Assigned Sections and students given a set.
+	Assigned int `json:"assigned"`
+
 	// Done An administrator has finished the setup steps.
 	Done bool `json:"done"`
 
@@ -3437,7 +3885,10 @@ type SetupStatus struct {
 	Levels        int `json:"levels"`
 
 	// Marks Marks entered, in any state but pending, counted up to 10000.
-	Marks   int `json:"marks"`
+	Marks int `json:"marks"`
+
+	// Papers Question paper sets finalised.
+	Papers  int `json:"papers"`
 	Periods int `json:"periods"`
 
 	// Reports Report runs made.
@@ -3903,6 +4354,24 @@ type UpdateAssessmentParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// GetBlueprintParams defines parameters for GetBlueprint.
+type GetBlueprintParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutBlueprintParams defines parameters for PutBlueprint.
+type PutBlueprintParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// StepBlueprintParams defines parameters for StepBlueprint.
+type StepBlueprintParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ApplyBulkWriteParams defines parameters for ApplyBulkWrite.
 type ApplyBulkWriteParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -3929,6 +4398,18 @@ type GetMarksGridParams struct {
 
 // LockAssessmentParams defines parameters for LockAssessment.
 type LockAssessmentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListPapersParams defines parameters for ListPapers.
+type ListPapersParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreatePaperParams defines parameters for CreatePaper.
+type CreatePaperParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -4329,6 +4810,50 @@ type RemoveGroupAdminParams struct {
 	Email string `form:"email" json:"email"`
 }
 
+// GetPaperParams defines parameters for GetPaper.
+type GetPaperParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutPaperAssignmentsParams defines parameters for PutPaperAssignments.
+type PutPaperAssignmentsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DuplicatePaperParams defines parameters for DuplicatePaper.
+type DuplicatePaperParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// FillPaperParams defines parameters for FillPaper.
+type FillPaperParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// FinalisePaperParams defines parameters for FinalisePaper.
+type FinalisePaperParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PaperHtmlParams defines parameters for PaperHtml.
+type PaperHtmlParams struct {
+	Key bool `form:"key,omitempty" json:"key,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutPaperItemParams defines parameters for PutPaperItem.
+type PutPaperItemParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListPeriodsParams defines parameters for ListPeriods.
 type ListPeriodsParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -4361,6 +4886,43 @@ type UpdatePeriodParams struct {
 
 // RestorePeriodParams defines parameters for RestorePeriod.
 type RestorePeriodParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListQuestionsParams defines parameters for ListQuestions.
+type ListQuestionsParams struct {
+	LevelId   string `form:"levelId" json:"levelId"`
+	SubjectId string `form:"subjectId" json:"subjectId"`
+	LessonId  string `form:"lessonId,omitempty" json:"lessonId,omitempty"`
+
+	// Bloom A Bloom level.
+	Bloom string `form:"bloom,omitempty" json:"bloom,omitempty"`
+
+	// Qtype A question type.
+	Qtype string `form:"qtype,omitempty" json:"qtype,omitempty"`
+
+	// Status draft, approved or retired; retired only when asked for.
+	Status string `form:"status,omitempty" json:"status,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateQuestionParams defines parameters for CreateQuestion.
+type CreateQuestionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DraftQuestionsParams defines parameters for DraftQuestions.
+type DraftQuestionsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// UpdateQuestionParams defines parameters for UpdateQuestion.
+type UpdateQuestionParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -4977,8 +5539,17 @@ type CreateAssessmentJSONRequestBody = AssessmentInput
 // UpdateAssessmentJSONRequestBody defines body for UpdateAssessment for application/json ContentType.
 type UpdateAssessmentJSONRequestBody = AssessmentInput
 
+// PutBlueprintJSONRequestBody defines body for PutBlueprint for application/json ContentType.
+type PutBlueprintJSONRequestBody = BlueprintInput
+
+// StepBlueprintJSONRequestBody defines body for StepBlueprint for application/json ContentType.
+type StepBlueprintJSONRequestBody = BlueprintStep
+
 // ApplyBulkWriteJSONRequestBody defines body for ApplyBulkWrite for application/json ContentType.
 type ApplyBulkWriteJSONRequestBody = BulkInput
+
+// CreatePaperJSONRequestBody defines body for CreatePaper for application/json ContentType.
+type CreatePaperJSONRequestBody = PaperCreate
 
 // SetParticipationJSONRequestBody defines body for SetParticipation for application/json ContentType.
 type SetParticipationJSONRequestBody = ParticipationInput
@@ -5049,11 +5620,26 @@ type AddGroupAdminJSONRequestBody = GroupAdminInput
 // CreateOwnerOrgJSONRequestBody defines body for CreateOwnerOrg for application/json ContentType.
 type CreateOwnerOrgJSONRequestBody = OwnerOrgInput
 
+// PutPaperAssignmentsJSONRequestBody defines body for PutPaperAssignments for application/json ContentType.
+type PutPaperAssignmentsJSONRequestBody = PaperAssignments
+
+// PutPaperItemJSONRequestBody defines body for PutPaperItem for application/json ContentType.
+type PutPaperItemJSONRequestBody = PaperItemChange
+
 // CreatePeriodJSONRequestBody defines body for CreatePeriod for application/json ContentType.
 type CreatePeriodJSONRequestBody = PeriodInput
 
 // UpdatePeriodJSONRequestBody defines body for UpdatePeriod for application/json ContentType.
 type UpdatePeriodJSONRequestBody = PeriodInput
+
+// CreateQuestionJSONRequestBody defines body for CreateQuestion for application/json ContentType.
+type CreateQuestionJSONRequestBody = QuestionInput
+
+// DraftQuestionsJSONRequestBody defines body for DraftQuestions for application/json ContentType.
+type DraftQuestionsJSONRequestBody = QuestionDraftRequest
+
+// UpdateQuestionJSONRequestBody defines body for UpdateQuestion for application/json ContentType.
+type UpdateQuestionJSONRequestBody = QuestionInput
 
 // PutReportTemplateJSONRequestBody defines body for PutReportTemplate for application/json ContentType.
 type PutReportTemplateJSONRequestBody = ReportTemplateInput

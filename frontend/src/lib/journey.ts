@@ -92,9 +92,9 @@ export function modules(t: T): Module[] {
       n: 1,
       title: 'Create question paper',
       blurb: 'Blueprint, questions and papers with sets, from the syllabus',
-      icon: 'configuration',
-      built: false,
-      pages: [],
+      icon: 'create',
+      built: true,
+      pages: [{ to: '/papers', label: 'Question papers', roles: ['admin', 'coordinator', 'principal', 'teacher', 'class_teacher'] }],
     },
     {
       key: 'assign',
@@ -103,8 +103,8 @@ export function modules(t: T): Module[] {
       title: 'Assign paper',
       blurb: `Give each ${lower('group.section', 1)} or ${lower('person.student', 1)} its paper, set and date`,
       icon: 'assign',
-      built: false,
-      pages: [],
+      built: true,
+      pages: [{ to: '/assign', label: 'Assign paper', roles: MARKS }],
     },
     {
       key: 'evaluate',
@@ -190,6 +190,11 @@ function pending(key: ModuleKey, s: Setup, t: T): Step | undefined {
       return undefined
     case 'create':
       return s.assessments === 0 ? { module: key, text: 'Create your first exam', to: '/exams' } : undefined
+    case 'paper':
+      // Optional: an institution entering marks without a paper here has passed it.
+      return s.assessments > 0 && s.papers === 0 && s.marks === 0 ? { module: key, text: 'Make a question paper from a blueprint', to: '/papers' } : undefined
+    case 'assign':
+      return s.assessments > 0 && s.assigned === 0 && s.marks === 0 ? { module: key, text: 'Give each paper set to who sits it', to: '/assign' } : undefined
     case 'evaluate':
       return s.marks === 0 ? { module: key, text: 'Enter marks', to: '/marks' } : undefined
     case 'scheme':
@@ -252,6 +257,10 @@ export function cardFact(key: ModuleKey, s: Setup | undefined, t: T): string {
       return plural(s.subjects, 'course.subject')
     case 'create':
       return `${s.assessments} ${s.assessments === 1 ? 'assessment' : 'assessments'}`
+    case 'paper':
+      return `${s.papers} ${s.papers === 1 ? 'set' : 'sets'} final`
+    case 'assign':
+      return `${s.assigned} assigned`
     case 'evaluate':
       return s.marks >= 10000 ? '10000+ marks in' : `${s.marks} ${s.marks === 1 ? 'mark' : 'marks'} in`
     case 'scheme':

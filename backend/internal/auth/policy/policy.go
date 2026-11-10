@@ -49,9 +49,10 @@ const (
 	ResultsRead          Action = "results.read"
 	RemarksEdit          Action = "remarks.edit" // draft and edit
 	RemarksApprove       Action = "remarks.approve"
-	ReportsPublish       Action = "reports.publish" // approve and publish reports
-	ReportsBuild         Action = "reports.build"   // build draft report cards and marksheets for a section
-	Insight              Action = "insight"         // insight and intervention plans
+	ReportsPublish       Action = "reports.publish"   // approve and publish reports
+	ReportsBuild         Action = "reports.build"     // build draft report cards and marksheets for a section
+	BlueprintApprove     Action = "blueprint.approve" // approve or return a blueprint
+	Insight              Action = "insight"           // insight and intervention plans
 	AuditRead            Action = "audit.read"
 	APIKeysManage        Action = "api_keys.manage"
 	LayoutInstitution    Action = "layout.institution" // order and layout: institution, level and template
@@ -95,7 +96,7 @@ const (
 // owner console can show the whole of it.
 var Actions = []Action{
 	StructureWrite, TerminologyWrite, SchemeWrite, AssessmentEdit, AssessmentPublish, AssessmentLock, EvidenceEnter, EvidenceChangeLocked,
-	ResultsRead, RemarksEdit, RemarksApprove, ReportsPublish, ReportsBuild, Insight, AuditRead, APIKeysManage, LayoutInstitution, LayoutPersonal,
+	ResultsRead, RemarksEdit, RemarksApprove, ReportsPublish, ReportsBuild, BlueprintApprove, Insight, AuditRead, APIKeysManage, LayoutInstitution, LayoutPersonal,
 	HistoricalImport, ParentMessaging, DataRequestsRead, DataRequestsManage, SubjectChoices, RowStatus, RowStatusLeft,
 	PaperViewFinalised, PaperPrint, PaperRevise, VisibilityPolicy, GroupSharingPolicy, DeductionReasons, ContentGrants, OwnershipReassign,
 }
@@ -121,6 +122,7 @@ var Matrix = map[Action]map[Role]Rule{
 	RemarksApprove:       {Admin: Allow, Coordinator: Allow, Principal: Allow, ClassTeacher: SectionRemark},
 	ReportsPublish:       {Admin: Allow, Coordinator: Allow, Principal: Allow},
 	ReportsBuild:         {Admin: Allow, ClassTeacher: OwnSection},
+	BlueprintApprove:     {Admin: Allow, Coordinator: Allow, Principal: Allow},
 	Insight:              {Admin: Allow, Coordinator: CountsOnly, Principal: CountsOnly, Teacher: OwnSections, ClassTeacher: OwnSection, Viewer: ByGrant},
 	AuditRead:            {Admin: Allow, Principal: Allow},
 	APIKeysManage:        {Admin: Allow},

@@ -28,6 +28,7 @@ var blueprint = []struct {
 	{RemarksApprove, [6]string{"yes", "yes", "yes", "no", "section remarks only", "no"}},
 	{ReportsPublish, [6]string{"yes", "yes", "yes", "no", "no", "no"}},      // class teacher: "section remarks only"
 	{ReportsBuild, [6]string{"yes", "no", "no", "no", "own section", "no"}}, // v23 C1: build draft report cards
+	{BlueprintApprove, [6]string{"yes", "yes", "yes", "no", "no", "no"}},    // v23 B3.2: review and approve blueprints
 	{Insight, [6]string{"yes", "counts", "counts", "own sections", "own section", "by grant"}},
 	{AuditRead, [6]string{"yes", "no", "yes", "no", "no", "no"}},    // principal: "audit read"
 	{APIKeysManage, [6]string{"yes", "no", "no", "no", "no", "no"}}, // principal: "audit read"

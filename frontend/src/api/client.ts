@@ -439,3 +439,39 @@ export function importSyllabus(orgId: string, file: File, opts: { levelId?: stri
   form.append('createSubjects', String(opts.createSubjects))
   return call<SyllabusImportReport>('/v1/syllabus/import', { orgId, method: 'POST', form })
 }
+
+// Create question paper (P0.9): blueprints, the question bank and papers in sets.
+export type Blueprint = components['schemas']['Blueprint']
+export type BlueprintRow = components['schemas']['BlueprintRow']
+export type BlueprintInput = components['schemas']['BlueprintInput']
+export type Question = components['schemas']['Question']
+export type QuestionInput = components['schemas']['QuestionInput']
+export type Paper = components['schemas']['Paper']
+export type PaperItem = components['schemas']['PaperItem']
+export type PaperSummary = components['schemas']['PaperSummary']
+export type PaperAssignment = components['schemas']['PaperAssignment']
+
+export const getBlueprint = (orgId: string, id: string, signal?: AbortSignal) => call<Blueprint>(`/v1/assessments/${id}/blueprint`, { orgId, signal })
+export const putBlueprint = (orgId: string, id: string, body: BlueprintInput) => call<Blueprint>(`/v1/assessments/${id}/blueprint`, { orgId, method: 'PUT', body })
+export const stepBlueprint = (orgId: string, id: string, step: 'submit' | 'approve' | 'return', comment = '') =>
+  call<Blueprint>(`/v1/assessments/${id}/blueprint/${step}`, { orgId, method: 'POST', body: { comment } })
+export const listQuestions = (orgId: string, q: Record<string, string>, signal?: AbortSignal) =>
+  call<Question[]>(`/v1/questions?${new URLSearchParams(q)}`, { orgId, signal })
+export const createQuestion = (orgId: string, body: QuestionInput) => call<Question>('/v1/questions', { orgId, method: 'POST', body })
+export const updateQuestion = (orgId: string, id: string, body: QuestionInput) => call<Question>(`/v1/questions/${id}`, { orgId, method: 'PUT', body })
+export const listPapers = (orgId: string, id: string, signal?: AbortSignal) => call<PaperSummary[]>(`/v1/assessments/${id}/papers`, { orgId, signal })
+export const createPaper = (orgId: string, id: string, fill: boolean) => call<Paper>(`/v1/assessments/${id}/papers`, { orgId, method: 'POST', body: { fill } })
+export const getPaper = (orgId: string, id: string, signal?: AbortSignal) => call<Paper>(`/v1/papers/${id}`, { orgId, signal })
+export const putPaperItem = (orgId: string, id: string, item: string, body: { questionId?: string; locked?: boolean }) =>
+  call<Paper>(`/v1/papers/${id}/items/${item}`, { orgId, method: 'PUT', body })
+export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise') => call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST' })
+export const putPaperAssignments = (orgId: string, id: string, assignments: PaperAssignment[]) =>
+  call<Paper>(`/v1/papers/${id}/assignments`, { orgId, method: 'PUT', body: { assignments } })
+/** The printable paper, or with key its answer key, as HTML. */
+export async function getPaperHtml(orgId: string, id: string, key: boolean): Promise<string> {
+  const res = await fetch(`${BASE}/v1/papers/${id}/html?key=${key}`, { headers: await orgHeaders(orgId) })
+  if (!res.ok) throw await toApiError(res)
+  return res.text()
+}
+export const draftQuestions = (orgId: string, body: components['schemas']['QuestionDraftRequest']) =>
+  call<Question[]>('/v1/questions/draft', { orgId, method: 'POST', body })

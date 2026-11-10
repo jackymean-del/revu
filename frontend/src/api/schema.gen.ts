@@ -2027,6 +2027,230 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/assessments/{id}/blueprint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The blueprint of an assessment, with every total worked out from its cells and the checks (B3.2). */
+        get: operations["getBlueprint"];
+        /** Save the blueprint as a draft; a changed approved blueprint becomes the next version. */
+        put: operations["putBlueprint"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/blueprint/{step}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit, approve, or return the blueprint with a comment. */
+        post: operations["stepBlueprint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The question bank of a class and subject, narrowed by lesson, Bloom level, type or status. */
+        get: operations["listQuestions"];
+        put?: never;
+        /** Add a question to the bank; one from AI is a draft until a teacher approves it. */
+        post: operations["createQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/questions/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft questions with AI for one need of a blueprint; they join the bank as drafts for a teacher to approve. Only the curriculum is sent. */
+        post: operations["draftQuestions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/questions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change, approve or retire a question; one in a final paper can only be retired. */
+        put: operations["updateQuestion"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/assessments/{id}/papers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The sets of an assessment. */
+        get: operations["listPapers"];
+        put?: never;
+        /** Lay out the next set from the approved blueprint, optionally filled from the bank. */
+        post: operations["createPaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A set with its slots, how it stands against the blueprint, and who sits it. */
+        get: operations["getPaper"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/items/{item}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put a question in a slot, clear it, or lock it against refilling. */
+        put: operations["putPaperItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/fill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fill every empty, unlocked slot from the bank, the least used question first. */
+        post: operations["fillPaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make the next set as an independent copy. */
+        post: operations["duplicatePaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/finalise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fix a set; the first sets the parts marks are entered by, tagged with learning outcomes. */
+        post: operations["finalisePaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The printable set; with key=true the answer key for staff. */
+        get: operations["paperHtml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Which sections, or single students, sit this set and when (B4.1). */
+        put: operations["putPaperAssignments"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2521,6 +2745,10 @@ export interface components {
             results: number;
             /** @description Report runs made. */
             reports: number;
+            /** @description Question paper sets finalised. */
+            papers: number;
+            /** @description Sections and students given a set. */
+            assigned: number;
         };
         Tile: {
             /** @description What the tile counts; the app names it in the organisation's words. */
@@ -3743,6 +3971,171 @@ export interface components {
             bloom?: components["schemas"]["Bloom"];
             /** @description Empty clears it. */
             competencyId?: string;
+        };
+        BlueprintCell: {
+            questions: number;
+            /** @description A decimal with up to two places. */
+            marks: string;
+        };
+        BlueprintRow: {
+            id?: string;
+            lessonId?: string;
+            chapter: string;
+            qtype: string;
+            /** @description By Bloom level, or '' with no taxonomy. */
+            cells: {
+                [key: string]: components["schemas"]["BlueprintCell"];
+            };
+            questions?: number;
+            marks?: string;
+        };
+        BlueprintTotal: {
+            key: string;
+            questions: number;
+            marks: string;
+            /** @description Percent of the maximum, whole. */
+            weight: string;
+        };
+        BlueprintCheck: {
+            /** @enum {string} */
+            level: "error" | "warning";
+            message: string;
+            row?: number;
+        };
+        Blueprint: {
+            assessmentId: string;
+            /** @enum {string} */
+            taxonomy: "bloom" | "none";
+            /** @enum {string} */
+            status: "draft" | "submitted" | "approved" | "returned";
+            version: number;
+            comment: string;
+            max: string;
+            rows: components["schemas"]["BlueprintRow"][];
+            byLevel: components["schemas"]["BlueprintTotal"][];
+            byChapter: components["schemas"]["BlueprintTotal"][];
+            questions: number;
+            allocated: string;
+            remaining: string;
+            checks: components["schemas"]["BlueprintCheck"][];
+            exists: boolean;
+        };
+        BlueprintInput: {
+            /** @enum {string} */
+            taxonomy: "bloom" | "none";
+            rows: components["schemas"]["BlueprintRow"][];
+        };
+        BlueprintStep: {
+            /** @description Required to return a blueprint. */
+            comment?: string;
+        };
+        Question: {
+            id: string;
+            levelId: string;
+            subjectId: string;
+            lessonId?: string;
+            outcomeId?: string;
+            bloom: components["schemas"]["Bloom"];
+            qtype: string;
+            marks: string;
+            /** @enum {string} */
+            difficulty: "easy" | "medium" | "hard";
+            text: string;
+            options: string[];
+            answer: string;
+            /** @enum {string} */
+            source: "typed" | "ai" | "imported";
+            /** @enum {string} */
+            status: "draft" | "approved" | "retired";
+            /** @description How many papers it is in. */
+            used: number;
+        };
+        QuestionInput: {
+            levelId: string;
+            subjectId: string;
+            lessonId?: string;
+            outcomeId?: string;
+            /** @description Suggested from the wording when empty. */
+            bloom?: string;
+            qtype: string;
+            marks: string;
+            difficulty?: string;
+            text: string;
+            options?: string[];
+            answer?: string;
+            /** @enum {string} */
+            source?: "typed" | "ai" | "imported";
+            /** @enum {string} */
+            status?: "draft" | "approved" | "retired";
+        };
+        PaperItem: {
+            id: string;
+            seq: number;
+            section: string;
+            chapter: string;
+            lessonId?: string;
+            bloom?: string;
+            marks: string;
+            locked: boolean;
+            question?: components["schemas"]["Question"];
+        };
+        PaperGap: {
+            key: string;
+            wanted: string;
+            filled: string;
+            missing: number;
+        };
+        PaperAssignment: {
+            sectionId: string;
+            studentId?: string;
+            /** @description YYYY-MM-DD. */
+            sitOn?: string;
+        };
+        PaperAssignments: {
+            assignments: components["schemas"]["PaperAssignment"][];
+        };
+        Paper: {
+            id: string;
+            assessmentId: string;
+            set: string;
+            /** @enum {string} */
+            status: "draft" | "final";
+            blueprintVersion: number;
+            instructions: string;
+            items: components["schemas"]["PaperItem"][];
+            filled: number;
+            total: string;
+            bySection: components["schemas"]["PaperGap"][];
+            byBloom: components["schemas"]["PaperGap"][];
+            assignments: components["schemas"]["PaperAssignment"][];
+        };
+        PaperSummary: {
+            id: string;
+            set: string;
+            /** @enum {string} */
+            status: "draft" | "final";
+            items: number;
+            filled: number;
+            blueprintVersion: number;
+        };
+        PaperCreate: {
+            fill?: boolean;
+        };
+        PaperItemChange: {
+            /** @description Empty clears the slot. */
+            questionId?: string;
+            locked?: boolean;
+        };
+        QuestionDraftRequest: {
+            levelId: string;
+            subjectId: string;
+            lessonId?: string;
+            outcomeId?: string;
+            qtype: string;
+            bloom?: string;
+            marks: string;
+            count?: number;
+            note?: string;
         };
     };
     responses: {
@@ -8224,6 +8617,464 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LearningOutcome"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBlueprint: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The blueprint; empty when none is saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Blueprint"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putBlueprint: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlueprintInput"];
+            };
+        };
+        responses: {
+            /** @description The blueprint as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Blueprint"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    stepBlueprint: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                /** @description submit, approve or return. */
+                step: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlueprintStep"];
+            };
+        };
+        responses: {
+            /** @description The blueprint after the step. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Blueprint"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listQuestions: {
+        parameters: {
+            query: {
+                levelId: string;
+                subjectId: string;
+                lessonId?: string;
+                /** @description A Bloom level. */
+                bloom?: string;
+                /** @description A question type. */
+                qtype?: string;
+                /** @description draft, approved or retired; retired only when asked for. */
+                status?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 500 questions, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Question"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionInput"];
+            };
+        };
+        responses: {
+            /** @description The question. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Question"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    draftQuestions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description The drafts, saved. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Question"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionInput"];
+            };
+        };
+        responses: {
+            /** @description The question. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Question"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listPapers: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every set, A first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaperSummary"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createPaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperCreate"];
+            };
+        };
+        responses: {
+            /** @description The new set. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPaperItem: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                /** @description The slot. */
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperItemChange"];
+            };
+        };
+        responses: {
+            /** @description The set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    fillPaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    duplicatePaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new set. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    finalisePaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The final set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    paperHtml: {
+        parameters: {
+            query?: {
+                key?: boolean;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPaperAssignments: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperAssignments"];
+            };
+        };
+        responses: {
+            /** @description The set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
                 };
             };
             default: components["responses"]["Problem"];

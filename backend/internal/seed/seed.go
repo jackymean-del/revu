@@ -356,6 +356,9 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		if err := seedExams(ctx, tx, d, org, year, firstTerm); err != nil {
 			return r, err
 		}
+		if err := seedSyllabus(ctx, tx, org, year); err != nil {
+			return r, err
+		}
 	}
 
 	err = tx.QueryRow(ctx, `

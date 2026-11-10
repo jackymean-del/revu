@@ -5,7 +5,7 @@ const SECTION = 'sec-6a'
 
 const counts = {
   years: 1, periods: 2, levels: 3, sections: 6, subjects: 6, levelSubjects: 18, staff: 9, students: 240, invitations: 0, done: true,
-  assessments: 1, marks: 0, schemes: 0, results: 0, reports: 0,
+  assessments: 1, marks: 0, schemes: 0, results: 0, reports: 0, papers: 0, assigned: 0,
 }
 
 function fakeApi(page: Page, roles: string[]) {
@@ -42,9 +42,9 @@ test('Home shows the steps in order and the one thing to do next', async ({ page
   expect(await master.evaluateAll(title)).toEqual(['Resources', 'Configuration', 'Create exam'])
   expect(await exams.evaluateAll(title)).toEqual(['Create question paper', 'Assign paper', 'Evaluate exam', 'Scheme', 'Reports and analysis', 'Re-exam'])
   await expect(master.nth(0)).toContainText('Done')
-  await expect(exams.nth(0)).toContainText('Coming soon')
-  await expect(exams.nth(1)).toContainText('Coming soon')
-  await expect(exams.nth(2)).toContainText('Next')
+  await expect(exams.nth(0)).toContainText('Next')
+  await expect(exams.nth(1)).toContainText('To do')
+  await expect(exams.nth(5)).toContainText('Coming soon')
   // Reports and Re-exam work both ways, shown by the link between them.
   await expect(page.getByRole('img', { name: /Works both ways with Re-exam/ })).toBeVisible()
   // and re-exam marks go one way, into Evaluate exam.
@@ -54,14 +54,14 @@ test('Home shows the steps in order and the one thing to do next', async ({ page
   await expect(menu.getByText('Master', { exact: true })).toBeVisible()
   await expect(menu.getByText('Exam steps')).toBeVisible()
 
-  // One assessment and no marks yet: the next step is entering marks.
+  // One assessment and no paper or marks yet: the next step is its paper.
   const next = page.getByRole('region', { name: 'Next step' })
-  await expect(next).toContainText('Enter marks')
-  await expect(next).toContainText('Exam step 3 of 6, Evaluate exam')
+  await expect(next).toContainText('Make a question paper from a blueprint')
+  await expect(next).toContainText('Exam step 1 of 6, Create question paper')
   await next.getByRole('link', { name: 'Start' }).click()
-  await expect(page).toHaveURL(/\/marks$/)
-  // The bar names the step; there is nothing further to point to on it.
-  await expect(page.locator('main').getByText('Evaluate exam').first()).toBeVisible()
+  await expect(page).toHaveURL(/\/papers$/)
+  // The bar names the step.
+  await expect(page.locator('main').getByText('Create question paper').first()).toBeVisible()
 })
 
 test('a step with several pages shows them as tabs, with the next step beside them', async ({ page }) => {
@@ -70,11 +70,11 @@ test('a step with several pages shows them as tabs, with the next step beside th
   const tabs = page.getByRole('navigation', { name: 'Scheme' })
   await expect(tabs.getByRole('link')).toHaveText(['Results', 'Schemes'])
   await expect(tabs.getByRole('link', { name: 'Results' })).toHaveAttribute('aria-current', 'page')
-  // Away from marks, the bar still says what is next.
-  await page.getByRole('link', { name: /Next\s*Enter marks/ }).click()
-  await expect(page).toHaveURL(/\/marks$/)
+  // Away from that step, the bar still says what is next.
+  await page.getByRole('link', { name: /Next\s*Make a question paper/ }).click()
+  await expect(page).toHaveURL(/\/papers$/)
   // The menu keeps one entry per step and marks the one open.
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Evaluate exam' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Create question paper' })).toHaveAttribute('aria-current', 'page')
 })
 
 test('from the list of assessments, one click opens its marks', async ({ page }) => {

@@ -3432,6 +3432,375 @@ paths:
                 $ref: "#/components/schemas/LearningOutcome"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/blueprint:
+    get:
+      operationId: getBlueprint
+      summary: The blueprint of an assessment, with every total worked out from its cells and the checks (B3.2).
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The blueprint; empty when none is saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putBlueprint
+      summary: Save the blueprint as a draft; a changed approved blueprint becomes the next version.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintInput"
+      responses:
+        "200":
+          description: The blueprint as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/blueprint/{step}:
+    post:
+      operationId: stepBlueprint
+      summary: Submit, approve, or return the blueprint with a comment.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: step
+          in: path
+          required: true
+          description: submit, approve or return.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlueprintStep"
+      responses:
+        "200":
+          description: The blueprint after the step.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Blueprint"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/questions:
+    get:
+      operationId: listQuestions
+      summary: The question bank of a class and subject, narrowed by lesson, Bloom level, type or status.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: levelId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: subjectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: lessonId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: bloom
+          in: query
+          description: A Bloom level.
+          schema:
+            type: string
+        - name: qtype
+          in: query
+          description: A question type.
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: draft, approved or retired; retired only when asked for.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Up to 500 questions, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createQuestion
+      summary: Add a question to the bank; one from AI is a draft until a teacher approves it.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionInput"
+      responses:
+        "201":
+          description: The question.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Question"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/questions/draft:
+    post:
+      operationId: draftQuestions
+      summary: Draft questions with AI for one need of a blueprint; they join the bank as drafts for a teacher to approve. Only the curriculum is sent.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionDraftRequest"
+      responses:
+        "201":
+          description: The drafts, saved.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/questions/{id}:
+    put:
+      operationId: updateQuestion
+      summary: Change, approve or retire a question; one in a final paper can only be retired.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestionInput"
+      responses:
+        "200":
+          description: The question.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Question"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/assessments/{id}/papers:
+    get:
+      operationId: listPapers
+      summary: The sets of an assessment.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Every set, A first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaperSummary"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createPaper
+      summary: Lay out the next set from the approved blueprint, optionally filled from the bank.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperCreate"
+      responses:
+        "201":
+          description: The new set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}:
+    get:
+      operationId: getPaper
+      summary: A set with its slots, how it stands against the blueprint, and who sits it.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/items/{item}:
+    put:
+      operationId: putPaperItem
+      summary: Put a question in a slot, clear it, or lock it against refilling.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: item
+          in: path
+          required: true
+          description: The slot.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperItemChange"
+      responses:
+        "200":
+          description: The set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/fill:
+    post:
+      operationId: fillPaper
+      summary: Fill every empty, unlocked slot from the bank, the least used question first.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/duplicate:
+    post:
+      operationId: duplicatePaper
+      summary: Make the next set as an independent copy.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "201":
+          description: The new set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/finalise:
+    post:
+      operationId: finalisePaper
+      summary: Fix a set; the first sets the parts marks are entered by, tagged with learning outcomes.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The final set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/html:
+    get:
+      operationId: paperHtml
+      summary: The printable set; with key=true the answer key for staff.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: key
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The page.
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/assignments:
+    put:
+      operationId: putPaperAssignments
+      summary: Which sections, or single students, sit this set and when (B4.1).
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperAssignments"
+      responses:
+        "200":
+          description: The set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -4329,7 +4698,7 @@ components:
           format: uuid
     SetupStatus:
       type: object
-      required: [years, periods, levels, sections, subjects, levelSubjects, staff, students, invitations, done, assessments, marks, schemes, results, reports]
+      required: [years, periods, levels, sections, subjects, levelSubjects, staff, students, invitations, done, assessments, marks, schemes, results, reports, papers, assigned]
       properties:
         years:
           type: integer
@@ -4367,6 +4736,12 @@ components:
         reports:
           type: integer
           description: Report runs made.
+        papers:
+          type: integer
+          description: Question paper sets finalised.
+        assigned:
+          type: integer
+          description: Sections and students given a set.
     Tile:
       type: object
       required: [key, count, status, listable]
@@ -6668,3 +7043,340 @@ components:
         competencyId:
           type: string
           description: Empty clears it.
+    BlueprintCell:
+      type: object
+      required: [questions, marks]
+      properties:
+        questions:
+          type: integer
+        marks:
+          type: string
+          description: A decimal with up to two places.
+    BlueprintRow:
+      type: object
+      required: [chapter, qtype, cells]
+      properties:
+        id:
+          type: string
+        lessonId:
+          type: string
+        chapter:
+          type: string
+        qtype:
+          type: string
+        cells:
+          type: object
+          description: By Bloom level, or '' with no taxonomy.
+          additionalProperties:
+            $ref: "#/components/schemas/BlueprintCell"
+        questions:
+          type: integer
+        marks:
+          type: string
+    BlueprintTotal:
+      type: object
+      required: [key, questions, marks, weight]
+      properties:
+        key:
+          type: string
+        questions:
+          type: integer
+        marks:
+          type: string
+        weight:
+          type: string
+          description: Percent of the maximum, whole.
+    BlueprintCheck:
+      type: object
+      required: [level, message]
+      properties:
+        level:
+          type: string
+          enum: [error, warning]
+        message:
+          type: string
+        row:
+          type: integer
+    Blueprint:
+      type: object
+      required: [assessmentId, taxonomy, status, version, comment, max, rows, byLevel, byChapter, questions, allocated, remaining, checks, exists]
+      properties:
+        assessmentId:
+          type: string
+        taxonomy:
+          type: string
+          enum: [bloom, none]
+        status:
+          type: string
+          enum: [draft, submitted, approved, returned]
+        version:
+          type: integer
+        comment:
+          type: string
+        max:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlueprintRow"
+        byLevel:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlueprintTotal"
+        byChapter:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlueprintTotal"
+        questions:
+          type: integer
+        allocated:
+          type: string
+        remaining:
+          type: string
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlueprintCheck"
+        exists:
+          type: boolean
+    BlueprintInput:
+      type: object
+      required: [taxonomy, rows]
+      properties:
+        taxonomy:
+          type: string
+          enum: [bloom, none]
+        rows:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/BlueprintRow"
+    BlueprintStep:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Required to return a blueprint.
+    Question:
+      type: object
+      required: [id, levelId, subjectId, bloom, qtype, marks, difficulty, text, options, answer, source, status, used]
+      properties:
+        id:
+          type: string
+        levelId:
+          type: string
+        subjectId:
+          type: string
+        lessonId:
+          type: string
+        outcomeId:
+          type: string
+        bloom:
+          $ref: "#/components/schemas/Bloom"
+        qtype:
+          type: string
+        marks:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        text:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        answer:
+          type: string
+        source:
+          type: string
+          enum: [typed, ai, imported]
+        status:
+          type: string
+          enum: [draft, approved, retired]
+        used:
+          type: integer
+          description: How many papers it is in.
+    QuestionInput:
+      type: object
+      required: [levelId, subjectId, qtype, marks, text]
+      properties:
+        levelId:
+          type: string
+        subjectId:
+          type: string
+        lessonId:
+          type: string
+        outcomeId:
+          type: string
+        bloom:
+          type: string
+          description: Suggested from the wording when empty.
+        qtype:
+          type: string
+        marks:
+          type: string
+        difficulty:
+          type: string
+        text:
+          type: string
+          maxLength: 5000
+        options:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+        answer:
+          type: string
+        source:
+          type: string
+          enum: [typed, ai, imported]
+        status:
+          type: string
+          enum: [draft, approved, retired]
+    PaperItem:
+      type: object
+      required: [id, seq, section, chapter, marks, locked]
+      properties:
+        id:
+          type: string
+        seq:
+          type: integer
+        section:
+          type: string
+        chapter:
+          type: string
+        lessonId:
+          type: string
+        bloom:
+          type: string
+        marks:
+          type: string
+        locked:
+          type: boolean
+        question:
+          $ref: "#/components/schemas/Question"
+    PaperGap:
+      type: object
+      required: [key, wanted, filled, missing]
+      properties:
+        key:
+          type: string
+        wanted:
+          type: string
+        filled:
+          type: string
+        missing:
+          type: integer
+    PaperAssignment:
+      type: object
+      required: [sectionId]
+      properties:
+        sectionId:
+          type: string
+        studentId:
+          type: string
+        sitOn:
+          type: string
+          description: YYYY-MM-DD.
+    PaperAssignments:
+      type: object
+      required: [assignments]
+      properties:
+        assignments:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/PaperAssignment"
+    Paper:
+      type: object
+      required: [id, assessmentId, set, status, blueprintVersion, instructions, items, filled, total, bySection, byBloom, assignments]
+      properties:
+        id:
+          type: string
+        assessmentId:
+          type: string
+        set:
+          type: string
+        status:
+          type: string
+          enum: [draft, final]
+        blueprintVersion:
+          type: integer
+        instructions:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaperItem"
+        filled:
+          type: integer
+        total:
+          type: string
+        bySection:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaperGap"
+        byBloom:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaperGap"
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaperAssignment"
+    PaperSummary:
+      type: object
+      required: [id, set, status, items, filled, blueprintVersion]
+      properties:
+        id:
+          type: string
+        set:
+          type: string
+        status:
+          type: string
+          enum: [draft, final]
+        items:
+          type: integer
+        filled:
+          type: integer
+        blueprintVersion:
+          type: integer
+    PaperCreate:
+      type: object
+      properties:
+        fill:
+          type: boolean
+    PaperItemChange:
+      type: object
+      properties:
+        questionId:
+          type: string
+          description: Empty clears the slot.
+        locked:
+          type: boolean
+    QuestionDraftRequest:
+      type: object
+      required: [levelId, subjectId, qtype, marks]
+      properties:
+        levelId:
+          type: string
+        subjectId:
+          type: string
+        lessonId:
+          type: string
+        outcomeId:
+          type: string
+        qtype:
+          type: string
+        bloom:
+          type: string
+        marks:
+          type: string
+        count:
+          type: integer
+          minimum: 1
+          maximum: 5
+        note:
+          type: string
+          maxLength: 500

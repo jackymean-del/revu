@@ -41,7 +41,7 @@ func TestDemoSeed(t *testing.T) {
 		// iKids: Classes 1 to 5 take 4 subjects and 6 to 10 take 5, each with
 		// Hindi or Odia; a class teacher and a teacher per subject in each of
 		// 20 sections; three exams in every subject of every class.
-		{Sections: 20, Staff: 30, Students: 400, TeachingAssignments: 10*(1+4+2) + 10*(1+5+2), Guards: 400, Choices: 400 - 400/11, Assessments: 5*6*3 + 5*7*3},
+		{Sections: 20, Staff: 30, Students: 400, TeachingAssignments: 10*(1+4+2) + 10*(1+5+2), Guards: 400, Choices: 400 - 400/11, Assessments: 5*6*3 + 5*7*3 + 1}, // and Unit test 3 for its paper
 	}
 	for i, r := range first {
 		w := want[i]

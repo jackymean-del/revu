@@ -61,6 +61,23 @@ const marks = createRoute({
   validateSearch: (s: Record<string, unknown>): { a?: string } => (typeof s.a === 'string' ? { a: s.a } : {}),
   component: lazyRouteComponent(() => import('./pages/Marks'), 'Marks'),
 })
+type PaperTab = 'blueprint' | 'questions' | 'sets'
+const papersPage = createRoute({
+  getParentRoute: () => root,
+  path: '/papers',
+  // ?a=assessment&tab=blueprint|questions|sets opens that step.
+  validateSearch: (s: Record<string, unknown>): { a?: string; tab?: PaperTab } => ({
+    ...(typeof s.a === 'string' ? { a: s.a } : {}),
+    ...(s.tab === 'blueprint' || s.tab === 'questions' || s.tab === 'sets' ? { tab: s.tab } : {}),
+  }),
+  component: lazyRouteComponent(() => import('./pages/Papers'), 'Papers'),
+})
+const assignPage = createRoute({
+  getParentRoute: () => root,
+  path: '/assign',
+  validateSearch: (s: Record<string, unknown>): { a?: string } => (typeof s.a === 'string' ? { a: s.a } : {}),
+  component: lazyRouteComponent(() => import('./pages/Assign'), 'Assign'),
+})
 const exams = createRoute({
   getParentRoute: () => root,
   path: '/exams',
@@ -137,7 +154,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, words, history])
 
 // Hovering or focusing a link loads that screen and its code before the
 // click, so moving around feels instant.
