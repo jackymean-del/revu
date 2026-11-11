@@ -44,7 +44,7 @@ test('Home shows the steps in order and the one thing to do next', async ({ page
   await expect(master.nth(0)).toContainText('Done')
   await expect(exams.nth(0)).toContainText('Next')
   await expect(exams.nth(1)).toContainText('To do')
-  await expect(exams.nth(5)).toContainText('Coming soon')
+  await expect(exams.nth(5)).toContainText('When needed')
   // Reports and Re-exam work both ways, shown by the link between them.
   await expect(page.getByRole('img', { name: /Works both ways with Re-exam/ })).toBeVisible()
   // and re-exam marks go one way, into Evaluate exam.

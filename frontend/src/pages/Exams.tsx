@@ -128,6 +128,9 @@ export function Exams() {
                 {a.status === 'locked' ? 'See marks' : 'Enter marks'}
                 <Icon name="arrow" size={15} />
               </Link>
+              <Link to="/reexam" search={{ plan: a.id }} className="rounded-lg px-2 py-1.5 text-sm font-semibold text-brand hover:bg-mist">
+                Re-exam
+              </Link>
             </li>
           ))}
         </ul>

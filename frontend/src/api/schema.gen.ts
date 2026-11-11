@@ -2373,6 +2373,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/reexams/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Everyone who sat an assessment in the sections you plan for, with those the rules suggest and why (B7.1). */
+        post: operations["previewReexam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reexams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The re-exams you can see, newest first, with progress. */
+        get: operations["listReexams"];
+        put?: never;
+        /** Make a re-exam: a new assessment linked to the original as the next attempt, for the students chosen (B7.2). */
+        post: operations["createReexam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reexams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A re-exam, its students, and each result before and after it counts under its policy; nothing is stored. */
+        get: operations["getReexam"];
+        /** Change how the new mark counts; once approved or applied, the re-exam goes back to draft (B7.3). */
+        put: operations["putReexamRule"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reexams/{id}/{step}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve the policy, or apply an approved one so results are worked out again with the re-exam (B7.4). */
+        post: operations["stepReexam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4428,6 +4498,100 @@ export interface components {
             periodId: string;
             studentId?: string;
             sectionId?: string;
+        };
+        ReexamCriteria: {
+            /** @description A percentage below this. */
+            below?: number;
+            /** @description A range, from (inclusive), with to. */
+            from?: number;
+            /** @description To (exclusive). */
+            to?: number;
+            absent: boolean;
+            incomplete: boolean;
+        };
+        ReexamPreviewRequest: {
+            sourceId: string;
+            criteria?: components["schemas"]["ReexamCriteria"];
+        };
+        ReexamSitter: {
+            studentId: string;
+            name: string;
+            admissionNo: string;
+            rollNo: string;
+            sectionId: string;
+            section: string;
+            pct?: number;
+            /** @description scored, absent, incomplete, excused or none. */
+            state: string;
+            suggested: boolean;
+            reason: string;
+        };
+        ReexamPreview: {
+            sourceId: string;
+            title: string;
+            subject: string;
+            sitters: components["schemas"]["ReexamSitter"][];
+        };
+        ReexamCreate: {
+            sourceId: string;
+            criteria?: components["schemas"]["ReexamCriteria"];
+            students: {
+                studentId: string;
+                reason: string;
+                byHand?: boolean;
+            }[];
+            title?: string;
+            heldOn?: string;
+            /** @enum {string} */
+            policy?: "replace" | "higher" | "separate";
+            /** @enum {string} */
+            absentRule?: "keep" | "pending";
+        };
+        ReexamRule: {
+            /** @enum {string} */
+            policy: "replace" | "higher" | "separate";
+            /** @enum {string} */
+            absentRule: "keep" | "pending";
+        };
+        ReexamSummary: {
+            id: string;
+            sourceId: string;
+            title: string;
+            sourceTitle: string;
+            subject: string;
+            attempt: number;
+            heldOn: string;
+            /** @enum {string} */
+            policy: "replace" | "higher" | "separate";
+            /** @enum {string} */
+            absentRule: "keep" | "pending";
+            /** @enum {string} */
+            status: "draft" | "approved" | "applied";
+            sitting: number;
+            marked: number;
+            sectionIds: string[];
+        };
+        ReexamOutcome: {
+            state: string;
+            pct: string;
+            grade: string;
+        };
+        ReexamCandidate: components["schemas"]["ReexamSitter"] & {
+            byHand: boolean;
+            retake: components["schemas"]["ReexamSitter"];
+            before: components["schemas"]["ReexamOutcome"];
+            after: components["schemas"]["ReexamOutcome"];
+        };
+        ReexamDetail: components["schemas"]["ReexamSummary"] & {
+            candidates: components["schemas"]["ReexamCandidate"][];
+            changes: {
+                up: number;
+                down: number;
+                same: number;
+                pending: number;
+            };
+            canApprove: boolean;
+            canPlan: boolean;
         };
     };
     responses: {
@@ -9643,6 +9807,170 @@ export interface operations {
                 };
                 content: {
                     "application/pdf": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewReexam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReexamPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description The students. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReexamPreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listReexams: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The re-exams. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReexamSummary"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createReexam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReexamCreate"];
+            };
+        };
+        responses: {
+            /** @description The re-exam. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReexamDetail"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getReexam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The re-exam. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReexamDetail"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putReexamRule: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReexamRule"];
+            };
+        };
+        responses: {
+            /** @description The re-exam. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReexamDetail"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    stepReexam: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                /** @description approve or apply. */
+                step: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The re-exam. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReexamDetail"];
                 };
             };
             default: components["responses"]["Problem"];

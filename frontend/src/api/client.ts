@@ -507,3 +507,17 @@ export async function downloadHolisticPdf(orgId: string, body: { periodId: strin
   if (!res.ok) throw await toApiError(res)
   saveBlob(await res.blob(), filename)
 }
+
+// Re-exams (B7, first slice).
+export type ReexamCriteria = components['schemas']['ReexamCriteria']
+export type ReexamPreview = components['schemas']['ReexamPreview']
+export type ReexamSummary = components['schemas']['ReexamSummary']
+export type ReexamDetail = components['schemas']['ReexamDetail']
+export type ReexamCreate = components['schemas']['ReexamCreate']
+export const previewReexam = (orgId: string, body: { sourceId: string; criteria: ReexamCriteria }, signal?: AbortSignal) =>
+  call<ReexamPreview>('/v1/reexams/preview', { orgId, method: 'POST', body, signal })
+export const listReexams = (orgId: string, signal?: AbortSignal) => call<ReexamSummary[]>('/v1/reexams', { orgId, signal })
+export const createReexam = (orgId: string, body: ReexamCreate) => call<ReexamDetail>('/v1/reexams', { orgId, method: 'POST', body })
+export const getReexam = (orgId: string, id: string, signal?: AbortSignal) => call<ReexamDetail>(`/v1/reexams/${id}`, { orgId, signal })
+export const putReexamRule = (orgId: string, id: string, body: components['schemas']['ReexamRule']) => call<ReexamDetail>(`/v1/reexams/${id}`, { orgId, method: 'PUT', body })
+export const stepReexam = (orgId: string, id: string, step: 'approve' | 'apply') => call<ReexamDetail>(`/v1/reexams/${id}/${step}`, { orgId, method: 'POST' })

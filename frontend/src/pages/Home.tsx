@@ -209,4 +209,5 @@ const CHIP = {
   next: { text: 'Next', className: 'bg-brand text-white' },
   todo: { text: 'To do', className: 'bg-canvas text-muted' },
   later: { text: 'Coming soon', className: 'bg-canvas text-subtle' },
+  optional: { text: 'When needed', className: 'bg-canvas text-muted' },
 } as const

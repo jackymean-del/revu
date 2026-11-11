@@ -83,6 +83,7 @@ const seedScheme = `{"schema": 1, "rounding": {"mode": "half_up", "places": 2, "
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
+	"reexam_candidates", "reexams",
 	"holistic_notes", "holistic_voices", "holistic_ratings",
 	"paper_assignments", "paper_items", "papers", "questions", "blueprint_cells", "blueprint_rows", "blueprints",
 	"group_members", "part_tags", "learning_outcomes", "lessons", "competencies", "reteach_marks", "report_run_items", "report_runs", "report_template_versions", "report_templates", "branding_versions", "computed_results", "scheme_assignments", "schemes", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
@@ -172,6 +173,9 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, level, marks, question_id) VALUES ($1, $2, 1, 'Short answer', 'Fractions', $3, 'apply', 40, $4) RETURNING id`,
 		o.ID, paper, les, q)
 	one(`INSERT INTO paper_assignments (org_id, paper_id, section_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, paper, o.SectionID)
+	// A re-exam row on the seeded assessment itself, so every tenant table has a row.
+	one(`INSERT INTO reexams (assessment_id, org_id, source_id) VALUES ($2, $1, $2) RETURNING status`, o.ID, o.AssessmentID)
+	one(`INSERT INTO reexam_candidates (org_id, assessment_id, student_id, reason) VALUES ($1, $2, $3, 'Seed') RETURNING reason`, o.ID, o.AssessmentID, o.StudentID)
 	act := one(`INSERT INTO subjects (org_id, name, kind) VALUES ($1, 'Club activities', 'co_curricular') RETURNING id`, o.ID)
 	one(`INSERT INTO level_subjects (org_id, level_id, subject_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.LevelID, act)
 	sing := one(`INSERT INTO competencies (org_id, subject_id, name) VALUES ($1, $2, 'Singing') RETURNING id`, o.ID, act)

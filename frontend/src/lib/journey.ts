@@ -152,8 +152,8 @@ export function modules(t: T): Module[] {
       title: 'Re-exam',
       blurb: 'Retests for those the reports pick out; their marks flow back into results and reports',
       icon: 'reexam',
-      built: false,
-      pages: [],
+      built: true,
+      pages: [{ to: '/reexam', label: 'Re-exams', roles: ['admin', 'coordinator', 'teacher', 'class_teacher'] }],
     },
   ]
 }
@@ -169,7 +169,7 @@ export function moduleOf(ms: Module[], path: string): { module: Module; page: Pa
   return undefined
 }
 
-export type Status = 'done' | 'next' | 'todo' | 'later'
+export type Status = 'done' | 'next' | 'todo' | 'later' | 'optional'
 
 export interface Step {
   module: ModuleKey
@@ -242,6 +242,8 @@ export function statuses(ms: Module[], s: Setup | undefined, roles: readonly str
   const out = {} as Record<ModuleKey, Status>
   for (const m of ms) {
     if (!m.built) out[m.key] = 'later'
+    // A re-exam happens only when the reports call for one.
+    else if (m.key === 'reexam') out[m.key] = 'optional'
     else if (s && !pending(m.key, s, t)) out[m.key] = 'done'
     else if (next?.module === m.key) out[m.key] = 'next'
     else out[m.key] = 'todo'

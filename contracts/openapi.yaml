@@ -4041,6 +4041,129 @@ paths:
                 format: binary
         default:
           $ref: "#/components/responses/Problem"
+  /v1/reexams/preview:
+    post:
+      operationId: previewReexam
+      summary: "Everyone who sat an assessment in the sections you plan for, with those the rules suggest and why (B7.1)."
+      tags: [reexam]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReexamPreviewRequest"
+      responses:
+        "200":
+          description: The students.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReexamPreview"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/reexams:
+    get:
+      operationId: listReexams
+      summary: "The re-exams you can see, newest first, with progress."
+      tags: [reexam]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The re-exams.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReexamSummary"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createReexam
+      summary: "Make a re-exam: a new assessment linked to the original as the next attempt, for the students chosen (B7.2)."
+      tags: [reexam]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReexamCreate"
+      responses:
+        "201":
+          description: The re-exam.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReexamDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/reexams/{id}:
+    get:
+      operationId: getReexam
+      summary: "A re-exam, its students, and each result before and after it counts under its policy; nothing is stored."
+      tags: [reexam]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The re-exam.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReexamDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putReexamRule
+      summary: "Change how the new mark counts; once approved or applied, the re-exam goes back to draft (B7.3)."
+      tags: [reexam]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReexamRule"
+      responses:
+        "200":
+          description: The re-exam.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReexamDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/reexams/{id}/{step}:
+    post:
+      operationId: stepReexam
+      summary: "Approve the policy, or apply an approved one so results are worked out again with the re-exam (B7.4)."
+      tags: [reexam]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: step
+          in: path
+          required: true
+          description: approve or apply.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The re-exam.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReexamDetail"
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -8003,3 +8126,195 @@ components:
           type: string
         sectionId:
           type: string
+    ReexamCriteria:
+      type: object
+      required: [absent, incomplete]
+      properties:
+        below:
+          type: number
+          description: A percentage below this.
+        from:
+          type: number
+          description: A range, from (inclusive), with to.
+        to:
+          type: number
+          description: To (exclusive).
+        absent:
+          type: boolean
+        incomplete:
+          type: boolean
+    ReexamPreviewRequest:
+      type: object
+      required: [sourceId]
+      properties:
+        sourceId:
+          type: string
+        criteria:
+          $ref: "#/components/schemas/ReexamCriteria"
+    ReexamSitter:
+      type: object
+      required: [studentId, name, admissionNo, rollNo, sectionId, section, state, suggested, reason]
+      properties:
+        studentId:
+          type: string
+        name:
+          type: string
+        admissionNo:
+          type: string
+        rollNo:
+          type: string
+        sectionId:
+          type: string
+        section:
+          type: string
+        pct:
+          type: number
+        state:
+          type: string
+          description: scored, absent, incomplete, excused or none.
+        suggested:
+          type: boolean
+        reason:
+          type: string
+    ReexamPreview:
+      type: object
+      required: [sourceId, title, subject, sitters]
+      properties:
+        sourceId:
+          type: string
+        title:
+          type: string
+        subject:
+          type: string
+        sitters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReexamSitter"
+    ReexamCreate:
+      type: object
+      required: [sourceId, students]
+      properties:
+        sourceId:
+          type: string
+        criteria:
+          $ref: "#/components/schemas/ReexamCriteria"
+        students:
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            required: [studentId, reason]
+            properties:
+              studentId:
+                type: string
+              reason:
+                type: string
+                maxLength: 200
+              byHand:
+                type: boolean
+        title:
+          type: string
+          maxLength: 120
+        heldOn:
+          type: string
+        policy:
+          type: string
+          enum: [replace, higher, separate]
+        absentRule:
+          type: string
+          enum: [keep, pending]
+    ReexamRule:
+      type: object
+      required: [policy, absentRule]
+      properties:
+        policy:
+          type: string
+          enum: [replace, higher, separate]
+        absentRule:
+          type: string
+          enum: [keep, pending]
+    ReexamSummary:
+      type: object
+      required: [id, sourceId, title, sourceTitle, subject, attempt, heldOn, policy, absentRule, status, sitting, marked, sectionIds]
+      properties:
+        id:
+          type: string
+        sourceId:
+          type: string
+        title:
+          type: string
+        sourceTitle:
+          type: string
+        subject:
+          type: string
+        attempt:
+          type: integer
+        heldOn:
+          type: string
+        policy:
+          type: string
+          enum: [replace, higher, separate]
+        absentRule:
+          type: string
+          enum: [keep, pending]
+        status:
+          type: string
+          enum: [draft, approved, applied]
+        sitting:
+          type: integer
+        marked:
+          type: integer
+        sectionIds:
+          type: array
+          items:
+            type: string
+    ReexamOutcome:
+      type: object
+      required: [state, pct, grade]
+      properties:
+        state:
+          type: string
+        pct:
+          type: string
+        grade:
+          type: string
+    ReexamCandidate:
+      allOf:
+        - $ref: "#/components/schemas/ReexamSitter"
+        - type: object
+          required: [byHand, retake, before, after]
+          properties:
+            byHand:
+              type: boolean
+            retake:
+              $ref: "#/components/schemas/ReexamSitter"
+            before:
+              $ref: "#/components/schemas/ReexamOutcome"
+            after:
+              $ref: "#/components/schemas/ReexamOutcome"
+    ReexamDetail:
+      allOf:
+        - $ref: "#/components/schemas/ReexamSummary"
+        - type: object
+          required: [candidates, changes, canApprove, canPlan]
+          properties:
+            candidates:
+              type: array
+              items:
+                $ref: "#/components/schemas/ReexamCandidate"
+            changes:
+              type: object
+              required: [up, down, same, pending]
+              properties:
+                up:
+                  type: integer
+                down:
+                  type: integer
+                same:
+                  type: integer
+                pending:
+                  type: integer
+            canApprove:
+              type: boolean
+            canPlan:
+              type: boolean

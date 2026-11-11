@@ -139,6 +139,16 @@ const subjectsPage = createRoute({
   path: '/settings/subjects',
   component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
 })
+const reexamPage = createRoute({
+  getParentRoute: () => root,
+  path: '/reexam',
+  // ?plan= plans one (from an assessment); ?id= opens one.
+  validateSearch: (s: Record<string, unknown>): { plan?: string; id?: string } => ({
+    ...(typeof s.plan === 'string' ? { plan: s.plan } : {}),
+    ...(typeof s.id === 'string' ? { id: s.id } : {}),
+  }),
+  component: lazyRouteComponent(() => import('./pages/Reexam'), 'Reexam'),
+})
 const holisticPage = createRoute({
   getParentRoute: () => root,
   path: '/holistic',
@@ -176,7 +186,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, paperSettingsPage, levelsPage, holisticPage, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, paperSettingsPage, levelsPage, holisticPage, reexamPage, words, history])
 
 // Hovering or focusing a link loads that screen and its code before the
 // click, so moving around feels instant.

@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { analysisQuery, download, getAnalysisSummary, listStructure, type Period, type TeachingAssignment } from '../api/client'
@@ -161,6 +162,11 @@ export function Analysis() {
           <button type="button" className={button} disabled={busy} onClick={() => void exportPack()}>
             {busy ? 'Making the workbook' : 'Excel workbook'}
           </button>
+        )}
+        {data && data.access !== 'counts' && (
+          <Link to="/reexam" search={{ plan: '' }} className={button}>
+            Plan a re-exam
+          </Link>
         )}
         <div role="tablist" aria-label="Analysis" className="ml-auto flex flex-wrap gap-1 rounded-lg bg-mist p-1">
           {tabs.map(([key, label]) => (

@@ -1185,6 +1185,204 @@ func (e QuestionInputStatus) Valid() bool {
 	}
 }
 
+// Defines values for ReexamCreateAbsentRule.
+const (
+	ReexamCreateAbsentRuleKeep    ReexamCreateAbsentRule = "keep"
+	ReexamCreateAbsentRulePending ReexamCreateAbsentRule = "pending"
+)
+
+// Valid indicates whether the value is a known member of the ReexamCreateAbsentRule enum.
+func (e ReexamCreateAbsentRule) Valid() bool {
+	switch e {
+	case ReexamCreateAbsentRuleKeep:
+		return true
+	case ReexamCreateAbsentRulePending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamCreatePolicy.
+const (
+	ReexamCreatePolicyHigher   ReexamCreatePolicy = "higher"
+	ReexamCreatePolicyReplace  ReexamCreatePolicy = "replace"
+	ReexamCreatePolicySeparate ReexamCreatePolicy = "separate"
+)
+
+// Valid indicates whether the value is a known member of the ReexamCreatePolicy enum.
+func (e ReexamCreatePolicy) Valid() bool {
+	switch e {
+	case ReexamCreatePolicyHigher:
+		return true
+	case ReexamCreatePolicyReplace:
+		return true
+	case ReexamCreatePolicySeparate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamDetailAbsentRule.
+const (
+	ReexamDetailAbsentRuleKeep    ReexamDetailAbsentRule = "keep"
+	ReexamDetailAbsentRulePending ReexamDetailAbsentRule = "pending"
+)
+
+// Valid indicates whether the value is a known member of the ReexamDetailAbsentRule enum.
+func (e ReexamDetailAbsentRule) Valid() bool {
+	switch e {
+	case ReexamDetailAbsentRuleKeep:
+		return true
+	case ReexamDetailAbsentRulePending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamDetailPolicy.
+const (
+	ReexamDetailPolicyHigher   ReexamDetailPolicy = "higher"
+	ReexamDetailPolicyReplace  ReexamDetailPolicy = "replace"
+	ReexamDetailPolicySeparate ReexamDetailPolicy = "separate"
+)
+
+// Valid indicates whether the value is a known member of the ReexamDetailPolicy enum.
+func (e ReexamDetailPolicy) Valid() bool {
+	switch e {
+	case ReexamDetailPolicyHigher:
+		return true
+	case ReexamDetailPolicyReplace:
+		return true
+	case ReexamDetailPolicySeparate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamDetailStatus.
+const (
+	ReexamDetailStatusApplied  ReexamDetailStatus = "applied"
+	ReexamDetailStatusApproved ReexamDetailStatus = "approved"
+	ReexamDetailStatusDraft    ReexamDetailStatus = "draft"
+)
+
+// Valid indicates whether the value is a known member of the ReexamDetailStatus enum.
+func (e ReexamDetailStatus) Valid() bool {
+	switch e {
+	case ReexamDetailStatusApplied:
+		return true
+	case ReexamDetailStatusApproved:
+		return true
+	case ReexamDetailStatusDraft:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamRuleAbsentRule.
+const (
+	ReexamRuleAbsentRuleKeep    ReexamRuleAbsentRule = "keep"
+	ReexamRuleAbsentRulePending ReexamRuleAbsentRule = "pending"
+)
+
+// Valid indicates whether the value is a known member of the ReexamRuleAbsentRule enum.
+func (e ReexamRuleAbsentRule) Valid() bool {
+	switch e {
+	case ReexamRuleAbsentRuleKeep:
+		return true
+	case ReexamRuleAbsentRulePending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamRulePolicy.
+const (
+	ReexamRulePolicyHigher   ReexamRulePolicy = "higher"
+	ReexamRulePolicyReplace  ReexamRulePolicy = "replace"
+	ReexamRulePolicySeparate ReexamRulePolicy = "separate"
+)
+
+// Valid indicates whether the value is a known member of the ReexamRulePolicy enum.
+func (e ReexamRulePolicy) Valid() bool {
+	switch e {
+	case ReexamRulePolicyHigher:
+		return true
+	case ReexamRulePolicyReplace:
+		return true
+	case ReexamRulePolicySeparate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamSummaryAbsentRule.
+const (
+	ReexamSummaryAbsentRuleKeep    ReexamSummaryAbsentRule = "keep"
+	ReexamSummaryAbsentRulePending ReexamSummaryAbsentRule = "pending"
+)
+
+// Valid indicates whether the value is a known member of the ReexamSummaryAbsentRule enum.
+func (e ReexamSummaryAbsentRule) Valid() bool {
+	switch e {
+	case ReexamSummaryAbsentRuleKeep:
+		return true
+	case ReexamSummaryAbsentRulePending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamSummaryPolicy.
+const (
+	ReexamSummaryPolicyHigher   ReexamSummaryPolicy = "higher"
+	ReexamSummaryPolicyReplace  ReexamSummaryPolicy = "replace"
+	ReexamSummaryPolicySeparate ReexamSummaryPolicy = "separate"
+)
+
+// Valid indicates whether the value is a known member of the ReexamSummaryPolicy enum.
+func (e ReexamSummaryPolicy) Valid() bool {
+	switch e {
+	case ReexamSummaryPolicyHigher:
+		return true
+	case ReexamSummaryPolicyReplace:
+		return true
+	case ReexamSummaryPolicySeparate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReexamSummaryStatus.
+const (
+	ReexamSummaryStatusApplied  ReexamSummaryStatus = "applied"
+	ReexamSummaryStatusApproved ReexamSummaryStatus = "approved"
+	ReexamSummaryStatusDraft    ReexamSummaryStatus = "draft"
+)
+
+// Valid indicates whether the value is a known member of the ReexamSummaryStatus enum.
+func (e ReexamSummaryStatus) Valid() bool {
+	switch e {
+	case ReexamSummaryStatusApplied:
+		return true
+	case ReexamSummaryStatusApproved:
+		return true
+	case ReexamSummaryStatusDraft:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReportConfigSignoff.
 const (
 	PersonClassTeacher ReportConfigSignoff = "person.class_teacher"
@@ -3652,6 +3850,172 @@ type RecomputeInput struct {
 	SubjectId string `json:"subjectId,omitempty"`
 }
 
+// ReexamCandidate defines model for ReexamCandidate.
+type ReexamCandidate struct {
+	AdmissionNo string        `json:"admissionNo"`
+	After       ReexamOutcome `json:"after"`
+	Before      ReexamOutcome `json:"before"`
+	ByHand      bool          `json:"byHand"`
+	Name        string        `json:"name"`
+	Pct         float32       `json:"pct,omitempty"`
+	Reason      string        `json:"reason"`
+	Retake      ReexamSitter  `json:"retake"`
+	RollNo      string        `json:"rollNo"`
+	Section     string        `json:"section"`
+	SectionId   string        `json:"sectionId"`
+
+	// State scored, absent, incomplete, excused or none.
+	State     string `json:"state"`
+	StudentId string `json:"studentId"`
+	Suggested bool   `json:"suggested"`
+}
+
+// ReexamCreate defines model for ReexamCreate.
+type ReexamCreate struct {
+	AbsentRule ReexamCreateAbsentRule `json:"absentRule,omitempty"`
+	Criteria   ReexamCriteria         `json:"criteria,omitempty"`
+	HeldOn     string                 `json:"heldOn,omitempty"`
+	Policy     ReexamCreatePolicy     `json:"policy,omitempty"`
+	SourceId   string                 `json:"sourceId"`
+	Students   []struct {
+		ByHand    bool   `json:"byHand,omitempty"`
+		Reason    string `json:"reason"`
+		StudentId string `json:"studentId"`
+	} `json:"students"`
+	Title string `json:"title,omitempty"`
+}
+
+// ReexamCreateAbsentRule defines model for ReexamCreate.AbsentRule.
+type ReexamCreateAbsentRule string
+
+// ReexamCreatePolicy defines model for ReexamCreate.Policy.
+type ReexamCreatePolicy string
+
+// ReexamCriteria defines model for ReexamCriteria.
+type ReexamCriteria struct {
+	Absent bool `json:"absent"`
+
+	// Below A percentage below this.
+	Below float32 `json:"below,omitempty"`
+
+	// From A range, from (inclusive), with to.
+	From       float32 `json:"from,omitempty"`
+	Incomplete bool    `json:"incomplete"`
+
+	// To To (exclusive).
+	To float32 `json:"to,omitempty"`
+}
+
+// ReexamDetail defines model for ReexamDetail.
+type ReexamDetail struct {
+	AbsentRule ReexamDetailAbsentRule `json:"absentRule"`
+	Attempt    int                    `json:"attempt"`
+	CanApprove bool                   `json:"canApprove"`
+	CanPlan    bool                   `json:"canPlan"`
+	Candidates []ReexamCandidate      `json:"candidates"`
+	Changes    struct {
+		Down    int `json:"down"`
+		Pending int `json:"pending"`
+		Same    int `json:"same"`
+		Up      int `json:"up"`
+	} `json:"changes"`
+	HeldOn      string             `json:"heldOn"`
+	Id          string             `json:"id"`
+	Marked      int                `json:"marked"`
+	Policy      ReexamDetailPolicy `json:"policy"`
+	SectionIds  []string           `json:"sectionIds"`
+	Sitting     int                `json:"sitting"`
+	SourceId    string             `json:"sourceId"`
+	SourceTitle string             `json:"sourceTitle"`
+	Status      ReexamDetailStatus `json:"status"`
+	Subject     string             `json:"subject"`
+	Title       string             `json:"title"`
+}
+
+// ReexamDetailAbsentRule defines model for ReexamDetail.AbsentRule.
+type ReexamDetailAbsentRule string
+
+// ReexamDetailPolicy defines model for ReexamDetail.Policy.
+type ReexamDetailPolicy string
+
+// ReexamDetailStatus defines model for ReexamDetail.Status.
+type ReexamDetailStatus string
+
+// ReexamOutcome defines model for ReexamOutcome.
+type ReexamOutcome struct {
+	Grade string `json:"grade"`
+	Pct   string `json:"pct"`
+	State string `json:"state"`
+}
+
+// ReexamPreview defines model for ReexamPreview.
+type ReexamPreview struct {
+	Sitters  []ReexamSitter `json:"sitters"`
+	SourceId string         `json:"sourceId"`
+	Subject  string         `json:"subject"`
+	Title    string         `json:"title"`
+}
+
+// ReexamPreviewRequest defines model for ReexamPreviewRequest.
+type ReexamPreviewRequest struct {
+	Criteria ReexamCriteria `json:"criteria,omitempty"`
+	SourceId string         `json:"sourceId"`
+}
+
+// ReexamRule defines model for ReexamRule.
+type ReexamRule struct {
+	AbsentRule ReexamRuleAbsentRule `json:"absentRule"`
+	Policy     ReexamRulePolicy     `json:"policy"`
+}
+
+// ReexamRuleAbsentRule defines model for ReexamRule.AbsentRule.
+type ReexamRuleAbsentRule string
+
+// ReexamRulePolicy defines model for ReexamRule.Policy.
+type ReexamRulePolicy string
+
+// ReexamSitter defines model for ReexamSitter.
+type ReexamSitter struct {
+	AdmissionNo string  `json:"admissionNo"`
+	Name        string  `json:"name"`
+	Pct         float32 `json:"pct,omitempty"`
+	Reason      string  `json:"reason"`
+	RollNo      string  `json:"rollNo"`
+	Section     string  `json:"section"`
+	SectionId   string  `json:"sectionId"`
+
+	// State scored, absent, incomplete, excused or none.
+	State     string `json:"state"`
+	StudentId string `json:"studentId"`
+	Suggested bool   `json:"suggested"`
+}
+
+// ReexamSummary defines model for ReexamSummary.
+type ReexamSummary struct {
+	AbsentRule  ReexamSummaryAbsentRule `json:"absentRule"`
+	Attempt     int                     `json:"attempt"`
+	HeldOn      string                  `json:"heldOn"`
+	Id          string                  `json:"id"`
+	Marked      int                     `json:"marked"`
+	Policy      ReexamSummaryPolicy     `json:"policy"`
+	SectionIds  []string                `json:"sectionIds"`
+	Sitting     int                     `json:"sitting"`
+	SourceId    string                  `json:"sourceId"`
+	SourceTitle string                  `json:"sourceTitle"`
+	Status      ReexamSummaryStatus     `json:"status"`
+	Subject     string                  `json:"subject"`
+	Title       string                  `json:"title"`
+}
+
+// ReexamSummaryAbsentRule defines model for ReexamSummary.AbsentRule.
+type ReexamSummaryAbsentRule string
+
+// ReexamSummaryPolicy defines model for ReexamSummary.Policy.
+type ReexamSummaryPolicy string
+
+// ReexamSummaryStatus defines model for ReexamSummary.Status.
+type ReexamSummaryStatus string
+
 // ReportConfig defines model for ReportConfig.
 type ReportConfig struct {
 	// Booklet Fold each report as a booklet, two pages to a side of the next sheet size up.
@@ -5287,6 +5651,42 @@ type UpdateQuestionParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// ListReexamsParams defines parameters for ListReexams.
+type ListReexamsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// CreateReexamParams defines parameters for CreateReexam.
+type CreateReexamParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PreviewReexamParams defines parameters for PreviewReexam.
+type PreviewReexamParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetReexamParams defines parameters for GetReexam.
+type GetReexamParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutReexamRuleParams defines parameters for PutReexamRule.
+type PutReexamRuleParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// StepReexamParams defines parameters for StepReexam.
+type StepReexamParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ReportItemHtmlParams defines parameters for ReportItemHtml.
 type ReportItemHtmlParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -6018,6 +6418,15 @@ type DraftQuestionsJSONRequestBody = QuestionDraftRequest
 
 // UpdateQuestionJSONRequestBody defines body for UpdateQuestion for application/json ContentType.
 type UpdateQuestionJSONRequestBody = QuestionInput
+
+// CreateReexamJSONRequestBody defines body for CreateReexam for application/json ContentType.
+type CreateReexamJSONRequestBody = ReexamCreate
+
+// PreviewReexamJSONRequestBody defines body for PreviewReexam for application/json ContentType.
+type PreviewReexamJSONRequestBody = ReexamPreviewRequest
+
+// PutReexamRuleJSONRequestBody defines body for PutReexamRule for application/json ContentType.
+type PutReexamRuleJSONRequestBody = ReexamRule
 
 // PutReportTemplateJSONRequestBody defines body for PutReportTemplate for application/json ContentType.
 type PutReportTemplateJSONRequestBody = ReportTemplateInput

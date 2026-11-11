@@ -27,7 +27,7 @@ ok(
 const numbers = (g: string) => ms.filter((m) => m.group === g).map((m) => m.n).join()
 ok(numbers('master') === '1,2,3' && numbers('exams') === '1,2,3,4,5,6', 'each group is numbered from 1', `${numbers('master')} / ${numbers('exams')}`)
 ok(ms.filter((m) => m.group === 'master').map((m) => m.title).join() === 'Resources,Configuration,Create exam', 'Resources, Configuration and Create exam are master; the rest are exam steps')
-ok(ms.filter((m) => !m.built).map((m) => m.key).join() === 'reexam', 'only re-exams are marked as coming')
+ok(ms.every((m) => m.built), 'every step is built')
 
 const empty: Setup = { years: 0, periods: 0, levels: 0, sections: 0, subjects: 0, levelSubjects: 0, staff: 1, students: 0, invitations: 0, done: false, assessments: 0, marks: 0, schemes: 0, results: 0, reports: 0, papers: 0, assigned: 0 }
 const admin = ['admin']
@@ -72,7 +72,7 @@ ok(say({ ...s, reports: 0 }, teacher)?.to === '/analysis', 'a teacher is not sen
 ok(nextStep(ms, undefined, admin, school) === undefined, 'nothing is suggested before the counts arrive')
 
 const st = statuses(ms, { ...s, marks: 0 }, admin, school)
-ok(st.resources === 'done' && st.evaluate === 'next' && st.reports === 'done' && st.reexam === 'later' && st.assign === 'done' && st.scheme === 'done', 'card states', JSON.stringify(st))
+ok(st.resources === 'done' && st.evaluate === 'next' && st.reports === 'done' && st.reexam === 'optional' && st.assign === 'done' && st.scheme === 'done', 'card states', JSON.stringify(st))
 
 // Pages by role, and paths back to their step.
 ok(visiblePages(ms[0], teacher).length === 0, 'a teacher has no Resources pages')

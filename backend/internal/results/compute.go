@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackymean-del/revu/internal/evidence"
@@ -102,6 +103,18 @@ func arrays(keys []Key) (s, p, u []string) {
 
 // Load reads the marks, row statuses and choices behind keys.
 func Load(ctx context.Context, tx pgx.Tx, keys []Key) (Inputs, error) {
+	return LoadAssuming(ctx, tx, keys, nil)
+}
+
+// Retake is how a re-exam's marks count: replace the original, the higher
+// of the two, or separate (shown apart, the result unchanged); and what an
+// absence from it does: keep the original, or leave the result pending.
+type Retake struct{ Policy, AbsentRule string }
+
+// LoadAssuming loads inputs as Load does, counting the re-exams in assume
+// as if applied under the given policy, for a dry run. Re-exams already
+// applied count as stored unless assume names them.
+func LoadAssuming(ctx context.Context, tx pgx.Tx, keys []Key, assume map[string]Retake) (Inputs, error) {
 	in := Inputs{places: map[Key]place{}, events: map[Key][]scheme.Event{}}
 	if len(keys) == 0 {
 		return in, nil
@@ -137,13 +150,19 @@ func Load(ctx context.Context, tx pgx.Tx, keys []Key) (Inputs, error) {
 		event                        scheme.Event
 		periodID, subjectID, levelID string
 		sections                     []string
+		retakeOf                     string // the original, for a re-exam
+		attempt                      int
+		rule                         Retake
+		counts                       bool // a re-exam applied, or assumed for a dry run
 	}
 	rows, err = tx.Query(ctx, `
 		SELECT a.id::text, a.title, a.kind, coalesce(a.held_on::text, ''), a.period_id::text, a.subject_id::text, a.level_id::text,
-		       array_agg(sc.section_id::text ORDER BY sc.section_id)
+		       array_agg(sc.section_id::text ORDER BY sc.section_id), coalesce(a.retake_of::text, ''), a.attempt,
+		       coalesce(x.policy, ''), coalesce(x.absent_rule, ''), coalesce(x.status, '') = 'applied'
 		  FROM assessments a JOIN assessment_scopes sc ON sc.assessment_id = a.id
+		  LEFT JOIN reexams x ON x.assessment_id = a.id
 		 WHERE a.deleted_at IS NULL AND a.status <> 'draft' AND a.period_id = ANY($1::uuid[]) AND a.subject_id = ANY($2::uuid[])
-		 GROUP BY a.id`, uniq(ps), uniq(us))
+		 GROUP BY a.id, x.assessment_id`, uniq(ps), uniq(us))
 	if err != nil {
 		return in, err
 	}
@@ -151,8 +170,12 @@ func Load(ctx context.Context, tx pgx.Tx, keys []Key) (Inputs, error) {
 	byID := map[string]int{}
 	for rows.Next() {
 		var a assessment
-		if err := rows.Scan(&a.event.AssessmentID, &a.event.Title, &a.event.Kind, &a.event.HeldOn, &a.periodID, &a.subjectID, &a.levelID, &a.sections); err != nil {
+		if err := rows.Scan(&a.event.AssessmentID, &a.event.Title, &a.event.Kind, &a.event.HeldOn, &a.periodID, &a.subjectID, &a.levelID, &a.sections,
+			&a.retakeOf, &a.attempt, &a.rule.Policy, &a.rule.AbsentRule, &a.counts); err != nil {
 			return in, err
+		}
+		if r, ok := assume[a.event.AssessmentID]; ok && a.retakeOf != "" {
+			a.rule, a.counts = r, true
 		}
 		byID[a.event.AssessmentID] = len(as)
 		as = append(as, a)
@@ -206,6 +229,22 @@ func Load(ctx context.Context, tx pgx.Tx, keys []Key) (Inputs, error) {
 	if err := rows.Err(); err != nil {
 		return in, err
 	}
+	// Who sits each re-exam: only their marks count.
+	sits := map[[2]string]bool{}
+	rows, err = tx.Query(ctx, `SELECT assessment_id::text, student_id::text FROM reexam_candidates WHERE assessment_id = ANY($1::uuid[]) AND student_id = ANY($2::uuid[])`, ids, uniq(ss))
+	if err != nil {
+		return in, err
+	}
+	for rows.Next() {
+		var k [2]string
+		if err := rows.Scan(&k[0], &k[1]); err != nil {
+			return in, err
+		}
+		sits[k] = true
+	}
+	if err := rows.Err(); err != nil {
+		return in, err
+	}
 	status := map[[2]string]string{}
 	rows, err = tx.Query(ctx, `
 		SELECT assessment_id::text, student_id::text, status FROM assessment_participation
@@ -230,7 +269,9 @@ func Load(ctx context.Context, tx pgx.Tx, keys []Key) (Inputs, error) {
 			continue
 		}
 		for _, a := range as {
-			if a.periodID != k.PeriodID || a.subjectID != k.SubjectID || a.levelID != pl.levelID || !slices.Contains(a.sections, pl.sectionID) {
+			// A re-exam is never an assessment of its own: its marks fold
+			// into the original's below.
+			if a.retakeOf != "" || a.periodID != k.PeriodID || a.subjectID != k.SubjectID || a.levelID != pl.levelID || !slices.Contains(a.sections, pl.sectionID) {
 				continue
 			}
 			e := a.event
@@ -240,6 +281,17 @@ func Load(ctx context.Context, tx pgx.Tx, keys []Key) (Inputs, error) {
 				c := cells[cellKey{k.StudentID, p.ID}]
 				p.State, p.Value = c[0], c[1]
 				e.Parts[i] = p
+			}
+			// Re-exams of this assessment the student sat, in attempt order.
+			var retakes []assessment
+			for _, r := range as {
+				if r.retakeOf == e.AssessmentID && r.counts && sits[[2]string{r.event.AssessmentID, k.StudentID}] {
+					retakes = append(retakes, r)
+				}
+			}
+			slices.SortFunc(retakes, func(x, y assessment) int { return x.attempt - y.attempt })
+			for _, r := range retakes {
+				fold(&e, r.event, r.rule, status[[2]string{r.event.AssessmentID, k.StudentID}], func(partID string) [2]string { return cells[cellKey{k.StudentID, partID}] })
 			}
 			in.events[k] = append(in.events[k], e)
 		}
@@ -386,4 +438,57 @@ func Recompute(ctx context.Context, tx pgx.Tx, keys []Key) (int, error) {
 		return 0, err
 	}
 	return stored, nil
+}
+
+// fold applies a re-exam's marks to the original's, part by part (the
+// re-exam has the original's parts in the same order). The original's
+// stored marks are never changed; only what the result is worked out from.
+func fold(e *scheme.Event, r scheme.Event, rule Retake, rowStatus string, cell func(partID string) [2]string) {
+	if rule.Policy == "separate" {
+		return
+	}
+	sat := rowStatus == ""
+	if sat {
+		sat = false
+		for _, p := range r.Parts {
+			if cell(p.ID)[0] == "scored" {
+				sat = true
+				break
+			}
+		}
+	}
+	if !sat {
+		// Absent from the re-exam, or no mark yet: never zero.
+		if rule.AbsentRule == "pending" {
+			e.RowStatus = ""
+			for i := range e.Parts {
+				e.Parts[i].State, e.Parts[i].Value = "pending", ""
+			}
+		}
+		return
+	}
+	e.RowStatus = ""
+	for i := range e.Parts {
+		if i >= len(r.Parts) {
+			break
+		}
+		c := cell(r.Parts[i].ID)
+		if c[0] != "scored" {
+			continue
+		}
+		p := &e.Parts[i]
+		switch rule.Policy {
+		case "replace":
+			p.State, p.Value = "scored", c[1]
+		case "higher":
+			if p.State != "scored" || number(c[1]) > number(p.Value) {
+				p.State, p.Value = "scored", c[1]
+			}
+		}
+	}
+}
+
+func number(s string) float64 {
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
 }
