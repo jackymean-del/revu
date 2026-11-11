@@ -42,7 +42,7 @@ jobs:
             echo "::error::DOWN  $1 ($2 answered ${code:-nothing})"
             fail=1
           }
-          check "Site" https://revu.bhusku.com/ "What would you like to"
+          check "Site" https://revu.bhusku.com/ "· revU</title>"
           if [ -n "$APP_URL" ]; then check "App" "$APP_URL" 'id="root"'; else echo "SKIP  App (REVU_APP_URL not set)"; fi
           if [ -n "$API_URL" ]; then check "Server and database" "$API_URL/api/health" '"database":true'; else echo "SKIP  Server (REVU_API_URL not set)"; fi
           exit $fail
