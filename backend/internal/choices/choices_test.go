@@ -203,7 +203,8 @@ func TestSubjectChoices(t *testing.T) {
 		for _, x := range ls {
 			modes[x.SubjectId] = string(x.Applicability)
 		}
-		if len(ls) != 6 || modes[a.SubjectID] != "all" || modes[hindi] != "selected" {
+		// Six here and the seeded activities subject.
+		if len(ls) != 7 || modes[a.SubjectID] != "all" || modes[hindi] != "selected" {
 			t.Fatalf("level subjects %v", modes)
 		}
 		hindiAtLevel := ls[slices.IndexFunc(ls, func(x api.LevelSubject) bool { return x.SubjectId == hindi })].Id

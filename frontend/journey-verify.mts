@@ -76,7 +76,7 @@ ok(st.resources === 'done' && st.evaluate === 'next' && st.reports === 'done' &&
 
 // Pages by role, and paths back to their step.
 ok(visiblePages(ms[0], teacher).length === 0, 'a teacher has no Resources pages')
-ok(visiblePages(ms.find((m) => m.key === 'reports')!, ['class_teacher']).map((p) => p.to).join() === '/analysis,/reports', 'a class teacher sees analysis and report cards')
+ok(visiblePages(ms.find((m) => m.key === 'reports')!, ['class_teacher']).map((p) => p.to).join() === '/analysis,/holistic,/reports', 'a class teacher sees analysis, the holistic report and report cards')
 ok(moduleOf(ms, '/schemes/abc')?.module.key === 'scheme', 'a scheme editor page belongs to Scheme')
 ok(moduleOf(ms, '/settings/subjects')?.module.key === 'configuration' && moduleOf(ms, '/settings/structure')?.module.key === 'resources', 'subjects and structure belong to their steps')
 

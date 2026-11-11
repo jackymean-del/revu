@@ -3848,6 +3848,199 @@ paths:
                 $ref: "#/components/schemas/Paper"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/holistic/settings:
+    get:
+      operationId: getHolisticSettings
+      summary: The level scale holistic levels are shown in.
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The scale, or the default of four levels.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HolisticSettings"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putHolisticSettings
+      summary: Rename the levels or move where they start (administrators).
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolisticSettings"
+      responses:
+        "200":
+          description: The scale as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HolisticSettings"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/holistic/class:
+    get:
+      operationId: getHolisticClass
+      summary: A section as a heatmap of children against competencies, levels worked out from tagged marks.
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The heatmap.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HolisticClass"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/holistic/student:
+    get:
+      operationId: getHolisticStudent
+      summary: "A child's holistic report: scores, learning profile, thinking skills, activities, strengths and focus areas, voices and the teacher's note (B8.6.2)."
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: studentId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HolisticReport"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putHolisticStudent
+      summary: "Save what the class teacher adds: activity ratings, voices and the note; only the parts sent are saved."
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolisticStudentInput"
+      responses:
+        "200":
+          description: The report after saving.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HolisticReport"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/holistic/note-draft:
+    post:
+      operationId: draftHolisticNote
+      summary: Draft the teacher's note with AI from the child's levels in words; the name is never sent. Not saved.
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolisticChild"
+      responses:
+        "200":
+          description: The draft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HolisticNoteDraft"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/holistic/html:
+    get:
+      operationId: getHolisticHtml
+      summary: The printable report of a child, or with sectionId the section's meeting pack.
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: periodId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: studentId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: sectionId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The page.
+          content:
+            text/html:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/holistic/pdf:
+    post:
+      operationId: getHolisticPdf
+      summary: A child's report, or the section's meeting pack, as one PDF.
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HolisticPdfRequest"
+      responses:
+        "200":
+          description: The PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: "#/components/responses/Problem"
 components:
   securitySchemes:
     session:
@@ -7474,3 +7667,339 @@ components:
         level:
           type: string
           description: The SOLO or custom level, with that taxonomy.
+    HolisticLevel:
+      type: object
+      required: [name, min]
+      properties:
+        name:
+          type: string
+          maxLength: 30
+        min:
+          type: number
+          description: The percentage the level starts at.
+    HolisticSettings:
+      type: object
+      required: [levels]
+      properties:
+        levels:
+          type: array
+          minItems: 2
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/HolisticLevel"
+    HolisticStudent:
+      type: object
+      required: [id, name, admissionNo, rollNo]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        admissionNo:
+          type: string
+        rollNo:
+          type: string
+    HolisticScore:
+      type: object
+      required: [subjectId, subject, grade, trend]
+      properties:
+        subjectId:
+          type: string
+        subject:
+          type: string
+        pct:
+          type: number
+        grade:
+          type: string
+        classPct:
+          type: number
+          description: Hidden for groups under five.
+        trend:
+          type: array
+          items:
+            type: number
+    HolisticChip:
+      type: object
+      required: [id, name, level, pct, marks]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        level:
+          type: integer
+          description: A step of the scale from 1; 0 is too little evidence (under three marks).
+        pct:
+          type: number
+        marks:
+          type: integer
+    HolisticProfile:
+      type: object
+      required: [subjectId, subject, competencies]
+      properties:
+        subjectId:
+          type: string
+        subject:
+          type: string
+        competencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticChip"
+    HolisticBloom:
+      type: object
+      required: [level, marks]
+      properties:
+        level:
+          type: string
+        pct:
+          type: number
+        classPct:
+          type: number
+        marks:
+          type: integer
+    HolisticOutcome:
+      type: object
+      required: [text, subject, bloom, pct, tip]
+      properties:
+        text:
+          type: string
+        subject:
+          type: string
+        bloom:
+          type: string
+        pct:
+          type: number
+        tip:
+          type: string
+    HolisticActivity:
+      type: object
+      required: [competencyId, name, subject, level]
+      properties:
+        competencyId:
+          type: string
+        name:
+          type: string
+        subject:
+          type: string
+        level:
+          type: integer
+          description: The teacher's rating, a step of the scale; 0 unrated.
+    HolisticVoices:
+      type: object
+      required: [self, peer, parent, ambition]
+      properties:
+        self:
+          type: string
+          maxLength: 300
+        peer:
+          type: string
+          maxLength: 300
+        parent:
+          type: string
+          maxLength: 300
+        ambition:
+          type: string
+          maxLength: 300
+    HolisticNote:
+      type: object
+      required: [text, status, fromAi]
+      properties:
+        text:
+          type: string
+        status:
+          type: string
+          description: draft or approved; empty when there is none.
+        fromAi:
+          type: boolean
+    HolisticReport:
+      type: object
+      required: [student, section, sectionId, period, periodId, scale, scores, profile, blooms, activities, strengths, focus, voices, note, canEdit]
+      properties:
+        student:
+          $ref: "#/components/schemas/HolisticStudent"
+        section:
+          type: string
+        sectionId:
+          type: string
+        period:
+          type: string
+        periodId:
+          type: string
+        scale:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticLevel"
+        scores:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticScore"
+        overall:
+          type: number
+        profile:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticProfile"
+        blooms:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticBloom"
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticActivity"
+        strengths:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticOutcome"
+        focus:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticOutcome"
+        voices:
+          $ref: "#/components/schemas/HolisticVoices"
+        note:
+          $ref: "#/components/schemas/HolisticNote"
+        canEdit:
+          type: boolean
+    HolisticRow:
+      type: object
+      required: [id, name, admissionNo, rollNo, note, rated, voices]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        admissionNo:
+          type: string
+        rollNo:
+          type: string
+        overall:
+          type: number
+        note:
+          type: string
+        rated:
+          type: integer
+        voices:
+          type: integer
+    HolisticColumn:
+      type: object
+      required: [id, name, subject]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        subject:
+          type: string
+    HolisticCell:
+      type: object
+      required: [level, pct, marks]
+      properties:
+        level:
+          type: integer
+        pct:
+          type: number
+        marks:
+          type: integer
+    HolisticLevelSum:
+      type: object
+      required: [id, counts]
+      properties:
+        id:
+          type: string
+        counts:
+          type: array
+          items:
+            type: integer
+    HolisticClass:
+      type: object
+      required: [section, period, scale, canEdit, students, competencies, cells, activities, summary]
+      properties:
+        section:
+          type: string
+        period:
+          type: string
+        scale:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticLevel"
+        canEdit:
+          type: boolean
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticRow"
+        competencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticColumn"
+        cells:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/HolisticCell"
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticColumn"
+        summary:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticLevelSum"
+    HolisticChild:
+      type: object
+      required: [studentId, periodId]
+      properties:
+        studentId:
+          type: string
+        periodId:
+          type: string
+    HolisticStudentInput:
+      type: object
+      required: [studentId, periodId]
+      properties:
+        studentId:
+          type: string
+        periodId:
+          type: string
+        ratings:
+          type: array
+          items:
+            type: object
+            required: [competencyId, level]
+            properties:
+              competencyId:
+                type: string
+              level:
+                type: integer
+                description: 0 clears it.
+        voices:
+          $ref: "#/components/schemas/HolisticVoices"
+        note:
+          type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+              maxLength: 1500
+            approve:
+              type: boolean
+            fromAi:
+              type: boolean
+    HolisticNoteDraft:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+    HolisticPdfRequest:
+      type: object
+      required: [periodId]
+      properties:
+        periodId:
+          type: string
+        studentId:
+          type: string
+        sectionId:
+          type: string

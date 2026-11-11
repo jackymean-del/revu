@@ -26,6 +26,7 @@ import (
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/layout"
 	"github.com/jackymean-del/revu/internal/org"
+	"github.com/jackymean-del/revu/internal/holistic"
 	"github.com/jackymean-del/revu/internal/papers"
 	"github.com/jackymean-del/revu/internal/people"
 	"github.com/jackymean-del/revu/internal/platform"
@@ -114,6 +115,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	analysis.Routes(inOrg, d.Now)
 	syllabus.Routes(inOrg)
 	papers.Routes(inOrg, papers.Options{AI: d.AI})
+	holistic.Routes(inOrg, holistic.Options{Renderer: reports.Renderer{URL: cfg.GotenbergURL}, AI: d.AI})
 	reports.Routes(inOrg, reports.Options{Renderer: reports.Renderer{URL: cfg.GotenbergURL}, AppURL: cfg.AppURL, Now: d.Now})
 	tables.Routes(inOrg)
 	audit.Routes(inOrg)

@@ -2772,6 +2772,200 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// HolisticActivity defines model for HolisticActivity.
+type HolisticActivity struct {
+	CompetencyId string `json:"competencyId"`
+
+	// Level The teacher's rating, a step of the scale; 0 unrated.
+	Level   int    `json:"level"`
+	Name    string `json:"name"`
+	Subject string `json:"subject"`
+}
+
+// HolisticBloom defines model for HolisticBloom.
+type HolisticBloom struct {
+	ClassPct float32 `json:"classPct,omitempty"`
+	Level    string  `json:"level"`
+	Marks    int     `json:"marks"`
+	Pct      float32 `json:"pct,omitempty"`
+}
+
+// HolisticCell defines model for HolisticCell.
+type HolisticCell struct {
+	Level int     `json:"level"`
+	Marks int     `json:"marks"`
+	Pct   float32 `json:"pct"`
+}
+
+// HolisticChild defines model for HolisticChild.
+type HolisticChild struct {
+	PeriodId  string `json:"periodId"`
+	StudentId string `json:"studentId"`
+}
+
+// HolisticChip defines model for HolisticChip.
+type HolisticChip struct {
+	Id string `json:"id"`
+
+	// Level A step of the scale from 1; 0 is too little evidence (under three marks).
+	Level int     `json:"level"`
+	Marks int     `json:"marks"`
+	Name  string  `json:"name"`
+	Pct   float32 `json:"pct"`
+}
+
+// HolisticClass defines model for HolisticClass.
+type HolisticClass struct {
+	Activities   []HolisticColumn   `json:"activities"`
+	CanEdit      bool               `json:"canEdit"`
+	Cells        [][]HolisticCell   `json:"cells"`
+	Competencies []HolisticColumn   `json:"competencies"`
+	Period       string             `json:"period"`
+	Scale        []HolisticLevel    `json:"scale"`
+	Section      string             `json:"section"`
+	Students     []HolisticRow      `json:"students"`
+	Summary      []HolisticLevelSum `json:"summary"`
+}
+
+// HolisticColumn defines model for HolisticColumn.
+type HolisticColumn struct {
+	Id      string `json:"id"`
+	Name    string `json:"name"`
+	Subject string `json:"subject"`
+}
+
+// HolisticLevel defines model for HolisticLevel.
+type HolisticLevel struct {
+	// Min The percentage the level starts at.
+	Min  float32 `json:"min"`
+	Name string  `json:"name"`
+}
+
+// HolisticLevelSum defines model for HolisticLevelSum.
+type HolisticLevelSum struct {
+	Counts []int  `json:"counts"`
+	Id     string `json:"id"`
+}
+
+// HolisticNote defines model for HolisticNote.
+type HolisticNote struct {
+	FromAi bool `json:"fromAi"`
+
+	// Status draft or approved; empty when there is none.
+	Status string `json:"status"`
+	Text   string `json:"text"`
+}
+
+// HolisticNoteDraft defines model for HolisticNoteDraft.
+type HolisticNoteDraft struct {
+	Text string `json:"text"`
+}
+
+// HolisticOutcome defines model for HolisticOutcome.
+type HolisticOutcome struct {
+	Bloom   string  `json:"bloom"`
+	Pct     float32 `json:"pct"`
+	Subject string  `json:"subject"`
+	Text    string  `json:"text"`
+	Tip     string  `json:"tip"`
+}
+
+// HolisticPdfRequest defines model for HolisticPdfRequest.
+type HolisticPdfRequest struct {
+	PeriodId  string `json:"periodId"`
+	SectionId string `json:"sectionId,omitempty"`
+	StudentId string `json:"studentId,omitempty"`
+}
+
+// HolisticProfile defines model for HolisticProfile.
+type HolisticProfile struct {
+	Competencies []HolisticChip `json:"competencies"`
+	Subject      string         `json:"subject"`
+	SubjectId    string         `json:"subjectId"`
+}
+
+// HolisticReport defines model for HolisticReport.
+type HolisticReport struct {
+	Activities []HolisticActivity `json:"activities"`
+	Blooms     []HolisticBloom    `json:"blooms"`
+	CanEdit    bool               `json:"canEdit"`
+	Focus      []HolisticOutcome  `json:"focus"`
+	Note       HolisticNote       `json:"note"`
+	Overall    float32            `json:"overall,omitempty"`
+	Period     string             `json:"period"`
+	PeriodId   string             `json:"periodId"`
+	Profile    []HolisticProfile  `json:"profile"`
+	Scale      []HolisticLevel    `json:"scale"`
+	Scores     []HolisticScore    `json:"scores"`
+	Section    string             `json:"section"`
+	SectionId  string             `json:"sectionId"`
+	Strengths  []HolisticOutcome  `json:"strengths"`
+	Student    HolisticStudent    `json:"student"`
+	Voices     HolisticVoices     `json:"voices"`
+}
+
+// HolisticRow defines model for HolisticRow.
+type HolisticRow struct {
+	AdmissionNo string  `json:"admissionNo"`
+	Id          string  `json:"id"`
+	Name        string  `json:"name"`
+	Note        string  `json:"note"`
+	Overall     float32 `json:"overall,omitempty"`
+	Rated       int     `json:"rated"`
+	RollNo      string  `json:"rollNo"`
+	Voices      int     `json:"voices"`
+}
+
+// HolisticScore defines model for HolisticScore.
+type HolisticScore struct {
+	// ClassPct Hidden for groups under five.
+	ClassPct  float32   `json:"classPct,omitempty"`
+	Grade     string    `json:"grade"`
+	Pct       float32   `json:"pct,omitempty"`
+	Subject   string    `json:"subject"`
+	SubjectId string    `json:"subjectId"`
+	Trend     []float32 `json:"trend"`
+}
+
+// HolisticSettings defines model for HolisticSettings.
+type HolisticSettings struct {
+	Levels []HolisticLevel `json:"levels"`
+}
+
+// HolisticStudent defines model for HolisticStudent.
+type HolisticStudent struct {
+	AdmissionNo string `json:"admissionNo"`
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	RollNo      string `json:"rollNo"`
+}
+
+// HolisticStudentInput defines model for HolisticStudentInput.
+type HolisticStudentInput struct {
+	Note struct {
+		Approve bool   `json:"approve,omitempty"`
+		FromAi  bool   `json:"fromAi,omitempty"`
+		Text    string `json:"text"`
+	} `json:"note,omitempty"`
+	PeriodId string `json:"periodId"`
+	Ratings  []struct {
+		CompetencyId string `json:"competencyId"`
+
+		// Level 0 clears it.
+		Level int `json:"level"`
+	} `json:"ratings,omitempty"`
+	StudentId string         `json:"studentId"`
+	Voices    HolisticVoices `json:"voices,omitempty"`
+}
+
+// HolisticVoices defines model for HolisticVoices.
+type HolisticVoices struct {
+	Ambition string `json:"ambition"`
+	Parent   string `json:"parent"`
+	Peer     string `json:"peer"`
+	Self     string `json:"self"`
+}
+
 // ImportCounts defines model for ImportCounts.
 type ImportCounts struct {
 	Competencies int `json:"competencies"`
@@ -4736,6 +4930,64 @@ type RestoreGuardianParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// GetHolisticClassParams defines parameters for GetHolisticClass.
+type GetHolisticClassParams struct {
+	SectionId string `form:"sectionId" json:"sectionId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetHolisticHtmlParams defines parameters for GetHolisticHtml.
+type GetHolisticHtmlParams struct {
+	PeriodId  string `form:"periodId" json:"periodId"`
+	StudentId string `form:"studentId,omitempty" json:"studentId,omitempty"`
+	SectionId string `form:"sectionId,omitempty" json:"sectionId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DraftHolisticNoteParams defines parameters for DraftHolisticNote.
+type DraftHolisticNoteParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetHolisticPdfParams defines parameters for GetHolisticPdf.
+type GetHolisticPdfParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetHolisticSettingsParams defines parameters for GetHolisticSettings.
+type GetHolisticSettingsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutHolisticSettingsParams defines parameters for PutHolisticSettings.
+type PutHolisticSettingsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetHolisticStudentParams defines parameters for GetHolisticStudent.
+type GetHolisticStudentParams struct {
+	StudentId string `form:"studentId" json:"studentId"`
+	PeriodId  string `form:"periodId" json:"periodId"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutHolisticStudentParams defines parameters for PutHolisticStudent.
+type PutHolisticStudentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListImportJobsParams defines parameters for ListImportJobs.
 type ListImportJobsParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -5691,6 +5943,18 @@ type CreateGuardianJSONRequestBody = GuardianInput
 
 // UpdateGuardianJSONRequestBody defines body for UpdateGuardian for application/json ContentType.
 type UpdateGuardianJSONRequestBody = GuardianInput
+
+// DraftHolisticNoteJSONRequestBody defines body for DraftHolisticNote for application/json ContentType.
+type DraftHolisticNoteJSONRequestBody = HolisticChild
+
+// GetHolisticPdfJSONRequestBody defines body for GetHolisticPdf for application/json ContentType.
+type GetHolisticPdfJSONRequestBody = HolisticPdfRequest
+
+// PutHolisticSettingsJSONRequestBody defines body for PutHolisticSettings for application/json ContentType.
+type PutHolisticSettingsJSONRequestBody = HolisticSettings
+
+// PutHolisticStudentJSONRequestBody defines body for PutHolisticStudent for application/json ContentType.
+type PutHolisticStudentJSONRequestBody = HolisticStudentInput
 
 // CreateInvitationJSONRequestBody defines body for CreateInvitation for application/json ContentType.
 type CreateInvitationJSONRequestBody = InvitationInput

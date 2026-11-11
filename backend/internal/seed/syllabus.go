@@ -86,6 +86,7 @@ func seedSyllabus(ctx context.Context, tx pgx.Tx, org, year string) error {
 	if err != nil {
 		return fmt.Errorf("class 6 mathematics: %w", err)
 	}
+	byLesson := make([][]string, len(class6Maths))
 	for i, l := range class6Maths {
 		lesson, err := ensure(ctx, tx,
 			`SELECT id::text FROM lessons WHERE org_id = $1 AND level_id = $2::uuid AND subject_id = $3::uuid AND name = $4`,
@@ -105,6 +106,7 @@ func seedSyllabus(ctx context.Context, tx pgx.Tx, org, year string) error {
 			}
 			outcomes = append(outcomes, id)
 		}
+		byLesson[i] = outcomes
 		for k, q := range l.questions {
 			// Recall questions test the first outcome, the rest the next ones.
 			outcome := outcomes[min(k/3+k%2, len(outcomes)-1)]
@@ -120,6 +122,9 @@ func seedSyllabus(ctx context.Context, tx pgx.Tx, org, year string) error {
 				return fmt.Errorf("question %q: %w", q.text, err)
 			}
 		}
+	}
+	if err := seedHolistic(ctx, tx, org, year, level, subject, byLesson); err != nil {
+		return err
 	}
 	// A unit test of the second term with no marks yet, for its paper to
 	// be made: 30 marks.

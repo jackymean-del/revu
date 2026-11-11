@@ -54,6 +54,7 @@ func seedExams(ctx context.Context, tx pgx.Tx, d Demo, org, year, term string) e
 	// Every subject each level takes, the language options included.
 	rows, err := tx.Query(ctx, `
 		SELECT ls.level_id::text, ls.subject_id::text FROM level_subjects ls JOIN levels l ON l.id = ls.level_id
+		  JOIN subjects sj ON sj.id = ls.subject_id AND sj.kind = 'academic'
 		 WHERE ls.org_id = $1 AND ls.deleted_at IS NULL ORDER BY l.seq`, org)
 	if err != nil {
 		return err

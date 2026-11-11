@@ -2269,6 +2269,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/holistic/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The level scale holistic levels are shown in. */
+        get: operations["getHolisticSettings"];
+        /** Rename the levels or move where they start (administrators). */
+        put: operations["putHolisticSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/holistic/class": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A section as a heatmap of children against competencies, levels worked out from tagged marks. */
+        get: operations["getHolisticClass"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/holistic/student": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A child's holistic report: scores, learning profile, thinking skills, activities, strengths and focus areas, voices and the teacher's note (B8.6.2). */
+        get: operations["getHolisticStudent"];
+        /** Save what the class teacher adds: activity ratings, voices and the note; only the parts sent are saved. */
+        put: operations["putHolisticStudent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/holistic/note-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft the teacher's note with AI from the child's levels in words; the name is never sent. Not saved. */
+        post: operations["draftHolisticNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/holistic/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The printable report of a child, or with sectionId the section's meeting pack. */
+        get: operations["getHolisticHtml"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/holistic/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A child's report, or the section's meeting pack, as one PDF. */
+        post: operations["getHolisticPdf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4176,6 +4280,154 @@ export interface components {
             taxonomy?: "bloom" | "solo" | "custom" | "none";
             /** @description The SOLO or custom level, with that taxonomy. */
             level?: string;
+        };
+        HolisticLevel: {
+            name: string;
+            /** @description The percentage the level starts at. */
+            min: number;
+        };
+        HolisticSettings: {
+            levels: components["schemas"]["HolisticLevel"][];
+        };
+        HolisticStudent: {
+            id: string;
+            name: string;
+            admissionNo: string;
+            rollNo: string;
+        };
+        HolisticScore: {
+            subjectId: string;
+            subject: string;
+            pct?: number;
+            grade: string;
+            /** @description Hidden for groups under five. */
+            classPct?: number;
+            trend: number[];
+        };
+        HolisticChip: {
+            id: string;
+            name: string;
+            /** @description A step of the scale from 1; 0 is too little evidence (under three marks). */
+            level: number;
+            pct: number;
+            marks: number;
+        };
+        HolisticProfile: {
+            subjectId: string;
+            subject: string;
+            competencies: components["schemas"]["HolisticChip"][];
+        };
+        HolisticBloom: {
+            level: string;
+            pct?: number;
+            classPct?: number;
+            marks: number;
+        };
+        HolisticOutcome: {
+            text: string;
+            subject: string;
+            bloom: string;
+            pct: number;
+            tip: string;
+        };
+        HolisticActivity: {
+            competencyId: string;
+            name: string;
+            subject: string;
+            /** @description The teacher's rating, a step of the scale; 0 unrated. */
+            level: number;
+        };
+        HolisticVoices: {
+            self: string;
+            peer: string;
+            parent: string;
+            ambition: string;
+        };
+        HolisticNote: {
+            text: string;
+            /** @description draft or approved; empty when there is none. */
+            status: string;
+            fromAi: boolean;
+        };
+        HolisticReport: {
+            student: components["schemas"]["HolisticStudent"];
+            section: string;
+            sectionId: string;
+            period: string;
+            periodId: string;
+            scale: components["schemas"]["HolisticLevel"][];
+            scores: components["schemas"]["HolisticScore"][];
+            overall?: number;
+            profile: components["schemas"]["HolisticProfile"][];
+            blooms: components["schemas"]["HolisticBloom"][];
+            activities: components["schemas"]["HolisticActivity"][];
+            strengths: components["schemas"]["HolisticOutcome"][];
+            focus: components["schemas"]["HolisticOutcome"][];
+            voices: components["schemas"]["HolisticVoices"];
+            note: components["schemas"]["HolisticNote"];
+            canEdit: boolean;
+        };
+        HolisticRow: {
+            id: string;
+            name: string;
+            admissionNo: string;
+            rollNo: string;
+            overall?: number;
+            note: string;
+            rated: number;
+            voices: number;
+        };
+        HolisticColumn: {
+            id: string;
+            name: string;
+            subject: string;
+        };
+        HolisticCell: {
+            level: number;
+            pct: number;
+            marks: number;
+        };
+        HolisticLevelSum: {
+            id: string;
+            counts: number[];
+        };
+        HolisticClass: {
+            section: string;
+            period: string;
+            scale: components["schemas"]["HolisticLevel"][];
+            canEdit: boolean;
+            students: components["schemas"]["HolisticRow"][];
+            competencies: components["schemas"]["HolisticColumn"][];
+            cells: components["schemas"]["HolisticCell"][][];
+            activities: components["schemas"]["HolisticColumn"][];
+            summary: components["schemas"]["HolisticLevelSum"][];
+        };
+        HolisticChild: {
+            studentId: string;
+            periodId: string;
+        };
+        HolisticStudentInput: {
+            studentId: string;
+            periodId: string;
+            ratings?: {
+                competencyId: string;
+                /** @description 0 clears it. */
+                level: number;
+            }[];
+            voices?: components["schemas"]["HolisticVoices"];
+            note?: {
+                text: string;
+                approve?: boolean;
+                fromAi?: boolean;
+            };
+        };
+        HolisticNoteDraft: {
+            text: string;
+        };
+        HolisticPdfRequest: {
+            periodId: string;
+            studentId?: string;
+            sectionId?: string;
         };
     };
     responses: {
@@ -9173,6 +9425,224 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getHolisticSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The scale, or the default of four levels. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolisticSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putHolisticSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolisticSettings"];
+            };
+        };
+        responses: {
+            /** @description The scale as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolisticSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getHolisticClass: {
+        parameters: {
+            query: {
+                sectionId: string;
+                periodId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The heatmap. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolisticClass"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getHolisticStudent: {
+        parameters: {
+            query: {
+                studentId: string;
+                periodId: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolisticReport"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putHolisticStudent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolisticStudentInput"];
+            };
+        };
+        responses: {
+            /** @description The report after saving. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolisticReport"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    draftHolisticNote: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolisticChild"];
+            };
+        };
+        responses: {
+            /** @description The draft. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HolisticNoteDraft"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getHolisticHtml: {
+        parameters: {
+            query: {
+                periodId: string;
+                studentId?: string;
+                sectionId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getHolisticPdf: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HolisticPdfRequest"];
+            };
+        };
+        responses: {
+            /** @description The PDF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
                 };
             };
             default: components["responses"]["Problem"];

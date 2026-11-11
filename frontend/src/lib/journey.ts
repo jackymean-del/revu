@@ -74,6 +74,7 @@ export function modules(t: T): Module[] {
         { to: '/settings/subjects', label: t('course.subject', { count: 2 }), roles: ['admin'] },
         { to: '/settings/syllabus', label: 'Syllabus', roles: ['admin', 'coordinator'] },
         { to: '/settings/papers', label: 'Papers', roles: ['admin'] },
+        { to: '/settings/levels', label: 'Levels', roles: ['admin'] },
         { to: '/settings/words', label: 'Words', roles: ['admin'] },
       ],
     },
@@ -140,6 +141,7 @@ export function modules(t: T): Module[] {
       built: true,
       pages: [
         { to: '/analysis', label: 'Analysis', roles: ALL },
+        { to: '/holistic', label: 'Holistic report', roles: ALL },
         { to: '/reports', label: t('report.report_card', { count: 2 }), roles: ['admin', 'class_teacher'] },
       ],
     },

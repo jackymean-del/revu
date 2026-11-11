@@ -83,6 +83,7 @@ const seedScheme = `{"schema": 1, "rounding": {"mode": "half_up", "places": 2, "
 // Tenant tables in the order rows can be deleted. Every tenant table must be
 // listed and seeded below; the cross-tenant test fails on one that is not.
 var tenantTables = []string{
+	"holistic_notes", "holistic_voices", "holistic_ratings",
 	"paper_assignments", "paper_items", "papers", "questions", "blueprint_cells", "blueprint_rows", "blueprints",
 	"group_members", "part_tags", "learning_outcomes", "lessons", "competencies", "reteach_marks", "report_run_items", "report_runs", "report_template_versions", "report_templates", "branding_versions", "computed_results", "scheme_assignments", "schemes", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
 	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
@@ -171,6 +172,12 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	one(`INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, level, marks, question_id) VALUES ($1, $2, 1, 'Short answer', 'Fractions', $3, 'apply', 40, $4) RETURNING id`,
 		o.ID, paper, les, q)
 	one(`INSERT INTO paper_assignments (org_id, paper_id, section_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, paper, o.SectionID)
+	act := one(`INSERT INTO subjects (org_id, name, kind) VALUES ($1, 'Club activities', 'co_curricular') RETURNING id`, o.ID)
+	one(`INSERT INTO level_subjects (org_id, level_id, subject_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, o.LevelID, act)
+	sing := one(`INSERT INTO competencies (org_id, subject_id, name) VALUES ($1, $2, 'Singing') RETURNING id`, o.ID, act)
+	one(`INSERT INTO holistic_ratings (org_id, student_id, period_id, competency_id, level) VALUES ($1, $2, $3, $4, 3) RETURNING student_id`, o.ID, o.StudentID, o.PeriodID, sing)
+	one(`INSERT INTO holistic_voices (org_id, student_id, period_id, kind, text) VALUES ($1, $2, $3, 'ambition', 'To be an astronaut.') RETURNING kind`, o.ID, o.StudentID, o.PeriodID)
+	one(`INSERT INTO holistic_notes (org_id, student_id, period_id, text, status) VALUES ($1, $2, $3, 'A steady term.', 'approved') RETURNING status`, o.ID, o.StudentID, o.PeriodID)
 	one(`INSERT INTO branding_versions (org_id, version, display_name) VALUES ($1, 1, $2) RETURNING display_name`, o.ID, name)
 	tpl := one(`INSERT INTO report_templates (org_id, name, config) VALUES ($1, 'Report card', $2::jsonb) RETURNING id`, o.ID, seedTemplate)
 	one(`INSERT INTO report_template_versions (org_id, template_id, version, config) VALUES ($1, $2, 1, '{}') RETURNING template_id`, o.ID, tpl)

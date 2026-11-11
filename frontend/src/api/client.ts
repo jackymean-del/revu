@@ -480,3 +480,30 @@ export type PaperSettings = components['schemas']['PaperSettings']
 export const getPaperSettings = (orgId: string, signal?: AbortSignal) => call<PaperSettings>('/v1/paper-settings', { orgId, signal })
 export const putPaperSettings = (orgId: string, body: PaperSettings) => call<PaperSettings>('/v1/paper-settings', { orgId, method: 'PUT', body })
 export type Enrolment = components['schemas']['Enrolment']
+
+// Holistic progress report (P0.11 H2 to H5).
+export type HolisticReport = components['schemas']['HolisticReport']
+export type HolisticClass = components['schemas']['HolisticClass']
+export type HolisticSettings = components['schemas']['HolisticSettings']
+export type HolisticStudentInput = components['schemas']['HolisticStudentInput']
+export const getHolisticSettings = (orgId: string, signal?: AbortSignal) => call<HolisticSettings>('/v1/holistic/settings', { orgId, signal })
+export const putHolisticSettings = (orgId: string, body: HolisticSettings) => call<HolisticSettings>('/v1/holistic/settings', { orgId, method: 'PUT', body })
+export const getHolisticClass = (orgId: string, q: { sectionId: string; periodId: string }, signal?: AbortSignal) =>
+  call<HolisticClass>(`/v1/holistic/class?${new URLSearchParams(q)}`, { orgId, signal })
+export const getHolisticStudent = (orgId: string, q: { studentId: string; periodId: string }, signal?: AbortSignal) =>
+  call<HolisticReport>(`/v1/holistic/student?${new URLSearchParams(q)}`, { orgId, signal })
+export const putHolisticStudent = (orgId: string, body: HolisticStudentInput) => call<HolisticReport>('/v1/holistic/student', { orgId, method: 'PUT', body })
+export const draftHolisticNote = (orgId: string, body: { studentId: string; periodId: string }) => call<{ text: string }>('/v1/holistic/note-draft', { orgId, method: 'POST', body })
+/** The printable holistic report of a child, or a section's meeting pack, as HTML. */
+export async function getHolisticHtml(orgId: string, q: { periodId: string; studentId?: string; sectionId?: string }, signal?: AbortSignal): Promise<string> {
+  const p = new URLSearchParams({ periodId: q.periodId, ...(q.studentId ? { studentId: q.studentId } : {}), ...(q.sectionId ? { sectionId: q.sectionId } : {}) })
+  const res = await fetch(`${BASE}/v1/holistic/html?${p}`, { headers: await orgHeaders(orgId), signal })
+  if (!res.ok) throw await toApiError(res)
+  return res.text()
+}
+/** A child's holistic report or a meeting pack as a PDF, handed to the person. */
+export async function downloadHolisticPdf(orgId: string, body: { periodId: string; studentId?: string; sectionId?: string }, filename: string) {
+  const res = await fetch(BASE + '/v1/holistic/pdf', { method: 'POST', headers: { ...(await orgHeaders(orgId)), 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!res.ok) throw await toApiError(res)
+  saveBlob(await res.blob(), filename)
+}

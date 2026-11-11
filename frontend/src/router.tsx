@@ -139,6 +139,22 @@ const subjectsPage = createRoute({
   path: '/settings/subjects',
   component: lazyRouteComponent(() => import('./pages/Structure'), 'Structure'),
 })
+const holisticPage = createRoute({
+  getParentRoute: () => root,
+  path: '/holistic',
+  // ?section=&term= picks the class and term; &child= opens one child.
+  validateSearch: (s: Record<string, unknown>): { section?: string; term?: string; child?: string } => ({
+    ...(typeof s.section === 'string' ? { section: s.section } : {}),
+    ...(typeof s.term === 'string' ? { term: s.term } : {}),
+    ...(typeof s.child === 'string' ? { child: s.child } : {}),
+  }),
+  component: lazyRouteComponent(() => import('./pages/Holistic'), 'Holistic'),
+})
+const levelsPage = createRoute({
+  getParentRoute: () => root,
+  path: '/settings/levels',
+  component: lazyRouteComponent(() => import('./pages/HolisticLevels'), 'HolisticLevels'),
+})
 const paperSettingsPage = createRoute({
   getParentRoute: () => root,
   path: '/settings/papers',
@@ -160,7 +176,7 @@ const history = createRoute({
   component: lazyRouteComponent(() => import('./pages/Audit'), 'Audit'),
 })
 
-const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, paperSettingsPage, words, history])
+const routeTree = root.addChildren([home, system, signIn, signUp, ssoCallback, owner, groups, setup, people, exams, papersPage, assignPage, marks, results, analysis, reports, reportView, schemes, schemeEditor, choices, structure, yearsPage, teachingPage, branchesPage, subjectsPage, syllabusPage, paperSettingsPage, levelsPage, holisticPage, words, history])
 
 // Hovering or focusing a link loads that screen and its code before the
 // click, so moving around feels instant.
