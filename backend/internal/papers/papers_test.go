@@ -203,10 +203,11 @@ func TestBlueprintToPaper(t *testing.T) {
 		if paper.Status != "final" {
 			t.Fatal("not final")
 		}
-		got := one(`SELECT string_agg(p.name || '=' || p.max_marks::int || ':' || (SELECT count(*) FROM part_tags t WHERE t.part_id = p.id), ', ' ORDER BY p.seq)
-			FROM assessment_parts p WHERE p.assessment_id = $1 AND p.deleted_at IS NULL`, exam)
-		if got != "Short answer (Q1-3)=10:1, Multiple choice (Q4-13)=10:1" {
-			t.Fatalf("parts: %s", got)
+		// Thirteen questions, thirteen parts, each with its own outcome tag.
+		got := one(`SELECT count(*) || ' ' || sum(p.max_marks)::int || ' ' || min(p.name) || ' ' || (SELECT count(*) FROM part_tags t JOIN assessment_parts x ON x.id = t.part_id WHERE x.assessment_id = $1 AND t.paper_id = $2)
+			FROM assessment_parts p WHERE p.assessment_id = $1 AND p.deleted_at IS NULL`, exam, paper.ID)
+		if got != "13 20 Q1 12" {
+			t.Fatalf("parts, marks, first, tags: %s", got)
 		}
 		if mode := one(`SELECT entry_mode FROM assessments WHERE id = $1`, exam); mode != "sections" {
 			t.Fatalf("entry mode %s", mode)
@@ -231,9 +232,17 @@ func TestBlueprintToPaper(t *testing.T) {
 		}
 		admin.json(422, "PUT", "/v1/papers/"+paper.ID+"/assignments", map[string]any{"assignments": []papers.Assignment{{SectionID: b.SectionID}}}, nil)
 		admin.json(422, "PUT", "/v1/papers/"+paper.ID+"/assignments", map[string]any{"assignments": []papers.Assignment{{SectionID: a.SectionID, SitOn: "20 Nov"}}}, nil)
+		// Set B, finalised, tags the same parts for those who sit it; Ravi does.
+		admin.json(200, "POST", "/v1/papers/"+setB.ID+"/finalise", nil, nil)
+		if n := one(`SELECT count(*) FROM part_tags WHERE paper_id = $1`, setB.ID); n != "12" {
+			t.Fatalf("set B tags %s", n)
+		}
+		if sat := one(`SELECT revu_paper_sat($1, $2)::text`, exam, a.StudentID); sat != setB.ID {
+			t.Fatalf("Ravi sat %s, want set B", sat)
+		}
 		var list []papers.PaperSummary
 		admin.json(200, "GET", base+"/papers", nil, &list)
-		if len(list) != 2 || list[0].Status != "final" || list[1].Set != "Set B" {
+		if len(list) != 2 || list[0].Status != "final" || list[1].Set != "Set B" || list[1].Status != "final" {
 			t.Fatalf("list %+v", list)
 		}
 	})

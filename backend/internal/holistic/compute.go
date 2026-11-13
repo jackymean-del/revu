@@ -94,16 +94,16 @@ func read(ctx context.Context, tx pgx.Tx, cl *Class) (facts, error) {
 	// A part counts once for each competency it tests, tagged through an
 	// outcome or directly, and once for each Bloom level of its outcomes.
 	b.Queue(`WITH tags AS (
-			SELECT DISTINCT t.part_id, coalesce(t.competency_id, o.competency_id) AS k
+			SELECT DISTINCT t.part_id, t.paper_id, coalesce(t.competency_id, o.competency_id) AS k
 			  FROM part_tags t LEFT JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL
 			 WHERE coalesce(t.competency_id, o.competency_id) IS NOT NULL)
 		SELECT e.student_id::text, tags.k::text, sum(e.value)::float8, sum(p.max_marks)::float8, count(*)::int
-		  `+marksFrom(`JOIN tags ON tags.part_id = p.id`)+` GROUP BY 1, 2`, sid, pid).Query(tallies(f.comp))
-	b.Queue(`WITH tags AS (SELECT DISTINCT t.part_id, o.bloom AS k FROM part_tags t JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL)
+		  `+marksFrom(`JOIN tags ON tags.part_id = p.id AND (tags.paper_id IS NULL OR tags.paper_id = revu_paper_sat(a.id, e.student_id))`)+` GROUP BY 1, 2`, sid, pid).Query(tallies(f.comp))
+	b.Queue(`WITH tags AS (SELECT DISTINCT t.part_id, t.paper_id, o.bloom AS k FROM part_tags t JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL)
 		SELECT e.student_id::text, tags.k, sum(e.value)::float8, sum(p.max_marks)::float8, count(*)::int
-		  `+marksFrom(`JOIN tags ON tags.part_id = p.id`)+` GROUP BY 1, 2`, sid, pid).Query(tallies(f.bloom))
+		  `+marksFrom(`JOIN tags ON tags.part_id = p.id AND (tags.paper_id IS NULL OR tags.paper_id = revu_paper_sat(a.id, e.student_id))`)+` GROUP BY 1, 2`, sid, pid).Query(tallies(f.bloom))
 	b.Queue(`SELECT e.student_id::text, o.text, sj.name, o.bloom, sum(e.value)::float8, sum(p.max_marks)::float8, count(*)::int
-		  `+marksFrom(`JOIN part_tags t ON t.part_id = p.id JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL JOIN subjects sj ON sj.id = o.subject_id`)+`
+		  `+marksFrom(`JOIN part_tags t ON t.part_id = p.id AND (t.paper_id IS NULL OR t.paper_id = revu_paper_sat(a.id, e.student_id)) JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL JOIN subjects sj ON sj.id = o.subject_id`)+`
 		 GROUP BY e.student_id, o.id, o.text, sj.name, o.bloom`, sid, pid).Query(func(rows pgx.Rows) error {
 		for rows.Next() {
 			var student string

@@ -490,8 +490,9 @@ func duplicatePaper(c fiber.Ctx) error {
 
 // finalisePaper fixes a set once every slot has a question. The first set
 // finalised also sets how the assessment's marks are entered: one part per
-// section, worth the section's marks and tagged with the learning outcomes
-// of its questions, so marks feed the holistic report. That happens only
+// question, worth its marks and tagged with its learning outcome (per set,
+// since another set may ask another question), so marks feed the holistic
+// report question by question. That happens only
 // while no mark has been entered.
 func finalisePaper(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
@@ -522,21 +523,24 @@ func finalisePaper(c fiber.Ctx) error {
 		if _, err := tx.Exec(ctx, `UPDATE assessments SET entry_mode = 'sections', updated_at = now() WHERE id = $1::uuid`, a.id); err != nil {
 			return err
 		}
+		// One part per question, in paper order.
 		if _, err := tx.Exec(ctx, `
-			WITH s AS (
-				SELECT section, min(seq) AS first, sum(marks) AS marks,
-				       section || ' (Q' || min(seq) || '-' || max(seq) || ')' AS name
-				  FROM paper_items WHERE paper_id = $2::uuid GROUP BY section),
-			parts AS (
-				INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks)
-				SELECT $1, $3::uuid, row_number() OVER (ORDER BY first), name, marks FROM s RETURNING id, name)
-			INSERT INTO part_tags (org_id, part_id, outcome_id)
-			SELECT DISTINCT $1, parts.id, q.outcome_id
-			  FROM parts JOIN s ON s.name = parts.name
-			  JOIN paper_items i ON i.paper_id = $2::uuid AND i.section = s.section
-			  JOIN questions q ON q.id = i.question_id AND q.outcome_id IS NOT NULL`, m.OrgID, p.ID, a.id); err != nil {
+			INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks)
+			SELECT $1, $3::uuid, seq, 'Q' || seq, marks FROM paper_items WHERE paper_id = $2::uuid ORDER BY seq`, m.OrgID, p.ID, a.id); err != nil {
 			return err
 		}
+	}
+	// Each question's outcome tags its part, for those who sit this set;
+	// only where the parts are this paper's questions, slot for slot.
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO part_tags (org_id, part_id, outcome_id, paper_id)
+		SELECT $1, ap.id, q.outcome_id, $2::uuid
+		  FROM paper_items i
+		  JOIN questions q ON q.id = i.question_id AND q.outcome_id IS NOT NULL
+		  JOIN assessment_parts ap ON ap.assessment_id = $3::uuid AND ap.deleted_at IS NULL AND ap.seq = i.seq AND ap.max_marks = i.marks AND ap.name = 'Q' || i.seq
+		 WHERE i.paper_id = $2::uuid
+		ON CONFLICT DO NOTHING`, m.OrgID, p.ID, a.id); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE papers SET status = 'final', finalised_by = $2, finalised_at = now() WHERE id = $1::uuid`, p.ID, m.UserID); err != nil {
 		return err

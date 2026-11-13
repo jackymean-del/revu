@@ -122,7 +122,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
           <div className="min-w-0 space-y-4">
             <p role="status" className="text-sm">
               {p.filled} of {p.items.length} slots filled · {p.total} marks
-              {p.status === 'final' ? ' · final: marks are entered part by part, tagged with their learning outcomes' : empty ? ` · ${empty} still to choose` : ' · ready to finalise'}
+              {p.status === 'final' ? ' · final: marks are entered question by question, each tagged with its learning outcome' : empty ? ` · ${empty} still to choose` : ' · ready to finalise'}
             </p>
             {p.bySection.map((g) => (
               <SectionSlots key={g.key} orgId={orgId} paper={p} section={g.key} marks={g.wanted} bank={bank} onChange={done} />

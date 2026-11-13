@@ -203,7 +203,7 @@ func check(c fiber.Ctx, tx pgx.Tx, in *api.AssessmentInput) (yearID string, err 
 	if in.EntryMode == "total" && (len(in.Parts) != 1 || in.Parts[0].Kind == "additional") {
 		f.Add("parts", "total", "Total marks takes exactly one column.")
 	}
-	if n := len(in.Parts); n < 1 || n > 40 {
+	if n := len(in.Parts); n < 1 || n > 200 {
 		f.Add("parts", "length", "Use between 1 and 40 columns.")
 	}
 	for i := range in.Parts {
