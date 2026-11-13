@@ -132,21 +132,31 @@ func seedSyllabus(ctx context.Context, tx pgx.Tx, org, year string) error {
 	if err := tx.QueryRow(ctx, `SELECT id::text FROM periods WHERE org_id = $1 AND year_id = $2::uuid AND deleted_at IS NULL ORDER BY seq DESC LIMIT 1`, org, year).Scan(&term); err != nil {
 		return err
 	}
-	exam, err := ensure(ctx, tx,
-		`SELECT id::text FROM assessments WHERE org_id = $1 AND period_id = $2::uuid AND level_id = $3::uuid AND subject_id = $4::uuid AND title = $5 AND deleted_at IS NULL`,
-		`INSERT INTO assessments (org_id, period_id, level_id, subject_id, title, year_id, kind, entry_mode, held_on, status)
-		 VALUES ($1, $2::uuid, $3::uuid, $4::uuid, $5, $6::uuid, 'periodic_test', 'total', '2026-11-20', 'open') RETURNING id::text`, 5,
-		org, term, level, subject, "Unit test 3", year)
-	if err != nil {
-		return err
+	// Unit test 3 is carried through every step; Unit test 4 is left blank
+	// to try the steps by hand.
+	var first string
+	for i, title := range []string{"Unit test 3", "Unit test 4"} {
+		exam, err := ensure(ctx, tx,
+			`SELECT id::text FROM assessments WHERE org_id = $1 AND period_id = $2::uuid AND level_id = $3::uuid AND subject_id = $4::uuid AND title = $5 AND deleted_at IS NULL`,
+			`INSERT INTO assessments (org_id, period_id, level_id, subject_id, title, year_id, kind, entry_mode, held_on, status)
+			 VALUES ($1, $2::uuid, $3::uuid, $4::uuid, $5, $6::uuid, 'periodic_test', 'total', $7::date, 'open') RETURNING id::text`, 5,
+			org, term, level, subject, title, year, []string{"2026-11-20", "2026-12-18"}[i])
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks)
+			SELECT $1, $2::uuid, 1, 'Total', 30 WHERE NOT EXISTS (SELECT 1 FROM assessment_parts WHERE assessment_id = $2::uuid)`, org, exam); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO assessment_scopes (org_id, assessment_id, section_id)
+			SELECT $1, $2::uuid, s.id FROM sections s WHERE s.org_id = $1 AND s.level_id = $3::uuid AND s.year_id = $4::uuid AND s.deleted_at IS NULL
+			ON CONFLICT DO NOTHING`, org, exam, level, year); err != nil {
+			return err
+		}
+		if i == 0 {
+			first = exam
+		}
 	}
-	if _, err := tx.Exec(ctx, `INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks)
-		SELECT $1, $2::uuid, 1, 'Total', 30 WHERE NOT EXISTS (SELECT 1 FROM assessment_parts WHERE assessment_id = $2::uuid)`, org, exam); err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `
-		INSERT INTO assessment_scopes (org_id, assessment_id, section_id)
-		SELECT $1, $2::uuid, s.id FROM sections s WHERE s.org_id = $1 AND s.level_id = $3::uuid AND s.year_id = $4::uuid AND s.deleted_at IS NULL
-		ON CONFLICT DO NOTHING`, org, exam, level, year)
-	return err
+	return seedFlow(ctx, tx, org, year, level, subject, first)
 }

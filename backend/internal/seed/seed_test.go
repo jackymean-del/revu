@@ -41,7 +41,7 @@ func TestDemoSeed(t *testing.T) {
 		// iKids: Classes 1 to 5 take 4 subjects and 6 to 10 take 5, each with
 		// Hindi or Odia; a class teacher and a teacher per subject in each of
 		// 20 sections; three exams in every subject of every class.
-		{Sections: 20, Staff: 30, Students: 400, TeachingAssignments: 10*(1+4+2) + 10*(1+5+2), Guards: 400, Choices: 400 - 400/11, Assessments: 5*6*3 + 5*7*3 + 1}, // and Unit test 3 for its paper
+		{Sections: 20, Staff: 30, Students: 400, TeachingAssignments: 10*(1+4+2) + 10*(1+5+2), Guards: 400, Choices: 400 - 400/11, Assessments: 5*6*3 + 5*7*3 + 3}, // and Unit tests 3 and 4, and a re-exam
 	}
 	for i, r := range first {
 		w := want[i]
@@ -92,8 +92,22 @@ func TestDemoSeed(t *testing.T) {
 		t.Fatalf("iKids marks: %d scored, %d absent (%d with a value), %d schemes, %d students with marks", scored, absent, absentWithValue, schemes, takers)
 	}
 	// 200 students take 4 subjects and a language, 200 take 5 and a language.
-	if queued != 200*(4+2)+200*(5+2) {
+	// And Class 6 Mathematics in the second term, for Unit test 3.
+	if queued != 200*(4+2)+200*(5+2)+40 {
 		t.Fatalf("%d results queued", queued)
+	}
+	// Class 6 Mathematics is carried through every step.
+	var flow string
+	if err := owner.QueryRow(ctx, `SELECT concat_ws(' ',
+		(SELECT count(*) FROM papers WHERE org_id = $1 AND status = 'final'),
+		(SELECT count(*) FROM paper_items i JOIN papers p ON p.id = i.paper_id WHERE p.org_id = $1 AND i.question_id IS NULL),
+		(SELECT count(*) FROM assessment_parts ap JOIN assessments a ON a.id = ap.assessment_id WHERE a.org_id = $1 AND a.title = 'Unit test 3' AND ap.deleted_at IS NULL),
+		(SELECT count(DISTINCT paper_id) FROM part_tags WHERE org_id = $1 AND paper_id IS NOT NULL),
+		(SELECT count(*) FROM paper_assignments WHERE org_id = $1),
+		(SELECT status FROM reexams WHERE org_id = $1),
+		(SELECT count(*) > 0 FROM reexam_candidates WHERE org_id = $1),
+		(SELECT count(*) FROM holistic_notes WHERE org_id = $1 AND status = 'approved'))`, ik).Scan(&flow); err != nil || flow != "2 0 13 2 2 applied t 3" {
+		t.Fatalf("flow: %q %v (final sets, empty slots, question parts, tagged sets, assignments, re-exam, candidates, notes)", flow, err)
 	}
 	var outOfRange int
 	if err := owner.QueryRow(ctx, `SELECT count(*) FROM evidence e JOIN assessment_parts p ON p.id = e.part_id WHERE e.org_id = $1 AND (e.value < 0 OR e.value > p.max_marks)`, ik).Scan(&outOfRange); err != nil || outOfRange != 0 {
