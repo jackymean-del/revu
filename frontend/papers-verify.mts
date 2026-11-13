@@ -2,7 +2,7 @@
  * Blueprint totals while typing, and sharing sets out. Run: npx tsx papers-verify.mts
  */
 import type { components } from './src/api/schema.gen.ts'
-import { hundredths, marks, needs, remaining, share, toInput, totals } from './src/lib/papers.ts'
+import { hundredths, marks, moveItem, moveSection, needs, remaining, share, toInput, totals } from './src/lib/papers.ts'
 import { levelLabel, levelsOf, questionLevel } from './src/lib/taxonomy.ts'
 
 let fail = 0
@@ -49,6 +49,15 @@ const blocks = share(kids, ['A', 'B'], 'name', 'blocks')
 ok(blocks.b === 'A' && blocks.d === 'A' && blocks.c === 'B' && blocks.a === 'B', 'in equal blocks by name', JSON.stringify(blocks))
 const three = Object.values(share(kids, ['A', 'B', 'C'], 'admission', 'alternate'))
 ok(three.filter((s) => s === 'A').length === 2 && three.includes('C'), 'three sets alternately by admission number')
+
+const ord = { sections: [{ id: 'A', itemIds: ['1', '2', '3'] }, { id: 'B', itemIds: ['4'] }] }
+const flat = (o: typeof ord) => o.sections.map((x) => x.id + ':' + x.itemIds.join('')).join(' ')
+ok(flat(moveSection(ord, 'B', 0)) === 'B:4 A:123', 'a section moves up', flat(moveSection(ord, 'B', 0)))
+ok(flat(moveItem(ord, '1', 'A', 3)) === 'A:231 B:4', 'a question moves down within its section', flat(moveItem(ord, '1', 'A', 3)))
+ok(flat(moveItem(ord, '1', 'A', 2)) === 'A:213 B:4', 'one place down', flat(moveItem(ord, '1', 'A', 2)))
+ok(flat(moveItem(ord, '3', 'A', 0)) === 'A:312 B:4', 'and up')
+ok(flat(moveItem(ord, '2', 'B', 0)) === 'A:13 B:24', 'a question moves to another section')
+ok(flat(moveItem(ord, '9', 'B', 0)) === flat(ord) && flat(moveSection(ord, 'A', 5)) === flat(ord), 'an impossible move changes nothing')
 
 console.log(fail ? `\n${fail} failed` : '\npaper helpers hold')
 process.exit(fail ? 1 : 0)

@@ -46,6 +46,7 @@ type pageView struct {
 		HasClass bool
 		Label    string
 	}
+	Basis      string // how fine the marks behind the levels are, in words
 	NotYet     string // thinking skills with too little evidence, in one line
 	Activities []chipView
 	Legend     []chipView
@@ -88,6 +89,11 @@ func spark(xs []float64) template.HTML {
 
 func view(school string, r Report) pageView {
 	v := pageView{School: school, R: r, Overall: pct(r.Overall)}
+	v.Basis = map[string]string{
+		"questions": "From marks entered question by question: each outcome rests on its own questions.",
+		"sections":  "From marks entered section by section: outcomes tested in one section share its result.",
+		"total":     "From total marks only: an overall picture, not outcome by outcome.",
+	}[r.Detail]
 	for _, s := range r.Scores {
 		v.Scores = append(v.Scores, struct {
 			Subject, Pct, Grade, Class string
@@ -147,7 +153,7 @@ var page = template.Must(template.New("holistic").Parse(`{{define "report"}}<art
 <table><thead><tr><th>Subject</th><th>Result</th><th>Band</th><th>Class average</th><th>Across the term</th></tr></thead><tbody>
 {{range .Scores}}<tr><td>{{.Subject}}</td><td class="n">{{if .Pct}}{{.Pct}}{{else}}<span class="muted">to come</span>{{end}}</td><td>{{.Grade}}</td><td class="n muted">{{.Class}}</td><td>{{.Trend}}</td></tr>{{end}}
 </tbody></table></section>{{end}}
-{{if .Profile}}<section><h2>Learning profile</h2>
+{{if .Profile}}<section><h2>Learning profile{{if .Basis}} <span class="right muted small">{{.Basis}}</span>{{end}}</h2>
 {{range .Profile}}<div class="subj"><span class="sname">{{.Subject}}</span><span class="chips">{{range .Chips}}<span class="chip" style="background:{{.Bg}};color:{{.Fg}}"><b>{{.Name}}</b> {{.Word}} <i>{{.Dots}}</i>{{if .Hint}} <small>{{.Hint}}</small>{{end}}</span>{{end}}</span></div>{{end}}
 </section>{{end}}
 {{if .Blooms}}<section><h2>Thinking skills <span class="right muted">bar: {{.R.Student.Name}} · mark: class average</span></h2>

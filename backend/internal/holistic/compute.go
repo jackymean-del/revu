@@ -115,6 +115,26 @@ func read(ctx context.Context, tx pgx.Tx, cl *Class) (facts, error) {
 		}
 		return rows.Err()
 	})
+	// How fine the tagged marks are: by question only when every tagged
+	// assessment is; total when none is finer.
+	b.Queue(`
+		SELECT coalesce(bool_and(coalesce(a.marks_by, 'sections') = 'questions'), false), coalesce(bool_and(a.marks_by = 'total'), false)
+		  FROM assessments a
+		 WHERE a.period_id = $2::uuid AND a.deleted_at IS NULL AND a.level_id = (SELECT level_id FROM sections WHERE id = $1::uuid)
+		   AND EXISTS (SELECT 1 FROM assessment_parts p JOIN part_tags t ON t.part_id = p.id WHERE p.assessment_id = a.id AND p.deleted_at IS NULL)`, sid, pid).
+		QueryRow(func(r pgx.Row) error {
+			var questions, total bool
+			if err := r.Scan(&questions, &total); err != nil {
+				return err
+			}
+			cl.Detail = "sections"
+			if questions {
+				cl.Detail = "questions"
+			} else if total {
+				cl.Detail = "total"
+			}
+			return nil
+		})
 	// The competencies of the subjects the section's level takes; those of
 	// co-curricular subjects are rated, the rest worked out from marks.
 	b.Queue(`
@@ -269,7 +289,7 @@ func build(ctx context.Context, tx pgx.Tx, s results.Section, periodID string) (
 	}
 
 	for _, x := range f.students {
-		r := Report{Student: x, Section: cl.Section, SectionID: cl.SectionID, Period: cl.Period, PeriodID: cl.PeriodID, Scale: st.Levels,
+		r := Report{Student: x, Section: cl.Section, SectionID: cl.SectionID, Period: cl.Period, PeriodID: cl.PeriodID, Scale: st.Levels, Detail: cl.Detail,
 			Scores: []Score{}, Profile: []Profile{}, Blooms: []Bloom{}, Activities: []Activity{}, Strengths: []Outcome{}, Focus: []Outcome{}}
 		var got, max float64
 		for _, sj := range f.subjects {
@@ -362,6 +382,7 @@ type ClassView struct {
 	Period       string     `json:"period"`
 	Scale        []Level    `json:"scale"`
 	CanEdit      bool       `json:"canEdit"`
+	Detail       string     `json:"detail"`
 	Students     []Row      `json:"students"`
 	Competencies []Column   `json:"competencies"`
 	Cells        [][]Cell   `json:"cells"`
@@ -399,7 +420,7 @@ type LevelSum struct {
 }
 
 func (cl Class) view() ClassView {
-	v := ClassView{Section: cl.Section, Period: cl.Period, Scale: cl.Scale, CanEdit: cl.CanEdit, Students: []Row{}, Competencies: []Column{}, Cells: [][]Cell{}, Activities: []Column{}, Summary: []LevelSum{}}
+	v := ClassView{Section: cl.Section, Period: cl.Period, Scale: cl.Scale, CanEdit: cl.CanEdit, Detail: cl.Detail, Students: []Row{}, Competencies: []Column{}, Cells: [][]Cell{}, Activities: []Column{}, Summary: []LevelSum{}}
 	// Only competencies some child has marks in.
 	used := map[string]bool{}
 	for _, r := range cl.Reports {

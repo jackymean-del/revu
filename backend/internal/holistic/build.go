@@ -103,11 +103,16 @@ type Report struct {
 	Voices     Voices     `json:"voices"`
 	Note       Note       `json:"note"`
 	CanEdit    bool       `json:"canEdit"`
+	// Detail is how fine the marks behind the levels are: questions (each
+	// outcome on its own marks), sections (outcomes of a section share its
+	// marks) or total (one overall picture).
+	Detail string `json:"detail"`
 }
 
 // Class is every report of a section, built together for the class figures.
 type Class struct {
 	Section, SectionID, Period, PeriodID string
+	Detail                               string
 	Scale                                []Level
 	Reports                              []Report
 	CanEdit                              bool

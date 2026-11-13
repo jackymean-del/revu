@@ -460,12 +460,24 @@ export const listQuestions = (orgId: string, q: Record<string, string>, signal?:
 export const createQuestion = (orgId: string, body: QuestionInput) => call<Question>('/v1/questions', { orgId, method: 'POST', body })
 export const updateQuestion = (orgId: string, id: string, body: QuestionInput) => call<Question>(`/v1/questions/${id}`, { orgId, method: 'PUT', body })
 export const listPapers = (orgId: string, id: string, signal?: AbortSignal) => call<PaperSummary[]>(`/v1/assessments/${id}/papers`, { orgId, signal })
-export const createPaper = (orgId: string, id: string, fill: boolean, name = '') => call<Paper>(`/v1/assessments/${id}/papers`, { orgId, method: 'POST', body: { fill, name } })
+export const createPaper = (orgId: string, id: string, fill: boolean, name = '', blank = false) =>
+  call<Paper>(`/v1/assessments/${id}/papers`, { orgId, method: 'POST', body: { fill, name, blank } })
 export const getPaper = (orgId: string, id: string, signal?: AbortSignal) => call<Paper>(`/v1/papers/${id}`, { orgId, signal })
 export const putPaperItem = (orgId: string, id: string, item: string, body: { questionId?: string; locked?: boolean }) =>
   call<Paper>(`/v1/papers/${id}/items/${item}`, { orgId, method: 'PUT', body })
-export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise', name = '') =>
-  call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST', body: step === 'duplicate' ? { name } : undefined })
+export type MarksBy = 'questions' | 'sections' | 'total'
+export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise', name = '', marksBy: MarksBy = 'questions') =>
+  call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST', body: step === 'duplicate' ? { name } : step === 'finalise' ? { marksBy } : undefined })
+export type PaperSection = components['schemas']['PaperSection']
+export type TypedQuestion = components['schemas']['TypedQuestion']
+export type PaperOrder = components['schemas']['PaperOrder']
+export const addPaperSection = (orgId: string, id: string) => call<Paper>(`/v1/papers/${id}/sections`, { orgId, method: 'POST', body: {} })
+export const putPaperSection = (orgId: string, id: string, section: string, body: components['schemas']['PaperSectionChange']) =>
+  call<Paper>(`/v1/papers/${id}/sections/${section}`, { orgId, method: 'PUT', body })
+export const deletePaperSection = (orgId: string, id: string, section: string) => call<Paper>(`/v1/papers/${id}/sections/${section}`, { orgId, method: 'DELETE' })
+export const addPaperItem = (orgId: string, id: string, body: components['schemas']['PaperItemAdd']) => call<Paper>(`/v1/papers/${id}/items`, { orgId, method: 'POST', body })
+export const deletePaperItem = (orgId: string, id: string, item: string) => call<Paper>(`/v1/papers/${id}/items/${item}`, { orgId, method: 'DELETE' })
+export const putPaperOrder = (orgId: string, id: string, body: PaperOrder) => call<Paper>(`/v1/papers/${id}/order`, { orgId, method: 'PUT', body })
 export const putPaperAssignments = (orgId: string, id: string, assignments: PaperAssignment[]) =>
   call<Paper>(`/v1/papers/${id}/assignments`, { orgId, method: 'PUT', body: { assignments } })
 /** The printable paper, or with key its answer key, as HTML; with space, lines to answer on. */

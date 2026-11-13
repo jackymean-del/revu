@@ -2160,6 +2160,76 @@ export interface paths {
         /** Put a question in a slot, clear it, or lock it against refilling. */
         put: operations["putPaperItem"];
         post?: never;
+        /** Take a question out of the paper; it stays in the bank. */
+        delete: operations["deletePaperItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a question to a section: one of the bank, or one typed here, which joins the bank. */
+        post: operations["addPaperItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/sections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a section at the end; untitled, it takes the next letter. */
+        post: operations["addPaperSection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/sections/{section}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rename a section, set its instructions, mark it core or extra, or switch its printing. */
+        put: operations["putPaperSection"];
+        post?: never;
+        /** Remove a section and its questions from the paper; the questions stay in the bank. */
+        delete: operations["deletePaperSection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the order of every section and question at once; questions may move between sections. */
+        put: operations["putPaperOrder"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4269,6 +4339,8 @@ export interface components {
         PaperItem: {
             id: string;
             seq: number;
+            sectionId: string;
+            /** @description The question type. */
             section: string;
             chapter: string;
             lessonId?: string;
@@ -4303,6 +4375,7 @@ export interface components {
             taxonomy: "bloom" | "solo" | "custom" | "none";
             blueprintVersion: number;
             instructions: string;
+            sections: components["schemas"]["PaperSection"][];
             items: components["schemas"]["PaperItem"][];
             filled: number;
             total: string;
@@ -4319,7 +4392,59 @@ export interface components {
             filled: number;
             blueprintVersion: number;
         };
+        PaperSection: {
+            id: string;
+            seq: number;
+            title: string;
+            instructions: string;
+            /**
+             * @description An extra section is not counted in the marks.
+             * @enum {string}
+             */
+            kind: "core" | "extra";
+            print: boolean;
+            questions: number;
+            marks: string;
+        };
+        PaperSectionChange: {
+            title?: string;
+            instructions?: string;
+            /** @enum {string} */
+            kind?: "core" | "extra";
+            print?: boolean;
+        };
+        PaperItemAdd: {
+            sectionId: string;
+            questionId?: string;
+            question?: components["schemas"]["TypedQuestion"];
+        };
+        TypedQuestion: {
+            qtype: string;
+            marks: string;
+            text: string;
+            options?: string[];
+            answer?: string;
+            bloom?: string;
+            difficulty?: string;
+            lessonId?: string;
+            outcomeId?: string;
+        };
+        PaperOrder: {
+            sections: {
+                id: string;
+                itemIds: string[];
+            }[];
+        };
+        PaperFinalise: {
+            /**
+             * @description How marks are entered; questions when left out.
+             * @enum {string}
+             */
+            marksBy?: "questions" | "sections" | "total";
+        };
         PaperCreate: {
+            /** @description Start with one empty section and no blueprint. */
+            blank?: boolean;
             fill?: boolean;
             /** @description The set's name; the next of the institution's set names when empty. */
             name?: string;
@@ -4420,6 +4545,8 @@ export interface components {
             fromAi: boolean;
         };
         HolisticReport: {
+            /** @description How fine the marks behind the levels are (questions, sections or total). */
+            detail: string;
             student: components["schemas"]["HolisticStudent"];
             section: string;
             sectionId: string;
@@ -4462,6 +4589,7 @@ export interface components {
             counts: number[];
         };
         HolisticClass: {
+            detail: string;
             section: string;
             period: string;
             scale: components["schemas"]["HolisticLevel"][];
@@ -9400,6 +9528,181 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    deletePaperItem: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                item: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The paper. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addPaperItem: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperItemAdd"];
+            };
+        };
+        responses: {
+            /** @description The paper. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addPaperSection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PaperSectionChange"];
+            };
+        };
+        responses: {
+            /** @description The paper. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPaperSection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperSectionChange"];
+            };
+        };
+        responses: {
+            /** @description The paper. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deletePaperSection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+                section: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The paper. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPaperOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperOrder"];
+            };
+        };
+        responses: {
+            /** @description The paper. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     fillPaper: {
         parameters: {
             query?: never;
@@ -9468,7 +9771,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PaperFinalise"];
+            };
+        };
         responses: {
             /** @description The final set. */
             200: {
@@ -9486,6 +9793,8 @@ export interface operations {
         parameters: {
             query?: {
                 key?: boolean;
+                /** @description Also print sections switched off for print. */
+                all?: boolean;
                 /** @description Ruled lines to answer on, more for more marks. */
                 space?: boolean;
             };

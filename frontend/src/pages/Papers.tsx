@@ -44,7 +44,11 @@ export function Papers() {
   const sets = papers.data ?? []
   const next = !bp
     ? null
-    : bp.status !== 'approved'
+    : sets.length > 0
+      ? sets.some((x) => x.status === 'final')
+        ? null
+        : { tab: 'sets' as const, text: `Add or choose the questions, then finalise ${sets[0].set}` }
+      : bp.status !== 'approved'
       ? { tab: 'blueprint' as const, text: bp.status === 'submitted' ? (approves ? 'Approve the blueprint, or return it with a comment' : 'The blueprint is waiting for approval') : 'Plan the marks, then submit the blueprint' }
       : short > 0 && sets.length === 0
         ? { tab: 'questions' as const, text: `Add the ${short} ${short === 1 ? 'question' : 'questions'} the blueprint still needs` }
@@ -65,7 +69,7 @@ export function Papers() {
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight">Create question paper</h1>
         <p className="mt-1 max-w-3xl text-muted">
-          Plan the marks in a blueprint, gather the questions it asks for, and make the paper in sets. Every question carries its lesson, learning outcome and Bloom level, so
+          Build the paper freely, or plan the marks in a blueprint first and lay the paper out from it. Every question can carry its lesson, learning outcome and Bloom level, so
           marks entered for it feed the holistic report.
         </p>
       </div>

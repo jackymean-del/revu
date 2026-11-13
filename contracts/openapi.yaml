@@ -3706,6 +3706,145 @@ paths:
                 $ref: "#/components/schemas/Paper"
         default:
           $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deletePaperItem
+      summary: "Take a question out of the paper; it stays in the bank."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: item
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/items:
+    post:
+      operationId: addPaperItem
+      summary: "Add a question to a section: one of the bank, or one typed here, which joins the bank."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperItemAdd"
+      responses:
+        "201":
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/sections:
+    post:
+      operationId: addPaperSection
+      summary: "Add a section at the end; untitled, it takes the next letter."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperSectionChange"
+      responses:
+        "201":
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/sections/{section}:
+    put:
+      operationId: putPaperSection
+      summary: "Rename a section, set its instructions, mark it core or extra, or switch its printing."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: section
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperSectionChange"
+      responses:
+        "200":
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deletePaperSection
+      summary: "Remove a section and its questions from the paper; the questions stay in the bank."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+        - name: section
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/order:
+    put:
+      operationId: putPaperOrder
+      summary: "Set the order of every section and question at once; questions may move between sections."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperOrder"
+      responses:
+        "200":
+          description: The paper.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/papers/{id}/fill:
     post:
       operationId: fillPaper
@@ -3748,6 +3887,11 @@ paths:
   /v1/papers/{id}/finalise:
     post:
       operationId: finalisePaper
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaperFinalise"
       summary: Fix a set; the first sets the parts marks are entered by, tagged with learning outcomes.
       tags: [papers]
       parameters:
@@ -3772,6 +3916,11 @@ paths:
         - $ref: "#/components/parameters/Id"
         - name: key
           in: query
+          schema:
+            type: boolean
+        - name: all
+          in: query
+          description: Also print sections switched off for print.
           schema:
             type: boolean
         - name: space
@@ -7609,14 +7758,17 @@ components:
           enum: [draft, approved, retired]
     PaperItem:
       type: object
-      required: [id, seq, section, chapter, marks, locked]
+      required: [id, seq, section, sectionId, chapter, marks, locked]
       properties:
         id:
           type: string
         seq:
           type: integer
+        sectionId:
+          type: string
         section:
           type: string
+          description: The question type.
         chapter:
           type: string
         lessonId:
@@ -7664,7 +7816,7 @@ components:
             $ref: "#/components/schemas/PaperAssignment"
     Paper:
       type: object
-      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, items, filled, total, bySection, byLevel, assignments]
+      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, sections, items, filled, total, bySection, byLevel, assignments]
       properties:
         id:
           type: string
@@ -7682,6 +7834,10 @@ components:
           type: integer
         instructions:
           type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaperSection"
         items:
           type: array
           items:
@@ -7719,9 +7875,105 @@ components:
           type: integer
         blueprintVersion:
           type: integer
+    PaperSection:
+      type: object
+      required: [id, seq, title, instructions, kind, print, questions, marks]
+      properties:
+        id:
+          type: string
+        seq:
+          type: integer
+        title:
+          type: string
+        instructions:
+          type: string
+        kind:
+          type: string
+          enum: [core, extra]
+          description: An extra section is not counted in the marks.
+        print:
+          type: boolean
+        questions:
+          type: integer
+        marks:
+          type: string
+    PaperSectionChange:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 80
+        instructions:
+          type: string
+          maxLength: 500
+        kind:
+          type: string
+          enum: [core, extra]
+        print:
+          type: boolean
+    PaperItemAdd:
+      type: object
+      required: [sectionId]
+      properties:
+        sectionId:
+          type: string
+        questionId:
+          type: string
+        question:
+          $ref: "#/components/schemas/TypedQuestion"
+    TypedQuestion:
+      type: object
+      required: [qtype, marks, text]
+      properties:
+        qtype:
+          type: string
+        marks:
+          type: string
+        text:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        answer:
+          type: string
+        bloom:
+          type: string
+        difficulty:
+          type: string
+        lessonId:
+          type: string
+        outcomeId:
+          type: string
+    PaperOrder:
+      type: object
+      required: [sections]
+      properties:
+        sections:
+          type: array
+          items:
+            type: object
+            required: [id, itemIds]
+            properties:
+              id:
+                type: string
+              itemIds:
+                type: array
+                items:
+                  type: string
+    PaperFinalise:
+      type: object
+      properties:
+        marksBy:
+          type: string
+          enum: [questions, sections, total]
+          description: How marks are entered; questions when left out.
     PaperCreate:
       type: object
       properties:
+        blank:
+          type: boolean
+          description: Start with one empty section and no blueprint.
         fill:
           type: boolean
         name:
@@ -7936,8 +8188,11 @@ components:
           type: boolean
     HolisticReport:
       type: object
-      required: [student, section, sectionId, period, periodId, scale, scores, profile, blooms, activities, strengths, focus, voices, note, canEdit]
+      required: [student, section, sectionId, period, periodId, scale, scores, profile, blooms, activities, strengths, focus, voices, note, canEdit, detail]
       properties:
+        detail:
+          type: string
+          description: How fine the marks behind the levels are (questions, sections or total).
         student:
           $ref: "#/components/schemas/HolisticStudent"
         section:
@@ -8036,8 +8291,10 @@ components:
             type: integer
     HolisticClass:
       type: object
-      required: [section, period, scale, canEdit, students, competencies, cells, activities, summary]
+      required: [section, period, scale, canEdit, detail, students, competencies, cells, activities, summary]
       properties:
+        detail:
+          type: string
         section:
           type: string
         period:

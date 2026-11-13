@@ -43,6 +43,12 @@ func Routes(g fiber.Router, o Options) {
 	g.Post("/assessments/:id/papers", createPaper)
 	g.Get("/papers/:id", getPaper)
 	g.Put("/papers/:id/items/:item", putItem)
+	g.Post("/papers/:id/items", addItem)
+	g.Delete("/papers/:id/items/:item", deleteItem)
+	g.Post("/papers/:id/sections", addSection)
+	g.Put("/papers/:id/sections/:section", putSection)
+	g.Delete("/papers/:id/sections/:section", deleteSection)
+	g.Put("/papers/:id/order", putOrder)
 	g.Post("/papers/:id/fill", fillPaper)
 	g.Post("/papers/:id/duplicate", duplicatePaper)
 	g.Post("/papers/:id/finalise", finalisePaper)
@@ -53,7 +59,8 @@ func Routes(g fiber.Router, o Options) {
 }
 
 // QuestionTypes are the kinds offered when none is typed; any name may be used.
-var QuestionTypes = []string{"Multiple choice", "Fill in the blanks", "True or false", "Very short answer", "Short answer", "Long answer", "Case based", "Map or diagram"}
+var QuestionTypes = []string{"Multiple choice", "Fill in the blanks", "True or false", "Match the following", "Very short answer", "Short answer", "Long answer",
+	"Case based", "Assertion and reason", "Map or diagram", "Numerical", "Essay"}
 
 // Cell is one taxonomy level of a row.
 type Cell struct {

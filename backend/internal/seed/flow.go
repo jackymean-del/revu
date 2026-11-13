@@ -45,7 +45,7 @@ func seedFlow(ctx context.Context, tx pgx.Tx, org, year, level, subject, exam st
 		return err
 	}
 	if !done {
-		if err := seedPaper(ctx, tx, org, year, level, subject, exam); err != nil {
+		if err := seedPaper(ctx, tx, org, year, level, subject, exam, unitTestBlueprint); err != nil {
 			return fmt.Errorf("paper: %w", err)
 		}
 	}
@@ -74,14 +74,14 @@ func seedFlow(ctx context.Context, tx pgx.Tx, org, year, level, subject, exam st
 	return err
 }
 
-func seedPaper(ctx context.Context, tx pgx.Tx, org, year, level, subject, exam string) error {
+func seedPaper(ctx context.Context, tx pgx.Tx, org, year, level, subject, exam string, blueprint []demoRow) error {
 	var bp string
 	if err := tx.QueryRow(ctx, `INSERT INTO blueprints (org_id, assessment_id, taxonomy, status, created_by, submitted_by, submitted_at, approved_by, approved_at)
 		VALUES ($1, $2::uuid, 'bloom', 'approved', 'demo', 'demo', now(), 'demo', now()) RETURNING id::text`, org, exam).Scan(&bp); err != nil {
 		return err
 	}
 	// Rows of one chapter and type share a row; each level is a cell.
-	for i, r := range unitTestBlueprint {
+	for i, r := range blueprint {
 		if _, err := tx.Exec(ctx, `
 			WITH l AS (SELECT id FROM lessons WHERE org_id = $1 AND level_id = $3::uuid AND subject_id = $4::uuid AND name = $5),
 			r AS (
@@ -130,13 +130,16 @@ func seedPaper(ctx context.Context, tx pgx.Tx, org, year, level, subject, exam s
 			 WHERE i.id = s.id`, paper, level, subject, shift); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `SELECT revu_paper_sections($1::uuid)`, paper); err != nil {
+			return err
+		}
 		papers = append(papers, paper)
 	}
 	// Marks are entered question by question: one part per question.
 	if _, err := tx.Exec(ctx, `UPDATE assessment_parts SET deleted_at = now() WHERE assessment_id = $1::uuid AND deleted_at IS NULL`, exam); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE assessments SET entry_mode = 'sections' WHERE id = $1::uuid`, exam); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE assessments SET entry_mode = 'sections', marks_by = 'questions' WHERE id = $1::uuid`, exam); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks)

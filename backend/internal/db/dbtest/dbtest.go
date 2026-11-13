@@ -85,7 +85,7 @@ const seedScheme = `{"schema": 1, "rounding": {"mode": "half_up", "places": 2, "
 var tenantTables = []string{
 	"reexam_candidates", "reexams",
 	"holistic_notes", "holistic_voices", "holistic_ratings",
-	"paper_assignments", "paper_items", "papers", "questions", "blueprint_cells", "blueprint_rows", "blueprints",
+	"paper_assignments", "paper_items", "paper_sections", "papers", "questions", "blueprint_cells", "blueprint_rows", "blueprints",
 	"group_members", "part_tags", "learning_outcomes", "lessons", "competencies", "reteach_marks", "report_run_items", "report_runs", "report_template_versions", "report_templates", "branding_versions", "computed_results", "scheme_assignments", "schemes", "sync_outbox_receipts", "layout_sort_rules", "layout_items", "layout_profiles", "result_stale_intents",
 	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
 	"student_subject_choices", "subject_group_options", "subject_groups",
@@ -172,6 +172,7 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	paper := one(`INSERT INTO papers (org_id, assessment_id, set_label, blueprint_version) VALUES ($1, $2, 'A', 1) RETURNING id`, o.ID, o.AssessmentID)
 	one(`INSERT INTO paper_items (org_id, paper_id, seq, section, chapter, lesson_id, level, marks, question_id) VALUES ($1, $2, 1, 'Short answer', 'Fractions', $3, 'apply', 40, $4) RETURNING id`,
 		o.ID, paper, les, q)
+	one(`SELECT coalesce(revu_paper_sections($1)::text, 'done')`, paper)
 	one(`INSERT INTO paper_assignments (org_id, paper_id, section_id) VALUES ($1, $2, $3) RETURNING id`, o.ID, paper, o.SectionID)
 	// A re-exam row on the seeded assessment itself, so every tenant table has a row.
 	one(`INSERT INTO reexams (assessment_id, org_id, source_id) VALUES ($2, $1, $2) RETURNING status`, o.ID, o.AssessmentID)

@@ -945,6 +945,63 @@ func (e PaperTaxonomy) Valid() bool {
 	}
 }
 
+// Defines values for PaperFinaliseMarksBy.
+const (
+	PaperFinaliseMarksByQuestions PaperFinaliseMarksBy = "questions"
+	PaperFinaliseMarksBySections  PaperFinaliseMarksBy = "sections"
+	PaperFinaliseMarksByTotal     PaperFinaliseMarksBy = "total"
+)
+
+// Valid indicates whether the value is a known member of the PaperFinaliseMarksBy enum.
+func (e PaperFinaliseMarksBy) Valid() bool {
+	switch e {
+	case PaperFinaliseMarksByQuestions:
+		return true
+	case PaperFinaliseMarksBySections:
+		return true
+	case PaperFinaliseMarksByTotal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PaperSectionKind.
+const (
+	PaperSectionKindCore  PaperSectionKind = "core"
+	PaperSectionKindExtra PaperSectionKind = "extra"
+)
+
+// Valid indicates whether the value is a known member of the PaperSectionKind enum.
+func (e PaperSectionKind) Valid() bool {
+	switch e {
+	case PaperSectionKindCore:
+		return true
+	case PaperSectionKindExtra:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PaperSectionChangeKind.
+const (
+	PaperSectionChangeKindCore  PaperSectionChangeKind = "core"
+	PaperSectionChangeKindExtra PaperSectionChangeKind = "extra"
+)
+
+// Valid indicates whether the value is a known member of the PaperSectionChangeKind enum.
+func (e PaperSectionChangeKind) Valid() bool {
+	switch e {
+	case PaperSectionChangeKindCore:
+		return true
+	case PaperSectionChangeKindExtra:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PaperSummaryStatus.
 const (
 	PaperSummaryStatusDraft PaperSummaryStatus = "draft"
@@ -3018,6 +3075,7 @@ type HolisticClass struct {
 	CanEdit      bool               `json:"canEdit"`
 	Cells        [][]HolisticCell   `json:"cells"`
 	Competencies []HolisticColumn   `json:"competencies"`
+	Detail       string             `json:"detail"`
 	Period       string             `json:"period"`
 	Scale        []HolisticLevel    `json:"scale"`
 	Section      string             `json:"section"`
@@ -3087,19 +3145,22 @@ type HolisticReport struct {
 	Activities []HolisticActivity `json:"activities"`
 	Blooms     []HolisticBloom    `json:"blooms"`
 	CanEdit    bool               `json:"canEdit"`
-	Focus      []HolisticOutcome  `json:"focus"`
-	Note       HolisticNote       `json:"note"`
-	Overall    float32            `json:"overall,omitempty"`
-	Period     string             `json:"period"`
-	PeriodId   string             `json:"periodId"`
-	Profile    []HolisticProfile  `json:"profile"`
-	Scale      []HolisticLevel    `json:"scale"`
-	Scores     []HolisticScore    `json:"scores"`
-	Section    string             `json:"section"`
-	SectionId  string             `json:"sectionId"`
-	Strengths  []HolisticOutcome  `json:"strengths"`
-	Student    HolisticStudent    `json:"student"`
-	Voices     HolisticVoices     `json:"voices"`
+
+	// Detail How fine the marks behind the levels are (questions, sections or total).
+	Detail    string            `json:"detail"`
+	Focus     []HolisticOutcome `json:"focus"`
+	Note      HolisticNote      `json:"note"`
+	Overall   float32           `json:"overall,omitempty"`
+	Period    string            `json:"period"`
+	PeriodId  string            `json:"periodId"`
+	Profile   []HolisticProfile `json:"profile"`
+	Scale     []HolisticLevel   `json:"scale"`
+	Scores    []HolisticScore   `json:"scores"`
+	Section   string            `json:"section"`
+	SectionId string            `json:"sectionId"`
+	Strengths []HolisticOutcome `json:"strengths"`
+	Student   HolisticStudent   `json:"student"`
+	Voices    HolisticVoices    `json:"voices"`
 }
 
 // HolisticRow defines model for HolisticRow.
@@ -3534,6 +3595,7 @@ type Paper struct {
 	Id               string            `json:"id"`
 	Instructions     string            `json:"instructions"`
 	Items            []PaperItem       `json:"items"`
+	Sections         []PaperSection    `json:"sections"`
 	Set              string            `json:"set"`
 	Status           PaperStatus       `json:"status"`
 	Taxonomy         PaperTaxonomy     `json:"taxonomy"`
@@ -3562,11 +3624,22 @@ type PaperAssignments struct {
 
 // PaperCreate defines model for PaperCreate.
 type PaperCreate struct {
-	Fill bool `json:"fill,omitempty"`
+	// Blank Start with one empty section and no blueprint.
+	Blank bool `json:"blank,omitempty"`
+	Fill  bool `json:"fill,omitempty"`
 
 	// Name The set's name; the next of the institution's set names when empty.
 	Name string `json:"name,omitempty"`
 }
+
+// PaperFinalise defines model for PaperFinalise.
+type PaperFinalise struct {
+	// MarksBy How marks are entered; questions when left out.
+	MarksBy PaperFinaliseMarksBy `json:"marksBy,omitempty"`
+}
+
+// PaperFinaliseMarksBy How marks are entered; questions when left out.
+type PaperFinaliseMarksBy string
 
 // PaperGap defines model for PaperGap.
 type PaperGap struct {
@@ -3587,8 +3660,18 @@ type PaperItem struct {
 	Locked   bool     `json:"locked"`
 	Marks    string   `json:"marks"`
 	Question Question `json:"question,omitempty"`
-	Section  string   `json:"section"`
-	Seq      int      `json:"seq"`
+
+	// Section The question type.
+	Section   string `json:"section"`
+	SectionId string `json:"sectionId"`
+	Seq       int    `json:"seq"`
+}
+
+// PaperItemAdd defines model for PaperItemAdd.
+type PaperItemAdd struct {
+	Question   TypedQuestion `json:"question,omitempty"`
+	QuestionId string        `json:"questionId,omitempty"`
+	SectionId  string        `json:"sectionId"`
 }
 
 // PaperItemChange defines model for PaperItemChange.
@@ -3598,6 +3681,42 @@ type PaperItemChange struct {
 	// QuestionId Empty clears the slot.
 	QuestionId string `json:"questionId,omitempty"`
 }
+
+// PaperOrder defines model for PaperOrder.
+type PaperOrder struct {
+	Sections []struct {
+		Id      string   `json:"id"`
+		ItemIds []string `json:"itemIds"`
+	} `json:"sections"`
+}
+
+// PaperSection defines model for PaperSection.
+type PaperSection struct {
+	Id           string `json:"id"`
+	Instructions string `json:"instructions"`
+
+	// Kind An extra section is not counted in the marks.
+	Kind      PaperSectionKind `json:"kind"`
+	Marks     string           `json:"marks"`
+	Print     bool             `json:"print"`
+	Questions int              `json:"questions"`
+	Seq       int              `json:"seq"`
+	Title     string           `json:"title"`
+}
+
+// PaperSectionKind An extra section is not counted in the marks.
+type PaperSectionKind string
+
+// PaperSectionChange defines model for PaperSectionChange.
+type PaperSectionChange struct {
+	Instructions string                 `json:"instructions,omitempty"`
+	Kind         PaperSectionChangeKind `json:"kind,omitempty"`
+	Print        bool                   `json:"print,omitempty"`
+	Title        string                 `json:"title,omitempty"`
+}
+
+// PaperSectionChangeKind defines model for PaperSectionChange.Kind.
+type PaperSectionChangeKind string
 
 // PaperSettings defines model for PaperSettings.
 type PaperSettings struct {
@@ -4869,6 +4988,19 @@ type Tile struct {
 // TileStatus attention when something needs doing, ok when nothing does, info for plain totals.
 type TileStatus string
 
+// TypedQuestion defines model for TypedQuestion.
+type TypedQuestion struct {
+	Answer     string   `json:"answer,omitempty"`
+	Bloom      string   `json:"bloom,omitempty"`
+	Difficulty string   `json:"difficulty,omitempty"`
+	LessonId   string   `json:"lessonId,omitempty"`
+	Marks      string   `json:"marks"`
+	Options    []string `json:"options,omitempty"`
+	OutcomeId  string   `json:"outcomeId,omitempty"`
+	Qtype      string   `json:"qtype"`
+	Text       string   `json:"text"`
+}
+
 // UndoResult defines model for UndoResult.
 type UndoResult struct {
 	// Kept Cells changed after the bulk write, left as they are.
@@ -5565,6 +5697,9 @@ type FinalisePaperParams struct {
 type PaperHtmlParams struct {
 	Key bool `form:"key,omitempty" json:"key,omitempty"`
 
+	// All Also print sections switched off for print.
+	All bool `form:"all,omitempty" json:"all,omitempty"`
+
 	// Space Ruled lines to answer on, more for more marks.
 	Space bool `form:"space,omitempty" json:"space,omitempty"`
 
@@ -5572,8 +5707,44 @@ type PaperHtmlParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// AddPaperItemParams defines parameters for AddPaperItem.
+type AddPaperItemParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DeletePaperItemParams defines parameters for DeletePaperItem.
+type DeletePaperItemParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // PutPaperItemParams defines parameters for PutPaperItem.
 type PutPaperItemParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutPaperOrderParams defines parameters for PutPaperOrder.
+type PutPaperOrderParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// AddPaperSectionParams defines parameters for AddPaperSection.
+type AddPaperSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// DeletePaperSectionParams defines parameters for DeletePaperSection.
+type DeletePaperSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutPaperSectionParams defines parameters for PutPaperSection.
+type PutPaperSectionParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -6401,8 +6572,23 @@ type PutPaperAssignmentsJSONRequestBody = PaperAssignments
 // DuplicatePaperJSONRequestBody defines body for DuplicatePaper for application/json ContentType.
 type DuplicatePaperJSONRequestBody = PaperCreate
 
+// FinalisePaperJSONRequestBody defines body for FinalisePaper for application/json ContentType.
+type FinalisePaperJSONRequestBody = PaperFinalise
+
+// AddPaperItemJSONRequestBody defines body for AddPaperItem for application/json ContentType.
+type AddPaperItemJSONRequestBody = PaperItemAdd
+
 // PutPaperItemJSONRequestBody defines body for PutPaperItem for application/json ContentType.
 type PutPaperItemJSONRequestBody = PaperItemChange
+
+// PutPaperOrderJSONRequestBody defines body for PutPaperOrder for application/json ContentType.
+type PutPaperOrderJSONRequestBody = PaperOrder
+
+// AddPaperSectionJSONRequestBody defines body for AddPaperSection for application/json ContentType.
+type AddPaperSectionJSONRequestBody = PaperSectionChange
+
+// PutPaperSectionJSONRequestBody defines body for PutPaperSection for application/json ContentType.
+type PutPaperSectionJSONRequestBody = PaperSectionChange
 
 // CreatePeriodJSONRequestBody defines body for CreatePeriod for application/json ContentType.
 type CreatePeriodJSONRequestBody = PeriodInput

@@ -359,3 +359,96 @@ func TestTaxonomiesAndSetNames(t *testing.T) {
 		t.Fatalf("names %q %q", blue.Set, named.Set)
 	}
 }
+
+// A paper built freely: sections as cards, questions typed in, reordered,
+// one section extra and one not printed; marks by section.
+func TestFreePaper(t *testing.T) {
+	owner, appPool := dbtest.Open(t)
+	a := dbtest.SeedOrg(t, owner, "Org A")
+	app := server.New(config.Config{Version: "test"}, server.Deps{DB: appPool, Auth: headerAuth{}})
+	admin := caller{t, app, a.UserID, a.ID}
+	ctx := context.Background()
+	one := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		if err := owner.QueryRow(ctx, sql, args...).Scan(&v); err != nil {
+			t.Fatalf("%v\n%s", err, sql)
+		}
+		return v
+	}
+	exam := one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Class test', 'total') RETURNING id`,
+		a.ID, a.YearID, a.PeriodID, a.LevelID, a.SubjectID)
+	one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 10) RETURNING id`, a.ID, exam)
+	outcome := one(`SELECT id FROM learning_outcomes WHERE org_id = $1`, a.ID)
+
+	var p papers.Paper
+	admin.json(201, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, &p)
+	if len(p.Sections) != 1 || p.Sections[0].Title != "Section A" || len(p.Items) != 0 {
+		t.Fatalf("blank paper %+v", p.Sections)
+	}
+	base := "/v1/papers/" + p.ID
+	admin.json(409, "POST", base+"/finalise", nil, nil) // nothing in it yet
+	admin.json(201, "POST", base+"/sections", map[string]any{"title": "Think further", "kind": "extra"}, &p)
+	admin.json(201, "POST", base+"/sections", nil, &p)
+	if len(p.Sections) != 3 || p.Sections[2].Title != "Section C" || p.Sections[1].Kind != "extra" {
+		t.Fatalf("sections %+v", p.Sections)
+	}
+	secA, extra, secC := p.Sections[0].ID, p.Sections[1].ID, p.Sections[2].ID
+	typed := func(section, qtype, marks, text string, options ...string) {
+		admin.json(201, "POST", base+"/items", map[string]any{"sectionId": section,
+			"question": map[string]any{"qtype": qtype, "marks": marks, "text": text, "options": options, "answer": "Key: " + text, "outcomeId": outcome}}, &p)
+	}
+	admin.json(422, "POST", base+"/items", map[string]any{"sectionId": secA, "question": map[string]any{"qtype": "Short answer", "marks": "0", "text": "x"}}, nil)
+	typed(secA, "Multiple choice", "1", "Which is a fraction?", "1/2", "2", "0.5", "5")
+	typed(secA, "Match the following", "2", "Match each fraction to its decimal.", "1/2 = 0.5", "1/4 = 0.25")
+	typed(secC, "Long answer", "5", "Explain equivalent fractions.")
+	typed(secC, "True or false", "2", "1/2 is greater than 1/3.")
+	typed(extra, "Essay", "10", "Write about fractions in daily life.")
+	if len(p.Items) != 5 || p.Total != "10" || p.Items[4].Section != "Long answer" && p.Items[4].Seq != 5 {
+		t.Fatalf("five questions, ten counted marks: total %s, %d items", p.Total, len(p.Items))
+	}
+	// The same question cannot be in the paper twice.
+	admin.json(422, "POST", base+"/items", map[string]any{"sectionId": secC, "questionId": p.Items[0].Question.ID}, nil)
+
+	// Reorder: Section C first, its two questions swapped; the match question moves to C.
+	byText := func(text string) string {
+		for _, it := range p.Items {
+			if it.Question.Text == text {
+				return it.ID
+			}
+		}
+		t.Fatalf("no %q", text)
+		return ""
+	}
+	order := map[string]any{"sections": []map[string]any{
+		{"id": secC, "itemIds": []string{byText("1/2 is greater than 1/3."), byText("Explain equivalent fractions."), byText("Match each fraction to its decimal.")}},
+		{"id": secA, "itemIds": []string{byText("Which is a fraction?")}},
+		{"id": extra, "itemIds": []string{byText("Write about fractions in daily life.")}},
+	}}
+	admin.json(422, "PUT", base+"/order", map[string]any{"sections": order["sections"].([]map[string]any)[:2]}, nil)
+	admin.json(200, "PUT", base+"/order", order, &p)
+	if p.Sections[0].Title != "Section C" || p.Items[0].Question.Text != "1/2 is greater than 1/3." || p.Items[2].Question.QType != "Match the following" || p.Items[3].Seq != 4 {
+		t.Fatalf("order %+v", p.Sections)
+	}
+	admin.json(200, "PUT", base+"/sections/"+secA, map[string]any{"title": "Warm up", "instructions": "Answer all.", "print": false}, &p)
+
+	_, body := admin.raw("GET", base+"/html?space=true", nil)
+	page := string(body)
+	if strings.Contains(page, "Warm up") || !strings.Contains(page, "(not counted)") || !strings.Contains(page, `<table class="match">`) || !strings.Contains(page, "<li>True") {
+		t.Fatalf("print: no unprinted section, extra marked, match as a table, true or false as choices")
+	}
+	if _, all := admin.raw("GET", base+"/html?all=true", nil); !strings.Contains(string(all), "Warm up") || !strings.Contains(string(all), "Answer all.") {
+		t.Fatal("all=true prints every section with its instructions")
+	}
+
+	// Marks by section: one part a core section, tagged with its outcomes.
+	admin.json(422, "POST", base+"/finalise", map[string]string{"marksBy": "pages"}, nil)
+	admin.json(200, "POST", base+"/finalise", map[string]string{"marksBy": "sections"}, &p)
+	got := one(`SELECT string_agg(p.name || '=' || p.max_marks::int || ':' || (SELECT count(*) FROM part_tags t WHERE t.part_id = p.id), ', ' ORDER BY p.seq)
+		|| ' ' || (SELECT marks_by || '/' || entry_mode FROM assessments WHERE id = $1)
+		FROM assessment_parts p WHERE p.assessment_id = $1 AND p.deleted_at IS NULL`, exam)
+	if got != "Section C=9:1, Warm up=1:1 sections/sections" {
+		t.Fatalf("parts by section: %s", got)
+	}
+	admin.json(409, "POST", base+"/sections", nil, nil) // final
+}

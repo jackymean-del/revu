@@ -12,10 +12,14 @@ function fakeApi(page: Page) {
   })
   const bank = [q('q1', 'Multiple choice', '1', 'remember', 'Which is larger, 1/2 or 1/3?'), q('q2', 'Multiple choice', '1', 'remember', 'Name a proper fraction.'), q('q3', 'Short answer', '2', 'apply', 'Add 1/4 and 1/2.')]
   let bp = { assessmentId: 'ut', taxonomy: 'bloom', status: 'draft', version: 1, comment: '', max: '4', rows: [] as unknown[], byLevel: [], byChapter: [], questions: 0, allocated: '0', remaining: '4', checks: [], exists: false }
-  const item = (n: number, section: string, marks: string, level: string, question?: unknown) => ({ id: `i${n}`, seq: n, section, chapter: 'Fractions', lessonId: 'les', level, marks, locked: false, question })
+  const item = (n: number, section: string, marks: string, level: string, question?: unknown) => ({ id: `i${n}`, seq: n, section, sectionId: section === 'Multiple choice' ? 'secA' : 'secB', chapter: 'Fractions', lessonId: 'les', level, marks, locked: false, question })
   let paper = {
     id: 'pA', assessmentId: 'ut', set: 'Set A', status: 'draft', taxonomy: 'bloom', blueprintVersion: 1, instructions: '', filled: 3, total: '4',
     items: [item(1, 'Multiple choice', '1', 'remember', bank[0]), item(2, 'Multiple choice', '1', 'remember', bank[1]), item(3, 'Short answer', '2', 'apply', bank[2])],
+    sections: [
+      { id: 'secA', seq: 1, title: 'Multiple choice', instructions: '', kind: 'core', print: true, questions: 2, marks: '2' },
+      { id: 'secB', seq: 2, title: 'Short answer', instructions: '', kind: 'core', print: true, questions: 1, marks: '2' },
+    ],
     bySection: [{ key: 'Multiple choice', wanted: '2', filled: '2', missing: 0 }, { key: 'Short answer', wanted: '2', filled: '2', missing: 0 }], byLevel: [], assignments: [] as unknown[],
   }
   let papers: unknown[] = []
@@ -67,6 +71,26 @@ function fakeApi(page: Page) {
     return json(r, papers)
   })
   void page.route('**/v1/papers/pA', (r) => json(r, paper))
+  void page.route('**/v1/papers/pA/order', (r) => {
+    const body = r.request().postDataJSON()
+    sent.push({ path: 'order', body })
+    const ids: string[] = body.sections.flatMap((x: { itemIds: string[] }) => x.itemIds)
+    paper = { ...paper, sections: body.sections.map((x: { id: string }, i: number) => ({ ...paper.sections.find((y) => y.id === x.id)!, seq: i + 1 })), items: ids.map((id, i) => ({ ...paper.items.find((y) => y.id === id)!, seq: i + 1 })) }
+    return json(r, paper)
+  })
+  void page.route('**/v1/papers/pA/sections/*', (r) => {
+    const body = r.request().postDataJSON()
+    sent.push({ path: 'section', body })
+    paper = { ...paper, sections: paper.sections.map((x) => (r.request().url().endsWith(x.id) ? { ...x, ...body } : x)) }
+    return json(r, paper)
+  })
+  void page.route('**/v1/papers/pA/items', (r) => {
+    const body = r.request().postDataJSON()
+    sent.push({ path: 'item', body })
+    const made = { ...q('q7', body.question.qtype, body.question.marks, 'apply', body.question.text), options: body.question.options }
+    paper = { ...paper, filled: 4, items: [...paper.items, { ...item(4, 'Short answer', body.question.marks, '', made), sectionId: body.sectionId }] }
+    return json(r, paper, 201)
+  })
   void page.route('**/v1/paper-settings', (r) => json(r, { setNames: ['Set A', 'Set B'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill'] } }))
   void page.route(/\/v1\/papers\/pA\/html/, (r) => {
     const u = new URL(r.request().url())
@@ -74,7 +98,7 @@ function fakeApi(page: Page) {
     return r.fulfill({ contentType: 'text/html', body: `<h1>Hill View</h1><p>Set A</p>${u.searchParams.get('space') === 'true' ? '<div class="space"></div>' : ''}${u.searchParams.get('key') === 'true' ? '<div class="key">A</div>' : ''}` })
   })
   void page.route('**/v1/papers/pA/finalise', (r) => {
-    sent.push({ path: 'finalise', body: null })
+    sent.push({ path: 'finalise', body: r.request().postDataJSON() })
     paper = { ...paper, status: 'final' }
     papers = [summary()]
     return json(r, paper)
@@ -115,13 +139,39 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   await page.getByRole('button', { name: /Paper sets/ }).click()
   await page.getByRole('button', { name: 'Make Set A' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'slots' })).toContainText('3 of 3 slots filled · 4 marks · ready to finalise')
+
+  // Section cards: the second moves up, is marked extra and not printed, and takes a typed question.
+  const short = page.getByRole('region', { name: 'Short answer' })
+  await short.getByRole('button', { name: 'Move Short answer up' }).click()
+  await expect(page.getByRole('region', { name: /^(Short answer|Multiple choice)$/ }).first()).toHaveAccessibleName('Short answer')
+  await short.getByRole('button', { name: /Short answer/ }).first().click()
+  await short.getByLabel('Extra', { exact: true }).click()
+  await expect(short.getByText('Extra, not counted')).toBeVisible()
+  await short.getByLabel('Print', { exact: true }).click()
+  await expect(short.getByText('Not printed')).toBeVisible()
+  await short.getByRole('button', { name: 'Type a question' }).click()
+  await short.getByLabel('Question type').selectOption('Match the following')
+  await short.getByLabel('Marks').fill('2')
+  await short.getByLabel('Question', { exact: true }).fill('Match each fraction to its decimal.')
+  await short.getByLabel('Pair 1').fill('1/2 = 0.5')
+  await short.getByLabel('Pair 2').fill('1/4 = 0.25')
+  await short.getByRole('button', { name: 'Add question' }).click()
+  await expect(short.getByText('Match each fraction to its decimal.')).toBeVisible()
+  expect(api.sent.filter((s) => ['order', 'section', 'item'].includes(s.path))).toEqual([
+    { path: 'order', body: { sections: [{ id: 'secB', itemIds: ['i3'] }, { id: 'secA', itemIds: ['i1', 'i2'] }] } },
+    { path: 'section', body: { kind: 'extra' } },
+    { path: 'section', body: { print: false } },
+    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '' } } },
+  ])
   // The paper as it prints, beside the slots: with space to answer, then as the key.
   const preview = page.getByRole('complementary', { name: 'Print preview' })
   await expect(preview.frameLocator('iframe').locator('.space')).toHaveCount(1)
   await preview.getByLabel('Answer key').check()
   await expect(preview.frameLocator('iframe').locator('.key')).toHaveCount(1)
   expect(api.sent.filter((s) => s.path === 'html').at(-1)?.body).toEqual({ key: 'true', space: 'true' })
+  await page.getByLabel('Marks are entered').selectOption('sections')
   await page.getByRole('button', { name: 'Finalise Set A' }).click()
+  await expect.poll(() => api.sent.find((s) => s.path === 'finalise')?.body).toEqual({ marksBy: 'sections' })
   await expect(page.getByRole('button', { name: /Set A/ }).first()).toContainText('final')
 
   await page.getByRole('link', { name: /give each set to who sits it/ }).click()

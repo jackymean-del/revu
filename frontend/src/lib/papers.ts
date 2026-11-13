@@ -148,3 +148,37 @@ export function share(students: Sitter[], sets: string[], by: ShareBy, how: 'alt
   const order = inOrder(students, by)
   return Object.fromEntries(order.map((s, i) => [s.id, sets[how === 'alternate' ? i % sets.length : Math.floor((i * sets.length) / order.length)]]))
 }
+
+type Paper = components['schemas']['Paper']
+export type Order = components['schemas']['PaperOrder']
+
+/** The order of a paper as it stands: its sections, and the questions in each. */
+export function orderOf(p: Paper): Order {
+  return { sections: p.sections.map((s) => ({ id: s.id, itemIds: p.items.filter((i) => i.sectionId === s.id).map((i) => i.id) })) }
+}
+
+/** A section moved to another place among the sections. */
+export function moveSection(o: Order, id: string, to: number): Order {
+  const from = o.sections.findIndex((s) => s.id === id)
+  if (from < 0 || to < 0 || to >= o.sections.length || from === to) return o
+  const sections = [...o.sections]
+  const [moved] = sections.splice(from, 1)
+  sections.splice(to, 0, moved)
+  return { sections }
+}
+
+/** A question moved to a place in a section, its own or another. */
+export function moveItem(o: Order, itemId: string, toSection: string, toIndex: number): Order {
+  const home = o.sections.find((s) => s.itemIds.includes(itemId))
+  if (!home || !o.sections.some((s) => s.id === toSection)) return o
+  const at = home.itemIds.indexOf(itemId)
+  // Taking it out first shifts the places after it in its own section.
+  const index = home.id === toSection && toIndex > at ? toIndex - 1 : toIndex
+  return {
+    sections: o.sections.map((s) => {
+      const ids = s.itemIds.filter((x) => x !== itemId)
+      if (s.id === toSection) ids.splice(Math.max(0, Math.min(index, ids.length)), 0, itemId)
+      return { id: s.id, itemIds: ids }
+    }),
+  }
+}

@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createPaper, getPaper, getPaperHtml, paperStep, putPaperItem, type Blueprint, type Paper, type PaperItem, type PaperSummary, type Question } from '../../api/client'
+import { createPaper, getPaper, getPaperHtml, paperStep, type Blueprint, type MarksBy, type Paper, type PaperSummary, type Question } from '../../api/client'
 import { ApiError } from '../../api/problem'
-import { hundredths } from '../../lib/papers'
-import { levelLabel, questionLevel, type Taxonomy } from '../../lib/taxonomy'
+import { SectionCards } from './SectionCards'
+import { PAPER } from './types'
 import { usePaperSettings } from './settings'
 
 const primary = 'rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50'
@@ -22,6 +22,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
   const [pick, setPick] = useState('')
   const [fill, setFill] = useState(true)
   const [name, setName] = useState('')
+  const [marksBy, setMarksBy] = useState<MarksBy>('questions')
   const selected = sets.find((s) => s.id === pick) ?? sets.find((s) => s.status === 'draft') ?? sets[0]
   const paper = useQuery({ queryKey: ['paper', orgId, selected?.id], queryFn: ({ signal }) => getPaper(orgId, selected!.id, signal), enabled: !!selected })
   // The next of the institution's set names not used yet.
@@ -35,9 +36,9 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
     setPick(p.id)
     setName('')
   }
-  const make = useMutation({ mutationFn: () => createPaper(orgId, assessmentId, fill, name.trim() || nextName), onSuccess: done })
+  const make = useMutation({ mutationFn: (blank: boolean) => createPaper(orgId, assessmentId, fill, name.trim() || nextName, blank), onSuccess: done })
   const step = useMutation({
-    mutationFn: (s: 'fill' | 'duplicate' | 'finalise') => paperStep(orgId, selected!.id, s, s === 'duplicate' ? name.trim() || nextName : ''),
+    mutationFn: (s: 'fill' | 'duplicate' | 'finalise') => paperStep(orgId, selected!.id, s, s === 'duplicate' ? name.trim() || nextName : '', marksBy),
     onSuccess: (p, s) => {
       done(p)
       if (s === 'finalise') void qc.invalidateQueries({ queryKey: ['assessments', orgId] })
@@ -48,23 +49,33 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
     <input aria-label="Set name" className={`${field} w-32`} placeholder={nextName} value={name} maxLength={30} onChange={(e) => setName(e.target.value)} />
   )
 
-  if (blueprint.status !== 'approved')
-    return <p className="rounded-2xl border border-line bg-white p-6 text-sm text-muted">A paper is made from an approved blueprint. Finish the blueprint and have it approved first.</p>
-
+  const approved = blueprint.status === 'approved'
   if (sets.length === 0)
     return (
-      <div className="space-y-3 rounded-2xl border border-dashed border-line bg-white p-8 text-center">
+      <div className="space-y-4 rounded-2xl border border-dashed border-line bg-white p-8 text-center">
         <p className="font-bold">No paper yet</p>
-        <p className="text-sm text-muted">The first set is laid out exactly as the blueprint asks: one slot per question, in parts by question type.</p>
-        <label className="flex items-center justify-center gap-2 text-sm">
-          <input type="checkbox" checked={fill} onChange={(e) => setFill(e.target.checked)} />
-          Fill the slots from the bank, the least used questions first
-        </label>
-        <div className="flex items-center justify-center gap-2">
-          {nameField}
-          <button type="button" className={primary} disabled={make.isPending} onClick={() => make.mutate()}>
-            Make {name.trim() || nextName}
-          </button>
+        <div className="flex items-center justify-center gap-2 text-sm">
+          Name {nameField}
+        </div>
+        <div className="grid gap-3 text-left sm:grid-cols-2">
+          <div className="space-y-2 rounded-xl border border-line p-4">
+            <p className="font-bold">Start a blank paper</p>
+            <p className="text-sm text-muted">Add {PAPER.sections}, type your questions or pick them from the bank, and put them in any order. No blueprint needed.</p>
+            <button type="button" className={primary} disabled={make.isPending} onClick={() => make.mutate(true)}>
+              Start blank
+            </button>
+          </div>
+          <div className="space-y-2 rounded-xl border border-line p-4">
+            <p className="font-bold">Lay it out from the blueprint</p>
+            <p className="text-sm text-muted">One slot for each question the blueprint asks for, in {PAPER.sections} by question type.{approved ? '' : ' Needs an approved blueprint.'}</p>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={fill} disabled={!approved} onChange={(e) => setFill(e.target.checked)} />
+              Fill the slots from the bank
+            </label>
+            <button type="button" className={button} disabled={make.isPending || !approved} onClick={() => make.mutate(false)}>
+              Make {name.trim() || nextName}
+            </button>
+          </div>
         </div>
         {err && <Problem error={err} />}
       </div>
@@ -105,15 +116,24 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
               </button>
             </span>
             {draft && (
-              <button type="button" className={primary} disabled={step.isPending || empty > 0} title={empty ? 'Fill every slot first' : undefined} onClick={() => step.mutate('finalise')}>
-                Finalise {p.set}
-              </button>
+              <span className="flex items-center gap-1.5">
+                <select aria-label="Marks are entered" className={field} value={marksBy} onChange={(e) => setMarksBy(e.target.value as MarksBy)} title="How marks will be entered for this assessment; the holistic report is as detailed as this">
+                  <option value="questions">Marks by question</option>
+                  <option value="sections">Marks by {PAPER.section}</option>
+                  <option value="total">Total marks only</option>
+                </select>
+                <button type="button" className={primary} disabled={step.isPending || empty > 0 || p.items.length === 0} onClick={() => step.mutate('finalise')}>
+                  Finalise {p.set}
+                </button>
+              </span>
             )}
           </>
         )}
       </div>
       {err && <Problem error={err} />}
-      {draft && empty > 0 && <p className="text-xs text-muted">Finalising needs a question in every slot: {empty} still to choose.</p>}
+      {draft && (empty > 0 || (p && p.items.length === 0)) && (
+        <p className="text-xs text-muted">{p && p.items.length === 0 ? 'Add questions, then finalise.' : `Finalising needs a question in every slot: ${empty} still to choose.`}</p>
+      )}
 
       {!p ? (
         <p className="text-sm text-muted">Loading</p>
@@ -122,11 +142,9 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
           <div className="min-w-0 space-y-4">
             <p role="status" className="text-sm">
               {p.filled} of {p.items.length} slots filled · {p.total} marks
-              {p.status === 'final' ? ' · final: marks are entered question by question, each tagged with its learning outcome' : empty ? ` · ${empty} still to choose` : ' · ready to finalise'}
+              {p.status === 'final' ? ' · final' : empty ? ` · ${empty} still to choose` : ' · ready to finalise'}
             </p>
-            {p.bySection.map((g) => (
-              <SectionSlots key={g.key} orgId={orgId} paper={p} section={g.key} marks={g.wanted} bank={bank} onChange={done} />
-            ))}
+            <SectionCards key={p.id} orgId={orgId} paper={p} bank={bank} onChange={done} />
           </div>
           <Preview orgId={orgId} paper={p} />
         </div>
@@ -169,91 +187,6 @@ function Preview({ orgId, paper }: { orgId: string; paper: Paper }) {
         <iframe ref={frame} title={`${paper.set} as it prints`} sandbox="allow-same-origin allow-modals" srcDoc={html.data ?? ''} className="h-[70vh] w-full rounded-b-2xl bg-white" />
       )}
     </aside>
-  )
-}
-
-function SectionSlots({ orgId, paper, section, marks, bank, onChange }: { orgId: string; paper: Paper; section: string; marks: string; bank: Question[]; onChange: (p: Paper) => void }) {
-  const settings = usePaperSettings(orgId)
-  const tax = paper.taxonomy as Taxonomy
-  const [open, setOpen] = useState('')
-  const put = useMutation({ mutationFn: (v: { item: PaperItem; questionId?: string; locked?: boolean }) => putPaperItem(orgId, paper.id, v.item.id, { questionId: v.questionId, locked: v.locked }), onSuccess: (p) => (setOpen(''), onChange(p)) })
-  const items = paper.items.filter((i) => i.section === section)
-  const inPaper = new Set(paper.items.flatMap((i) => (i.question ? [i.question.id] : [])))
-  const fits = (it: PaperItem) =>
-    bank.filter(
-      (q) =>
-        q.status === 'approved' &&
-        !inPaper.has(q.id) &&
-        q.qtype.toLowerCase() === it.section.toLowerCase() &&
-        hundredths(q.marks) === hundredths(it.marks) &&
-        (!it.lessonId || q.lessonId === it.lessonId) &&
-        (!it.level || questionLevel(q, tax) === it.level),
-    )
-  const draft = paper.status === 'draft'
-  return (
-    <div className="rounded-2xl border border-line bg-white">
-      <h3 className="flex items-baseline justify-between border-b border-line px-4 py-2.5 font-bold">
-        {section}
-        <span className="text-sm font-semibold text-muted">{marks} marks</span>
-      </h3>
-      <ol className="divide-y divide-line">
-        {items.map((it) => (
-          <li key={it.id} className="px-4 py-2.5">
-            <div className="flex flex-wrap items-start gap-3">
-              <span className="w-8 shrink-0 font-bold tabular-nums">Q{it.seq}</span>
-              <div className="min-w-0 flex-1">
-                {it.question ? <p className="whitespace-pre-wrap text-sm">{it.question.text}</p> : <p className="text-sm font-semibold text-amber-700">Still to choose</p>}
-                <p className="mt-0.5 text-xs text-muted">
-                  {it.chapter}
-                  {it.level && ` · ${levelLabel(tax, it.level, settings)}`} · {it.marks} {it.marks === '1' ? 'mark' : 'marks'}
-                  {it.locked && ' · kept when filling'}
-                </p>
-              </div>
-              {draft && (
-                <span className="flex gap-1.5">
-                  <button type="button" className={button} aria-expanded={open === it.id} onClick={() => setOpen(open === it.id ? '' : it.id)}>
-                    {it.question ? 'Change' : 'Choose'}
-                  </button>
-                  {it.question && (
-                    <button type="button" className={button} disabled={put.isPending} onClick={() => put.mutate({ item: it, locked: !it.locked })}>
-                      {it.locked ? 'Unlock' : 'Keep'}
-                    </button>
-                  )}
-                </span>
-              )}
-            </div>
-            {open === it.id && (
-              <div className="mt-2 rounded-xl bg-canvas p-2">
-                {fits(it).length === 0 ? (
-                  <p className="p-2 text-sm text-muted">No approved question in the bank fits this slot. Add one in Questions.</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {fits(it).map((q) => (
-                      <li key={q.id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-sm">
-                        <span className="flex-1 whitespace-pre-wrap">{q.text}</span>
-                        <button type="button" className={button} disabled={put.isPending} onClick={() => put.mutate({ item: it, questionId: q.id })}>
-                          Use this
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {it.question && (
-                  <button type="button" className="mt-2 text-sm font-semibold text-red-700" onClick={() => put.mutate({ item: it, questionId: '' })}>
-                    Empty this slot
-                  </button>
-                )}
-              </div>
-            )}
-          </li>
-        ))}
-      </ol>
-      {put.error && (
-        <div className="px-4 pb-3">
-          <Problem error={put.error} />
-        </div>
-      )}
-    </div>
   )
 }
 
