@@ -153,8 +153,10 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   await short.getByLabel('Question type').selectOption('Match the following')
   await short.getByLabel('Marks').fill('2')
   await short.getByLabel('Question', { exact: true }).fill('Match each fraction to its decimal.')
-  await short.getByLabel('Pair 1').fill('1/2 = 0.5')
-  await short.getByLabel('Pair 2').fill('1/4 = 0.25')
+  await short.getByLabel('Pair 1 left').fill('1/2')
+  await short.getByLabel('Pair 1 right').fill('0.5')
+  await short.getByLabel('Pair 2 left').fill('1/4')
+  await short.getByLabel('Pair 2 right').fill('0.25')
   await short.getByRole('button', { name: 'Add question' }).click()
   await expect(short.getByText('Match each fraction to its decimal.')).toBeVisible()
   expect(api.sent.filter((s) => ['order', 'section', 'item'].includes(s.path))).toEqual([

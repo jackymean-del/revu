@@ -5,30 +5,25 @@ import {
   addPaperSection,
   deletePaperItem,
   deletePaperSection,
-  getPaper,
   putPaperItem,
   putPaperOrder,
   putPaperSection,
-  updateQuestion,
   type Paper,
   type PaperItem,
   type PaperSection,
   type Question,
-  type TypedQuestion,
 } from '../../api/client'
-import { ApiError } from '../../api/problem'
-import { bitsAlike, hundredths, marks, moveItem, moveSection, orderOf, parentsOf, type Order, type Parents } from '../../lib/papers'
+import { bitsAlike, hundredths, moveItem, moveSection, orderOf, parentsOf, type Order, type Parents } from '../../lib/papers'
 import { levelLabel, questionLevel, type Taxonomy } from '../../lib/taxonomy'
 import { Outline, type Place } from './Outline'
+import { Problem, QuestionForm } from './QuestionForm'
 import { usePaperSettings } from './settings'
-import { TypeSelect } from './TypeSelect'
-import { PAPER, QUESTION_TYPES, hasOptions } from './types'
+import { PAPER } from './types'
 
 const primary = 'rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50'
 const button = 'rounded-lg border border-line bg-white px-2.5 py-1 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
 const icon = 'grid size-7 place-items-center rounded border border-line bg-white text-sm text-muted hover:bg-canvas disabled:opacity-30'
 const field = 'rounded-md border border-line bg-white px-2 py-1.5 text-sm'
-const isMatch = (qtype: string) => /match/i.test(qtype)
 const letter = (i: number) => String.fromCharCode(97 + i)
 
 type Drag = { kind: 'section'; id: string } | { kind: 'item'; id: string } | null
@@ -278,6 +273,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                     <span className="w-8 shrink-0 font-bold tabular-nums">Q{it.seq}</span>
                     <div className="min-w-0 flex-1">
                       {it.question ? <p className="whitespace-pre-wrap text-sm">{it.question.text}</p> : <p className="text-sm font-semibold text-amber-700">Still to choose</p>}
+                    {it.question && !/match/i.test(it.question.qtype) && <Choices options={it.question.options} answer={it.question.answer} />}
                       {(it.question?.bits ?? []).length > 0 && (
                         <ul className="mt-1 space-y-0.5 text-sm">
                           {(it.question?.bits ?? []).map((b, i) => (
@@ -286,6 +282,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                               <span className="min-w-0 flex-1 whitespace-pre-wrap">
                                 {b.text}
                                 {b.qtype && <span className="ml-2 text-xs text-muted">{b.qtype}</span>}
+                                <Choices options={b.options ?? []} answer={b.answer ?? ''} />
                               </span>
                               {!bitsAlike(it.question?.bits ?? []) && <span className="shrink-0 text-xs text-muted">[{b.marks}]</span>}
                             </li>
@@ -382,222 +379,18 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
   )
 }
 
-type Bit = NonNullable<Question['bits']>[number]
-
-/**
- * A question typed straight into the paper, which joins the bank as it is
- * added; or one already in the paper, changed in place. A question may be
- * split into lettered bits, each with its own marks; it is then worth what
- * they add up to.
- */
-function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; editing?: Question; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
-  const [q, setQ] = useState<TypedQuestion>(
-    editing
-      ? { qtype: editing.qtype, marks: editing.marks, text: editing.text, options: editing.options, answer: editing.answer, spaceKind: editing.spaceKind ?? 'auto', spaceSize: editing.spaceSize ?? 0, optionCols: editing.optionCols ?? 0, optionBoxes: editing.optionBoxes ?? true }
-      : { qtype: 'Short answer', marks: '', text: '', options: [], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true },
-  )
-  const sized = q.spaceKind === 'lines' || q.spaceKind === 'blank' || q.spaceKind === 'box'
-  const [bits, setBits] = useState<Bit[]>(editing?.bits ?? [])
-  const [more, setMore] = useState(false)
-  const kept = bits.filter((b) => b.text.trim())
-  const total = kept.length > 0 ? marks(kept.reduce((n, b) => n + hundredths(b.marks), 0)) : q.marks
-  // A bit is of the question's type unless it has its own.
-  const typeOf = (b: Bit) => b.qtype || q.qtype
-  const lists = (qtype: string) => (hasOptions(qtype) && !/true or false/i.test(qtype)) || isMatch(qtype)
-  const filled = (o?: string[]) => (o ?? []).filter((x) => x.trim())
-  const body = {
-    ...q,
-    marks: total,
-    // With bits, what there is to choose from belongs to each bit.
-    bits: kept.map((b) => ({ ...b, qtype: typeOf(b) === q.qtype ? '' : b.qtype, options: lists(typeOf(b)) ? filled(b.options) : [] })),
-    options: kept.length === 0 && (hasOptions(q.qtype) || isMatch(q.qtype)) ? filled(q.options) : [],
-  }
-  const save = useMutation({
-    mutationFn: async (again: boolean) => {
-      if (!editing) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
-      const e = editing
-      await updateQuestion(orgId, e.id, { ...body, levelId: e.levelId, subjectId: e.subjectId, lessonId: e.lessonId, outcomeId: e.outcomeId, bloom: e.bloom, solo: e.solo, customLevel: e.customLevel, difficulty: e.difficulty, source: e.source, status: e.status })
-      return { p: await getPaper(orgId, paper.id), again: false }
-    },
-    onSuccess: ({ p, again }) => {
-      if (again) {
-        // Keep the type and marks: the next question is usually like the last.
-        setQ({ ...q, text: '', options: [], answer: '' })
-        setBits([])
-        setMore(true)
-        onAdded(p)
-      } else onDone(p)
-    },
-  })
-  const options = q.options ?? []
-  const choice = hasOptions(q.qtype)
-  const match = isMatch(q.qtype)
-  const split = bits.length > 0
-  const ticks = split ? bits.some((b) => hasOptions(typeOf(b))) : choice
-  const types = [...new Set([...QUESTION_TYPES, q.qtype].filter(Boolean))]
-  // The first bit takes over the options typed for the question so far.
-  const addBit = () => {
-    setBits([...bits, { text: '', marks: '', answer: '', qtype: '', options: split ? [] : filled(q.options) }])
-    if (!split) setQ({ ...q, options: [] })
-  }
-  const setBit = (i: number, b: Partial<Bit>) => setBits(bits.map((x, j) => (j === i ? { ...x, ...b } : x)))
+/** A question's options in one line, the right one in green. */
+function Choices({ options, answer }: { options: string[]; answer: string }) {
+  if (options.length === 0 || options.some((o) => o.includes('='))) return null
   return (
-    <form
-      aria-label={editing ? 'Edit the question' : 'Type a question'}
-      className="space-y-2 rounded-xl border border-brand/30 bg-mist/40 p-3"
-      onSubmit={(e) => {
-        e.preventDefault()
-        save.mutate(false)
-      }}
-    >
-      <div className="grid gap-2 sm:grid-cols-[1fr_6rem]">
-        <label className="flex flex-col gap-1 text-xs font-semibold">
-          Type
-          <TypeSelect label="Question type" className="py-1.5" value={q.qtype} onChange={(v) => setQ({ ...q, qtype: v })} />
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-semibold">
-          Marks
-          <input
-            required
-            aria-label="Marks"
-            inputMode="decimal"
-            pattern="\d{1,4}(\.\d{1,2})?"
-            className={`${field} ${kept.length > 0 ? 'bg-canvas' : ''}`}
-            readOnly={kept.length > 0}
-            title={kept.length > 0 ? 'The bits add up to this' : undefined}
-            value={total}
-            onChange={(e) => setQ({ ...q, marks: e.target.value })}
-          />
-        </label>
-      </div>
-      <label className="flex flex-col gap-1 text-xs font-semibold">
-        {bits.length > 0 ? 'Common instruction, printed above the bits' : 'Question'}
-        <textarea required aria-label="Question" rows={3} maxLength={5000} className={field} value={q.text} onChange={(e) => setQ({ ...q, text: e.target.value })} placeholder={/blank/i.test(q.qtype) ? 'Use ____ for each blank' : undefined} />
-      </label>
-      {!split && (choice || match) && (
-        <fieldset className="space-y-1">
-          <legend className="text-xs font-semibold">{match ? 'Pairs, written as left = right' : 'Options, in order'}</legend>
-          {[...options, ''].slice(0, 12).map((o, i) => (
-            <input
-              key={i}
-              aria-label={`${match ? 'Pair' : 'Option'} ${i + 1}`}
-              className={`${field} w-full`}
-              placeholder={match ? 'Delhi = India' : undefined}
-              value={o}
-              onChange={(e) => {
-                const next = [...options]
-                next[i] = e.target.value
-                setQ({ ...q, options: next.filter((x, j) => x.trim() || j < next.length - 1) })
-              }}
-            />
-          ))}
-        </fieldset>
-      )}
-      <fieldset className="space-y-1.5">
-        <legend className="text-xs font-semibold">{split ? 'Bits. Each is the same type as the question unless you change it.' : 'Bits, when the question has parts (a), (b), (c)'}</legend>
-        {bits.map((b, i) => {
-          const kind = typeOf(b)
-          const opts = b.options ?? []
-          return (
-            <div key={i} className="space-y-1.5 rounded-lg border border-line bg-white p-2">
-              <div className="grid grid-cols-[1.5rem_1fr_4.5rem_auto] items-start gap-1.5">
-                <span className="pt-1.5 text-sm font-semibold text-muted">({letter(i)})</span>
-                <input required aria-label={`Bit ${letter(i)}`} placeholder="The question" maxLength={2000} className={field} value={b.text} onChange={(e) => setBit(i, { text: e.target.value })} />
-                <input required aria-label={`Marks for bit ${letter(i)}`} placeholder="Marks" inputMode="decimal" pattern="\d{1,4}(\.\d{1,2})?" className={field} value={b.marks} onChange={(e) => setBit(i, { marks: e.target.value })} />
-                <button type="button" className={icon} aria-label={`Remove bit ${letter(i)}`} onClick={() => setBits(bits.filter((_, j) => j !== i))}>
-                  ×
-                </button>
-              </div>
-              {lists(kind) && (
-                <div className="flex flex-wrap gap-1.5 pl-[1.875rem]">
-                  {[...opts, ''].slice(0, 12).map((o, k) => (
-                    <input
-                      key={k}
-                      aria-label={`${isMatch(kind) ? 'Pair' : 'Option'} ${k + 1} of bit ${letter(i)}`}
-                      placeholder={isMatch(kind) ? 'Delhi = India' : `Option ${k + 1}`}
-                      className={`${field} min-w-28 flex-1 sm:max-w-56`}
-                      value={o}
-                      onChange={(e) => {
-                        const next = [...opts]
-                        next[k] = e.target.value
-                        setBit(i, { options: next.filter((x, j) => x.trim() || j < next.length - 1) })
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1.5 pl-[1.875rem]">
-                <select aria-label={`Type of bit ${letter(i)}`} className={`${field} ${kind !== q.qtype ? 'font-semibold text-brand' : 'text-muted'}`} value={kind} onChange={(e) => setBit(i, { qtype: e.target.value === q.qtype ? '' : e.target.value })}>
-                  {[...new Set([...types, kind])].map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-                <input aria-label={`Answer for bit ${letter(i)}`} placeholder="Answer, for the key" className={`${field} min-w-28 flex-1`} value={b.answer ?? ''} onChange={(e) => setBit(i, { answer: e.target.value })} />
-              </div>
-            </div>
-          )
-        })}
-        <button type="button" className={button} disabled={bits.length >= 12} onClick={addBit}>
-          Add a bit
-        </button>
-      </fieldset>
-      {ticks && (
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <label className="flex items-center gap-1.5 text-xs font-semibold">
-            Options print
-            <select aria-label="Options print" className={field} value={q.optionCols ?? 0} onChange={(e) => setQ({ ...q, optionCols: Number(e.target.value) })}>
-              <option value={0}>fitted by their length</option>
-              <option value={1}>one under another</option>
-              <option value={2}>in 2 columns</option>
-              <option value={3}>in 3 columns</option>
-              <option value={4}>in 4 columns</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={q.optionBoxes ?? true} onChange={(e) => setQ({ ...q, optionBoxes: e.target.checked })} />
-            A box to tick beside each
-          </label>
-        </div>
-      )}
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-xs font-semibold">
-          Room to answer, when printed with space
-          <select aria-label="Room to answer" className={field} value={q.spaceKind ?? 'auto'} onChange={(e) => setQ({ ...q, spaceKind: e.target.value as TypedQuestion['spaceKind'], spaceSize: e.target.value === 'auto' || e.target.value === 'none' ? 0 : q.spaceSize || 4 })}>
-            <option value="auto">Automatic, by the marks</option>
-            <option value="lines">Ruled lines</option>
-            <option value="blank">Blank space</option>
-            <option value="box">A box to draw in</option>
-            <option value="none">None</option>
-          </select>
-        </label>
-        {sized && (
-          <label className="flex flex-col gap-1 text-xs font-semibold">
-            {q.spaceKind === 'lines' ? 'Lines' : 'Height, in lines'}
-            <input required aria-label="Size of the room to answer" type="number" min={1} max={60} className={`${field} w-24`} value={q.spaceSize || ''} onChange={(e) => setQ({ ...q, spaceSize: Number(e.target.value) })} />
-          </label>
-        )}
-        {bits.length > 0 && q.spaceKind !== 'auto' && q.spaceKind !== 'none' && <span className="pb-2 text-xs text-muted">Each bit gets this much.</span>}
-      </div>
-      <label className="flex flex-col gap-1 text-xs font-semibold">
-        Answer or marking guide, for the answer key
-        <input aria-label="Answer" className={field} value={q.answer ?? ''} onChange={(e) => setQ({ ...q, answer: e.target.value })} />
-      </label>
-      {save.error && <Problem error={save.error} />}
-      {more && !save.error && <p className="text-xs font-semibold text-emerald-700">Added. Type the next one.</p>}
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className={primary} disabled={save.isPending}>
-          {editing ? 'Save question' : 'Add question'}
-        </button>
-        {!editing && (
-          <button type="button" className={button} disabled={save.isPending || !q.text.trim() || !total.trim()} onClick={() => save.mutate(true)}>
-            Add and type another
-          </button>
-        )}
-        <button type="button" className={button} onClick={() => onDone()}>
-          Close
-        </button>
-      </div>
-    </form>
+    <span className="block text-xs text-muted">
+      {options.map((o, i) => (
+        <span key={i} className={o.trim().toLowerCase() === answer.trim().toLowerCase() ? 'font-semibold text-emerald-700' : undefined}>
+          {i > 0 && <span className="font-normal text-muted"> · </span>}
+          {o}
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -634,13 +427,5 @@ function FromBank({ orgId, paper, sectionId, bank, onChange, onClose }: { orgId:
         </ul>
       )}
     </div>
-  )
-}
-
-function Problem({ error }: { error: Error }) {
-  return (
-    <p role="alert" className="text-sm font-semibold text-red-700">
-      {error instanceof ApiError ? error.message : 'That did not work. Try again.'}
-    </p>
   )
 }

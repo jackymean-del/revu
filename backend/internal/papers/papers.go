@@ -653,7 +653,7 @@ header{text-align:center;border-bottom:2px solid #13111e;padding-bottom:8px;marg
 h1{font-size:18px;margin:0}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #ccc}
 h3{font-size:14px;margin:12px 0 4px}
 .meta{display:flex;justify-content:space-between;font-size:13px;margin-top:6px}
-ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-style:lower-alpha;margin:4px 0 0;display:grid;column-gap:36px}.opts li{margin:3px 0}.bits .opts{list-style:upper-roman;padding-left:48px}
+ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-style:lower-alpha;margin:4px 0 0;display:grid;column-gap:36px}.opts li{margin:3px 0}.opts .ok{font-weight:700;color:#15803d}.opts .ok::after{content:' ✓'}.bits .opts{list-style:upper-roman;padding-left:48px}
 .bits{list-style:none;padding-left:0;margin:4px 0 0}.bits li{margin:6px 0}.bits .l{display:inline-block;width:26px}
 .key{background:#f6f5fb;border:1px solid #ddd;padding:4px 8px;margin-top:4px;font-size:13px}
 .space{margin-top:6px}.space div{border-bottom:1px solid #bbb;height:26px}
@@ -668,9 +668,9 @@ ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-s
 <div class="meta"><span>{{.Class}} · {{.Subject}}</span><span>{{.Set}}</span><span>Maximum marks: {{.Max}}</span></div></header>
 {{if .Instructions}}<p>{{.Instructions}}</p>{{end}}
 {{range .Sections}}{{if .Sub}}<h3>{{.Name}} <span class="m">{{.Marks}} marks</span></h3>{{else}}<h2>{{.Name}}{{if .Extra}} <span class="extra">(not counted)</span>{{end}} <span class="m">{{.Marks}} marks</span></h2>{{end}}{{if .Note}}<p class="note">{{.Note}}</p>{{end}}{{if .Items}}<ol>
-{{range .Items}}<li value="{{.No}}"><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}{{$q := .}}<ol class="opts" style="grid-template-columns:repeat({{.Cols}},1fr)">{{range .Options}}<li>{{.}}{{if and $q.Boxes (not $.Key)}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
-{{if .Bits}}<ul class="bits">{{range .Bits}}<li>{{if .Marks}}<span class="m">[{{.Marks}}]</span>{{end}}<span class="l">({{.Letter}})</span>{{.Text}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}{{$b := .}}<ol class="opts" style="grid-template-columns:repeat({{.Cols}},1fr)">{{range .Options}}<li>{{.}}{{if and $b.Boxes (not $.Key)}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}{{if $.Key}}<div class="key">{{.Answer}}</div>{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ul>{{end}}
-{{if $.Key}}{{if .Answer}}<div class="key">{{.Answer}}</div>{{end}}{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ol>{{end}}{{end}}
+{{range .Items}}<li value="{{.No}}"><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}{{$q := .}}<ol class="opts" style="grid-template-columns:repeat({{.Cols}},1fr)">{{range .Options}}<li{{if and $.Key (eq . $q.Answer)}} class="ok"{{end}}>{{.}}{{if and $q.Boxes (not $.Key)}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
+{{if .Bits}}<ul class="bits">{{range .Bits}}<li>{{if .Marks}}<span class="m">[{{.Marks}}]</span>{{end}}<span class="l">({{.Letter}})</span>{{.Text}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}{{$b := .}}<ol class="opts" style="grid-template-columns:repeat({{.Cols}},1fr)">{{range .Options}}<li{{if and $.Key (eq . $b.Answer)}} class="ok"{{end}}>{{.}}{{if and $b.Boxes (not $.Key)}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}{{if $.Key}}{{if .Note}}<div class="key">{{.Note}}</div>{{end}}{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ul>{{end}}
+{{if $.Key}}{{if .Note}}<div class="key">{{.Note}}</div>{{end}}{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ol>{{end}}{{end}}
 </body></html>`))
 
 // paperHTML is the printable paper, section by section and sub-section by
@@ -693,6 +693,7 @@ func paperHTML(c fiber.Ctx) error {
 	type pair struct{ Left, Letter, Right string }
 	type bit struct {
 		Letter, Text, Marks, Answer, Room string
+		Note                              string
 		Lines                             []int
 		Height, Cols                      int
 		Boxes                             bool
@@ -700,8 +701,9 @@ func paperHTML(c fiber.Ctx) error {
 		Pairs                             []pair
 	}
 	// set lays out what a question, or a bit of one, offers to choose from:
-	// matching pairs with the right column out of step, True and False when
-	// a true-or-false has no options of its own, or its options as they are.
+	// matching pairs with the right column out of step (in step on the
+	// answer key), True and False when a true-or-false has no options of its
+	// own, or its options as they are.
 	set := func(qtype string, options []string) ([]string, []pair) {
 		switch {
 		case matching(qtype) && len(options) > 0:
@@ -709,7 +711,11 @@ func paperHTML(c fiber.Ctx) error {
 			n := len(options)
 			for i, o := range options {
 				l, _, _ := strings.Cut(o, "=")
-				_, r, _ := strings.Cut(options[(i+1)%n], "=")
+				from := (i + 1) % n
+				if key {
+					from = i
+				}
+				_, r, _ := strings.Cut(options[from], "=")
 				pairs = append(pairs, pair{Left: strings.TrimSpace(l), Letter: string(rune('a' + i)), Right: strings.TrimSpace(r)})
 			}
 			return nil, pairs
@@ -718,11 +724,20 @@ func paperHTML(c fiber.Ctx) error {
 		}
 		return options, nil
 	}
+	// note is what the answer key adds under a question or bit: its answer,
+	// unless that is one of the options, which is then marked where it stands.
+	note := func(answer string, options []string) string {
+		if slices.Contains(options, answer) {
+			return ""
+		}
+		return answer
+	}
 	type pi struct {
 		No                        int
 		Height, Cols              int
 		Boxes                     bool
 		Text, Marks, Answer, Room string
+		Note                      string
 		Options                   []string
 		Pairs                     []pair
 		Bits                      []bit
@@ -778,7 +793,7 @@ func paperHTML(c fiber.Ctx) error {
 						btype = qtype
 					}
 					y.Options, y.Pairs = set(btype, b.Options)
-					y.Cols = optionCols(cols, y.Options)
+					y.Cols, y.Note = optionCols(cols, y.Options), note(b.Answer, y.Options)
 					// Room to write, unless the bit is answered by choosing.
 					if kind != "auto" || (len(y.Options) == 0 && len(y.Pairs) == 0 && !choice(btype)) {
 						y.Lines, y.Height, y.Room = room(kind, size, b.Marks)
@@ -791,7 +806,7 @@ func paperHTML(c fiber.Ctx) error {
 			if len(x.Options) == 0 && len(x.Pairs) == 0 && !choice(qtype) && len(x.Bits) == 0 && kind == "auto" {
 				x.Lines = make([]int, answerLines(it.Marks))
 			}
-			x.Cols = optionCols(cols, x.Options)
+			x.Cols, x.Note = optionCols(cols, x.Options), note(x.Answer, x.Options)
 			// Bits all worth the same show no marks of their own: the
 			// question says it once, as 3 x 2 = 6.
 			if each, same := sameMarks(it.Question); same {
