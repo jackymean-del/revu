@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { addPaperItem, getPaper, updateQuestion, type Paper, type Question, type TypedQuestion } from '../../api/client'
+import { addPaperItem, putPaperItem, type Paper, type Question, type TypedQuestion } from '../../api/client'
 import { ApiError } from '../../api/problem'
 import { hundredths, marks } from '../../lib/papers'
 import { TypeSelect } from './TypeSelect'
@@ -120,7 +120,7 @@ function Answers({ kind, of, numbered, tight, options, answer, onChange }: { kin
  * they add up to. A bit is of the question's type unless it is given its
  * own, so one question can hold bits of several types.
  */
-export function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; editing?: Question; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
+export function QuestionForm({ orgId, paper, sectionId, editing, itemId, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; editing?: Question; itemId?: string; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
   const [q, setQ] = useState<TypedQuestion>(
     editing
       ? { qtype: editing.qtype, marks: editing.marks, text: editing.text, options: editing.options, answer: editing.answer, spaceKind: editing.spaceKind ?? 'auto', spaceSize: editing.spaceSize ?? 0, optionCols: editing.optionCols ?? 0, optionBoxes: editing.optionBoxes ?? true }
@@ -142,10 +142,10 @@ export function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone
   }
   const save = useMutation({
     mutationFn: async (again: boolean) => {
-      if (!editing) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
-      const e = editing
-      await updateQuestion(orgId, e.id, { ...body, levelId: e.levelId, subjectId: e.subjectId, lessonId: e.lessonId, outcomeId: e.outcomeId, bloom: e.bloom, solo: e.solo, customLevel: e.customLevel, difficulty: e.difficulty, source: e.source, status: e.status })
-      return { p: await getPaper(orgId, paper.id), again: false }
+      if (!editing || !itemId) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
+      // The server changes the question where it stands, or gives this slot
+      // a new one when another set shares it.
+      return { p: await putPaperItem(orgId, paper.id, itemId, { question: body }), again: false }
     },
     onSuccess: ({ p, again }) => {
       if (again) {

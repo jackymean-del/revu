@@ -60,7 +60,8 @@ interface Board {
  * any level of it.
  */
 export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; paper: Paper; bank: Question[]; onChange: (p: Paper) => void }) {
-  const draft = paper.status === 'draft'
+  // Whoever may change the set: its teachers while a draft, then those who moderate.
+  const draft = paper.may.edit
   const [open, setOpen] = useState<Set<string>>(() => new Set(paper.sections.slice(0, 1).flatMap((s) => (paper.sections.some((x) => x.parentId === s.id) ? [] : [s.id]))))
   const [view, setView] = useState<View>('cards')
   const [editing, setEditing] = useState('')
@@ -293,6 +294,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                         {(it.question?.bits ?? []).some((b) => b.qtype) ? 'Mixed types' : (it.question?.qtype ?? it.section)} · {bitsAlike(it.question?.bits ?? []) && `${it.question?.bits?.length} × ${it.question?.bits?.[0].marks} = `}
                         {it.marks} {it.marks === '1' ? 'mark' : 'marks'}
                         {it.chapter && ` · ${it.chapter}`}
+                        {it.sameAsSource && draft && <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">Same as {paper.copiedFrom}</span>}
                         {it.level && ` · ${levelLabel(tax, it.level, settings)}`}
                       </p>
                     </div>
@@ -321,7 +323,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                   </div>
                   {editing === it.id && it.question && draft && (
                     <div className="mt-2">
-                      <QuestionForm key={it.question.id} orgId={orgId} paper={paper} sectionId={section.id} editing={it.question} onAdded={onChange} onDone={(p) => (p && onChange(p), setEditing(''))} />
+                      <QuestionForm key={it.question.id} orgId={orgId} paper={paper} sectionId={section.id} editing={it.question} itemId={it.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setEditing(''))} />
                     </div>
                   )}
                   {picking === it.id && (

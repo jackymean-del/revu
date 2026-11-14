@@ -1,6 +1,7 @@
 package papers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -88,7 +89,15 @@ func mayWrite(c fiber.Ctx, subjectID string) error {
 	if err != nil {
 		return err
 	}
-	return policy.Check(actor, policy.AssessmentEdit, policy.Target{SubjectID: subjectID})
+	// A teacher's subject is theirs where they teach it.
+	t := policy.Target{SubjectID: subjectID}
+	for _, as := range actor.Assignments {
+		if as.SubjectID == subjectID {
+			t.SectionID = as.SectionID
+			break
+		}
+	}
+	return policy.Check(actor, policy.AssessmentEdit, t)
 }
 
 // listQuestions lists a class and subject's bank, narrowed by lesson, Bloom
@@ -360,18 +369,10 @@ func updateQuestion(c fiber.Ctx) error {
 	if err := mayWrite(c, subjectID); err != nil {
 		return err
 	}
-	opts, _ := json.Marshal(in.Options)
-	bits, _ := json.Marshal(in.Bits)
 	if inFinal && in.Status != "retired" {
 		return problem.New(http.StatusConflict, "question.in_final_paper", "This question is in a final paper; add a new question instead of changing it.")
 	}
-	q, err := scanQuestion(tx.QueryRow(ctx, `
-		WITH u AS (
-			UPDATE questions SET lesson_id = nullif($2, '')::uuid, outcome_id = nullif($3, '')::uuid, bloom = $4, qtype = $5, marks = $6::numeric, difficulty = $7,
-			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), bits = $14::jsonb, space_kind = $15, space_size = $16, option_cols = $17, option_boxes = $18, updated_at = now()
-			 WHERE id = $1::uuid RETURNING *)
-		SELECT `+questionCols+` FROM u q`,
-		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize, in.OptionCols, *in.OptionBoxes))
+	q, err := changeQuestion(ctx, tx, id, in)
 	if err != nil {
 		return err
 	}
@@ -385,6 +386,19 @@ func updateQuestion(c fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(q)
+}
+
+// changeQuestion writes a checked question over the one that has this id.
+func changeQuestion(ctx context.Context, tx pgx.Tx, id string, in questionIn) (Question, error) {
+	opts, _ := json.Marshal(in.Options)
+	bits, _ := json.Marshal(in.Bits)
+	return scanQuestion(tx.QueryRow(ctx, `
+		WITH u AS (
+			UPDATE questions SET lesson_id = nullif($2, '')::uuid, outcome_id = nullif($3, '')::uuid, bloom = $4, qtype = $5, marks = $6::numeric, difficulty = $7,
+			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), bits = $14::jsonb, space_kind = $15, space_size = $16, option_cols = $17, option_boxes = $18, updated_at = now()
+			 WHERE id = $1::uuid RETURNING *)
+		SELECT `+questionCols+` FROM u q`,
+		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize, in.OptionCols, *in.OptionBoxes))
 }
 
 // jsonUnmarshal reads a question's options as stored.

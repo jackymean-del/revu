@@ -2306,6 +2306,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/papers/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a complete draft to those who moderate; its questions are then theirs alone. */
+        post: operations["submitPaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/papers/{id}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a submitted set back to its teacher with a note. */
+        post: operations["returnPaper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/papers/{id}/html": {
         parameters: {
             query?: never;
@@ -4397,6 +4431,8 @@ export interface components {
             optionBoxes?: boolean;
         };
         PaperItem: {
+            /** @description Still the question the set was copied with. */
+            sameAsSource?: boolean;
             id: string;
             seq: number;
             sectionId: string;
@@ -4426,11 +4462,25 @@ export interface components {
             assignments: components["schemas"]["PaperAssignment"][];
         };
         Paper: {
+            /** @description The set it was copied from, by name. */
+            copiedFrom: string;
+            /** @description Why it was sent back to its teacher. */
+            reviewNote: string;
+            /** @description Its questions are kept from this person; sections and items are empty. */
+            veiled: boolean;
+            /** @description What this person may do with the set. */
+            may: {
+                edit: boolean;
+                submit: boolean;
+                approve: boolean;
+                return: boolean;
+                print: boolean;
+            };
             id: string;
             assessmentId: string;
             set: string;
             /** @enum {string} */
-            status: "draft" | "final";
+            status: "draft" | "submitted" | "final";
             /** @enum {string} */
             taxonomy: "bloom" | "solo" | "custom" | "none";
             blueprintVersion: number;
@@ -4444,10 +4494,12 @@ export interface components {
             assignments: components["schemas"]["PaperAssignment"][];
         };
         PaperSummary: {
+            /** @description This person may see its questions. */
+            open: boolean;
             id: string;
             set: string;
             /** @enum {string} */
-            status: "draft" | "final";
+            status: "draft" | "submitted" | "final";
             items: number;
             filled: number;
             blueprintVersion: number;
@@ -4532,6 +4584,8 @@ export interface components {
             name?: string;
         };
         PaperSettings: {
+            /** @description The roles that, with administrators, see a submitted set, change it and approve it. Left out, it stays as it is. */
+            moderators?: ("coordinator" | "principal")[];
             setNames: string[];
             custom: {
                 name: string;
@@ -4542,6 +4596,7 @@ export interface components {
             /** @description Empty clears the slot. */
             questionId?: string;
             locked?: boolean;
+            question?: components["schemas"]["TypedQuestion"];
         };
         QuestionDraftRequest: {
             levelId: string;
@@ -9933,6 +9988,64 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description The final set. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    submitPaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The set, veiled unless this person moderates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    returnPaper: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The set, a draft again. */
             200: {
                 headers: {
                     [name: string]: unknown;

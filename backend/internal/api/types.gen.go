@@ -953,8 +953,9 @@ func (e OwnerOrgInputType) Valid() bool {
 
 // Defines values for PaperStatus.
 const (
-	PaperStatusDraft PaperStatus = "draft"
-	PaperStatusFinal PaperStatus = "final"
+	PaperStatusDraft     PaperStatus = "draft"
+	PaperStatusFinal     PaperStatus = "final"
+	PaperStatusSubmitted PaperStatus = "submitted"
 )
 
 // Valid indicates whether the value is a known member of the PaperStatus enum.
@@ -963,6 +964,8 @@ func (e PaperStatus) Valid() bool {
 	case PaperStatusDraft:
 		return true
 	case PaperStatusFinal:
+		return true
+	case PaperStatusSubmitted:
 		return true
 	default:
 		return false
@@ -1029,10 +1032,29 @@ func (e PaperSectionChangeKind) Valid() bool {
 	}
 }
 
+// Defines values for PaperSettingsModerators.
+const (
+	PaperSettingsModeratorsCoordinator PaperSettingsModerators = "coordinator"
+	PaperSettingsModeratorsPrincipal   PaperSettingsModerators = "principal"
+)
+
+// Valid indicates whether the value is a known member of the PaperSettingsModerators enum.
+func (e PaperSettingsModerators) Valid() bool {
+	switch e {
+	case PaperSettingsModeratorsCoordinator:
+		return true
+	case PaperSettingsModeratorsPrincipal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PaperSummaryStatus.
 const (
-	PaperSummaryStatusDraft PaperSummaryStatus = "draft"
-	PaperSummaryStatusFinal PaperSummaryStatus = "final"
+	PaperSummaryStatusDraft     PaperSummaryStatus = "draft"
+	PaperSummaryStatusFinal     PaperSummaryStatus = "final"
+	PaperSummaryStatusSubmitted PaperSummaryStatus = "submitted"
 )
 
 // Valid indicates whether the value is a known member of the PaperSummaryStatus enum.
@@ -1041,6 +1063,8 @@ func (e PaperSummaryStatus) Valid() bool {
 	case PaperSummaryStatusDraft:
 		return true
 	case PaperSummaryStatusFinal:
+		return true
+	case PaperSummaryStatusSubmitted:
 		return true
 	default:
 		return false
@@ -3729,15 +3753,33 @@ type Paper struct {
 	BlueprintVersion int               `json:"blueprintVersion"`
 	ByLevel          []PaperGap        `json:"byLevel"`
 	BySection        []PaperGap        `json:"bySection"`
-	Filled           int               `json:"filled"`
-	Id               string            `json:"id"`
-	Instructions     string            `json:"instructions"`
-	Items            []PaperItem       `json:"items"`
-	Sections         []PaperSection    `json:"sections"`
-	Set              string            `json:"set"`
-	Status           PaperStatus       `json:"status"`
-	Taxonomy         PaperTaxonomy     `json:"taxonomy"`
-	Total            string            `json:"total"`
+
+	// CopiedFrom The set it was copied from, by name.
+	CopiedFrom   string      `json:"copiedFrom"`
+	Filled       int         `json:"filled"`
+	Id           string      `json:"id"`
+	Instructions string      `json:"instructions"`
+	Items        []PaperItem `json:"items"`
+
+	// May What this person may do with the set.
+	May struct {
+		Approve bool `json:"approve"`
+		Edit    bool `json:"edit"`
+		Print   bool `json:"print"`
+		Return  bool `json:"return"`
+		Submit  bool `json:"submit"`
+	} `json:"may"`
+
+	// ReviewNote Why it was sent back to its teacher.
+	ReviewNote string         `json:"reviewNote"`
+	Sections   []PaperSection `json:"sections"`
+	Set        string         `json:"set"`
+	Status     PaperStatus    `json:"status"`
+	Taxonomy   PaperTaxonomy  `json:"taxonomy"`
+	Total      string         `json:"total"`
+
+	// Veiled Its questions are kept from this person; sections and items are empty.
+	Veiled bool `json:"veiled"`
 }
 
 // PaperStatus defines model for Paper.Status.
@@ -3790,6 +3832,9 @@ type PaperItem struct {
 	Marks    string   `json:"marks"`
 	Question Question `json:"question,omitempty"`
 
+	// SameAsSource Still the question the set was copied with.
+	SameAsSource bool `json:"sameAsSource,omitempty"`
+
 	// Section The question type.
 	Section   string `json:"section"`
 	SectionId string `json:"sectionId"`
@@ -3805,7 +3850,8 @@ type PaperItemAdd struct {
 
 // PaperItemChange defines model for PaperItemChange.
 type PaperItemChange struct {
-	Locked bool `json:"locked,omitempty"`
+	Locked   bool          `json:"locked,omitempty"`
+	Question TypedQuestion `json:"question,omitempty"`
 
 	// QuestionId Empty clears the slot.
 	QuestionId string `json:"questionId,omitempty"`
@@ -3859,17 +3905,26 @@ type PaperSettings struct {
 		Levels []string `json:"levels"`
 		Name   string   `json:"name"`
 	} `json:"custom"`
-	SetNames []string `json:"setNames"`
+
+	// Moderators The roles that, with administrators, see a submitted set, change it and approve it. Left out, it stays as it is.
+	Moderators []PaperSettingsModerators `json:"moderators,omitempty"`
+	SetNames   []string                  `json:"setNames"`
 }
+
+// PaperSettingsModerators defines model for PaperSettings.Moderators.
+type PaperSettingsModerators string
 
 // PaperSummary defines model for PaperSummary.
 type PaperSummary struct {
-	BlueprintVersion int                `json:"blueprintVersion"`
-	Filled           int                `json:"filled"`
-	Id               string             `json:"id"`
-	Items            int                `json:"items"`
-	Set              string             `json:"set"`
-	Status           PaperSummaryStatus `json:"status"`
+	BlueprintVersion int    `json:"blueprintVersion"`
+	Filled           int    `json:"filled"`
+	Id               string `json:"id"`
+	Items            int    `json:"items"`
+
+	// Open This person may see its questions.
+	Open   bool               `json:"open"`
+	Set    string             `json:"set"`
+	Status PaperSummaryStatus `json:"status"`
 }
 
 // PaperSummaryStatus defines model for PaperSummary.Status.
@@ -5945,6 +6000,17 @@ type PutPaperOrderParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// ReturnPaperJSONBody defines parameters for ReturnPaper.
+type ReturnPaperJSONBody struct {
+	Note string `json:"note,omitempty"`
+}
+
+// ReturnPaperParams defines parameters for ReturnPaper.
+type ReturnPaperParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // AddPaperSectionParams defines parameters for AddPaperSection.
 type AddPaperSectionParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -5959,6 +6025,12 @@ type DeletePaperSectionParams struct {
 
 // PutPaperSectionParams defines parameters for PutPaperSection.
 type PutPaperSectionParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// SubmitPaperParams defines parameters for SubmitPaper.
+type SubmitPaperParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -6797,6 +6869,9 @@ type PutPaperItemJSONRequestBody = PaperItemChange
 
 // PutPaperOrderJSONRequestBody defines body for PutPaperOrder for application/json ContentType.
 type PutPaperOrderJSONRequestBody = PaperOrder
+
+// ReturnPaperJSONRequestBody defines body for ReturnPaper for application/json ContentType.
+type ReturnPaperJSONRequestBody ReturnPaperJSONBody
 
 // AddPaperSectionJSONRequestBody defines body for AddPaperSection for application/json ContentType.
 type AddPaperSectionJSONRequestBody = PaperSectionChange

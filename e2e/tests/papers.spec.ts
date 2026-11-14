@@ -4,7 +4,7 @@ const ORG = '01a19bae-0000-7000-8000-000000000011'
 
 // One assessment of 4 marks, a lesson with an outcome, a bank of three
 // questions, and a server that keeps what it is sent.
-function fakeApi(page: Page) {
+function fakeApi(page: Page, role: 'admin' | 'teacher' = 'admin') {
   const sent: { path: string; body: unknown }[] = []
   const json = (r: Route, body: unknown, s = 200) => r.fulfill({ status: s, json: body })
   const q = (id: string, qtype: string, marks: string, bloom: string, text: string, status = 'approved', source = 'typed') => ({
@@ -23,9 +23,16 @@ function fakeApi(page: Page) {
     bySection: [{ key: 'Multiple choice', wanted: '2', filled: '2', missing: 0 }, { key: 'Short answer', wanted: '2', filled: '2', missing: 0 }], byLevel: [], assignments: [] as unknown[],
   }
   let papers: unknown[] = []
-  const summary = () => ({ id: paper.id, set: paper.set, status: paper.status, items: 3, filled: 3, blueprintVersion: 1 })
+  // What the server lets this person do with a set, and whether they see its questions.
+  const moderator = role === 'admin'
+  const seen = (p: typeof paper) => {
+    const open = moderator || p.status === 'draft'
+    const may = { edit: open && p.status !== 'final', submit: p.status === 'draft' && !moderator, approve: moderator && p.status !== 'final', return: moderator && p.status === 'submitted', print: moderator && p.status === 'final' }
+    return { ...p, copiedFrom: '', reviewNote: '', veiled: !open, may, ...(open ? {} : { items: [], sections: [], bySection: [] }) }
+  }
+  const summary = () => ({ id: paper.id, set: paper.set, status: paper.status, items: 3, filled: 3, blueprintVersion: 1, open: moderator || paper.status === 'draft' })
 
-  void page.route('**/v1/me', (r) => json(r, { userId: 'user_1', orgs: [{ id: ORG, name: 'Hill View', preset: 'school', roles: ['admin'], setupDone: true, staffId: 'staff-1' }] }))
+  void page.route('**/v1/me', (r) => json(r, { userId: 'user_1', orgs: [{ id: ORG, name: 'Hill View', preset: 'school', roles: [role], setupDone: true, staffId: 'staff-1' }] }))
   void page.route('**/v1/terminology', (r) => json(r, { preset: 'school', overrides: [] }))
   void page.route('**/v1/setup', (r) =>
     json(r, { years: 1, periods: 1, levels: 1, sections: 1, subjects: 1, levelSubjects: 1, staff: 3, students: 2, invitations: 0, done: true, assessments: 1, marks: 0, schemes: 0, results: 0, reports: 0, papers: 0, assigned: 0 }),
@@ -34,7 +41,8 @@ function fakeApi(page: Page) {
   void page.route(/\/v1\/levels(\?.*)?$/, (r) => json(r, [{ id: 'l6', name: 'Grade 6', seq: 6 }]))
   void page.route(/\/v1\/sections(\?.*)?$/, (r) => json(r, [{ id: 's6a', name: 'A', levelId: 'l6', yearId: 'y', branchId: 'b' }]))
   void page.route(/\/v1\/subjects(\?.*)?$/, (r) => json(r, [{ id: 'math', name: 'Mathematics', kind: 'academic' }]))
-  void page.route(/\/v1\/(staff|subject-groups|periods|teaching-assignments|branches)(\?.*)?$/, (r) => json(r, []))
+  void page.route(/\/v1\/(staff|subject-groups|periods|branches)(\?.*)?$/, (r) => json(r, []))
+  void page.route(/\/v1\/teaching-assignments(\?.*)?$/, (r) => json(r, role === 'teacher' ? [{ id: 'ta', staffId: 'staff-1', sectionId: 's6a', subjectId: 'math' }] : []))
   void page.route(/\/v1\/assessments(\?.*)?$/, (r) =>
     json(r, [{ id: 'ut', yearId: 'y', periodId: 'p', levelId: 'l6', subjectId: 'math', title: 'Unit test 3', kind: 'periodic_test', entryMode: 'total', status: 'open', sectionIds: ['s6a'], parts: [] }]),
   )
@@ -66,30 +74,30 @@ function fakeApi(page: Page) {
     if (r.request().method() === 'POST') {
       sent.push({ path: 'papers', body: r.request().postDataJSON() })
       papers = [summary()]
-      return json(r, paper, 201)
+      return json(r, seen(paper), 201)
     }
     return json(r, papers)
   })
-  void page.route('**/v1/papers/pA', (r) => json(r, paper))
+  void page.route('**/v1/papers/pA', (r) => json(r, seen(paper)))
   void page.route('**/v1/papers/pA/order', (r) => {
     const body = r.request().postDataJSON()
     sent.push({ path: 'order', body })
     const ids: string[] = body.sections.flatMap((x: { itemIds: string[] }) => x.itemIds)
     paper = { ...paper, sections: body.sections.map((x: { id: string }, i: number) => ({ ...paper.sections.find((y) => y.id === x.id)!, seq: i + 1 })), items: ids.map((id, i) => ({ ...paper.items.find((y) => y.id === id)!, seq: i + 1 })) }
-    return json(r, paper)
+    return json(r, seen(paper))
   })
   void page.route('**/v1/papers/pA/sections/*', (r) => {
     const body = r.request().postDataJSON()
     sent.push({ path: 'section', body })
     paper = { ...paper, sections: paper.sections.map((x) => (r.request().url().endsWith(x.id) ? { ...x, ...body } : x)) }
-    return json(r, paper)
+    return json(r, seen(paper))
   })
   void page.route('**/v1/papers/pA/items', (r) => {
     const body = r.request().postDataJSON()
     sent.push({ path: 'item', body })
     const made = { ...q('q7', body.question.qtype, body.question.marks, 'apply', body.question.text), options: body.question.options }
     paper = { ...paper, filled: 4, items: [...paper.items, { ...item(4, 'Short answer', body.question.marks, '', made), sectionId: body.sectionId }] }
-    return json(r, paper, 201)
+    return json(r, seen(paper), 201)
   })
   void page.route('**/v1/paper-settings', (r) => json(r, { setNames: ['Set A', 'Set B'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill'] } }))
   void page.route(/\/v1\/papers\/pA\/html/, (r) => {
@@ -101,13 +109,26 @@ function fakeApi(page: Page) {
     sent.push({ path: 'finalise', body: r.request().postDataJSON() })
     paper = { ...paper, status: 'final' }
     papers = [summary()]
-    return json(r, paper)
+    return json(r, seen(paper))
+  })
+  void page.route('**/v1/papers/pA/submit', (r) => {
+    sent.push({ path: 'submit', body: null })
+    paper = { ...paper, status: 'submitted' }
+    papers = [summary()]
+    return json(r, seen(paper))
+  })
+  void page.route('**/v1/papers/pA/duplicate', (r) => {
+    sent.push({ path: 'duplicate', body: r.request().postDataJSON() })
+    const b = { ...paper, id: 'pB', set: 'Set B', status: 'draft', items: paper.items.map((i) => ({ ...i, sameAsSource: true })) }
+    papers = [summary(), { ...summary(), id: 'pB', set: 'Set B', status: 'draft', open: true }]
+    void page.route('**/v1/papers/pB', (x) => json(x, { ...seen(b), copiedFrom: 'Set A' }))
+    return json(r, { ...seen(b), copiedFrom: 'Set A' }, 201)
   })
   void page.route('**/v1/papers/pA/assignments', (r) => {
     const body = r.request().postDataJSON()
     sent.push({ path: 'assignments', body })
     paper = { ...paper, assignments: body.assignments }
-    return json(r, paper)
+    return json(r, seen(paper))
   })
   return { sent }
 }
@@ -138,7 +159,7 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   await expect(page.getByRole('button', { name: /^Next:/ })).toContainText('Add the 2 questions the blueprint still needs')
   await page.getByRole('button', { name: /Paper sets/ }).click()
   await page.getByRole('button', { name: 'Make Set A' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'slots' })).toContainText('3 of 3 slots filled · 4 marks · ready to finalise')
+  await expect(page.getByRole('status').filter({ hasText: 'slots' })).toContainText('3 of 3 slots filled · 4 marks · ready to approve')
 
   // Section cards: the second moves up, is marked extra and not printed, and takes a typed question.
   const short = page.getByRole('region', { name: 'Short answer' })
@@ -173,9 +194,11 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   expect(api.sent.filter((s) => s.path === 'html').at(-1)?.body).toEqual({ key: 'true', space: 'true' })
   // How marks are entered is not the paper's to say: that is the administrator's, on Evaluate exam.
   await expect(page.getByLabel('Marks are entered')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Finalise Set A' }).click()
+  await expect(preview.getByRole('button', { name: 'Print' })).toHaveCount(0) // a draft is read, not printed
+  await page.getByRole('button', { name: 'Approve Set A as final' }).click()
   await expect.poll(() => api.sent.some((s) => s.path === 'finalise')).toBe(true)
   await expect(page.getByRole('button', { name: /Set A/ }).first()).toContainText('final')
+  await expect(preview.getByRole('button', { name: 'Print' })).toBeVisible() // final, and an administrator
 
   await page.getByRole('link', { name: /give each set to who sits it/ }).click()
   await expect(page).toHaveURL(/\/assign\?a=ut/)
@@ -183,6 +206,26 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible()
   expect(api.sent.at(-1)).toEqual({ path: 'assignments', body: { assignments: [{ sectionId: 's6a', sitOn: '2026-11-20' }] } })
+})
+
+test('a teacher submits a set and no longer sees it; the next set is a copy to rewrite', async ({ page }) => {
+  const api = fakeApi(page, 'teacher')
+  await page.goto('/papers?a=ut&tab=sets')
+  await page.getByRole('button', { name: 'Start blank' }).click()
+  const preview = page.getByRole('complementary', { name: 'Print preview' })
+  await expect(preview).toContainText('An administrator prints it once the set is final.')
+  await expect(preview.getByRole('button', { name: 'Print' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Approve/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Submit Set A for approval' }).click()
+  await expect.poll(() => api.sent.some((s) => s.path === 'submit')).toBe(true)
+
+  // Its questions are gone from the teacher's view; a copy is the only step.
+  await expect(page.getByText('Set A is in review')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Multiple choice' })).toHaveCount(0)
+  await expect(preview).toHaveCount(0)
+  await page.getByRole('button', { name: 'Copy as Set B' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Copied from Set A' })).toContainText('3 of 3 still the same')
+  await expect(page.getByText('Same as Set A').first()).toBeVisible()
 })
 
 test('AI drafts what the blueprint still needs, as drafts to approve', async ({ page }) => {
@@ -215,15 +258,16 @@ test('an administrator names the sets and sets the institution own levels', asyn
       api.sent.push({ path: 'settings', body })
       return r.fulfill({ json: body })
     }
-    return r.fulfill({ json: { setNames: ['Set A', 'Set B', 'Set C', 'Set D'], custom: { name: '', levels: [] } } })
+    return r.fulfill({ json: { setNames: ['Set A', 'Set B', 'Set C', 'Set D'], custom: { name: '', levels: [] }, moderators: ['coordinator', 'principal'] } })
   })
   await page.goto('/settings/papers')
   await page.getByLabel('Set names').fill('Red\nBlue')
   await page.getByLabel('Taxonomy name').fill('Depth of knowledge')
   await page.getByLabel('Levels').fill('Recall\nSkill\nStrategic')
+  await page.getByLabel('Coordinators').uncheck() // who moderates papers
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status')).toContainText('Saved')
-  expect(api.sent.at(-1)).toEqual({ path: 'settings', body: { setNames: ['Red', 'Blue'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill', 'Strategic'] } } })
+  expect(api.sent.at(-1)).toEqual({ path: 'settings', body: { setNames: ['Red', 'Blue'], custom: { name: 'Depth of knowledge', levels: ['Recall', 'Skill', 'Strategic'] }, moderators: ['principal'] } })
 })
 
 test('a blueprint that cannot be saved says why, on the spot', async ({ page }) => {

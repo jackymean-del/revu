@@ -54,6 +54,8 @@ func Routes(g fiber.Router, o Options) {
 	g.Post("/papers/:id/fill", fillPaper)
 	g.Post("/papers/:id/duplicate", duplicatePaper)
 	g.Post("/papers/:id/finalise", finalisePaper)
+	g.Post("/papers/:id/submit", submitPaper)
+	g.Post("/papers/:id/return", returnPaper)
 	g.Get("/papers/:id/html", paperHTML)
 	g.Put("/papers/:id/assignments", putAssignments)
 	g.Get("/paper-settings", getSettings)
@@ -143,6 +145,24 @@ func loadAssessment(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (assessment, e
 	// The subject's teachers, coordinators and administrators work on its
 	// blueprint and papers; those who approve blueprints may read them too.
 	t := policy.Target{SubjectID: a.subjectID}
+	// A teacher's subject is theirs where they teach it: in a section of
+	// this assessment's class.
+	if len(actor.Assignments) > 0 {
+		rows, err := tx.Query(c.Context(), `SELECT id::text FROM sections WHERE level_id = $1::uuid`, a.levelID)
+		if err != nil {
+			return a, err
+		}
+		sections, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return a, err
+		}
+		for _, as := range actor.Assignments {
+			if as.SubjectID == a.subjectID && slices.Contains(sections, as.SectionID) {
+				t.SectionID = as.SectionID
+				break
+			}
+		}
+	}
 	may := policy.Decide(actor, policy.AssessmentEdit, t) != policy.None
 	if !edit && !may {
 		may = policy.Decide(actor, policy.BlueprintApprove, t) != policy.None

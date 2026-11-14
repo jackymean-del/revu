@@ -27,13 +27,19 @@ export function PaperSettings() {
   return <Form orgId={orgId} settings={settings} />
 }
 
+const MODERATORS = [
+  ['coordinator', 'Coordinators'],
+  ['principal', 'Principals and heads'],
+] as const
+
 function Form({ orgId, settings }: { orgId: string; settings: Settings }) {
   const qc = useQueryClient()
   const [names, setNames] = useState(settings.setNames.join('\n'))
   const [custom, setCustom] = useState(settings.custom.name)
   const [levels, setLevels] = useState(settings.custom.levels.join('\n'))
+  const [moderators, setModerators] = useState(settings.moderators ?? [])
   const save = useMutation({
-    mutationFn: () => putPaperSettings(orgId, { setNames: lines(names), custom: { name: custom.trim(), levels: lines(levels) } }),
+    mutationFn: () => putPaperSettings(orgId, { setNames: lines(names), custom: { name: custom.trim(), levels: lines(levels) }, moderators }),
     onSuccess: (s) => qc.setQueryData(['paper-settings', orgId], s),
   })
   return (
@@ -53,6 +59,19 @@ function Form({ orgId, settings }: { orgId: string; settings: Settings }) {
           <h2 className="font-bold">Set names</h2>
           <p className="text-sm text-muted">One per line, in the order sets are made: Set A, Set B, or Red, Blue, Green. A set can still be given any name when it is made.</p>
           <textarea aria-label="Set names" rows={4} className={field} value={names} onChange={(e) => setNames(e.target.value)} />
+        </section>
+        <section className="space-y-2 rounded-2xl border border-line bg-white p-4">
+          <h2 className="font-bold">Who moderates papers</h2>
+          <p className="text-sm text-muted">
+            A paper goes from the person who writes it to those who moderate it. Once submitted, only they see its questions; they change it, send it back, or approve it as final. Administrators always moderate, and only an administrator prints a
+            final paper.
+          </p>
+          {MODERATORS.map(([role, label]) => (
+            <label key={role} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={moderators.includes(role)} onChange={(e) => setModerators(e.target.checked ? [...moderators, role] : moderators.filter((r) => r !== role))} />
+              {label}
+            </label>
+          ))}
         </section>
         <section className="space-y-2 rounded-2xl border border-line bg-white p-4">
           <h2 className="font-bold">Your own taxonomy</h2>

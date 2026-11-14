@@ -33,6 +33,7 @@ type Item struct {
 	Level     string    `json:"level,omitempty"` // of the paper's taxonomy
 	Marks     string    `json:"marks"`
 	Locked    bool      `json:"locked"`
+	Same      bool      `json:"sameAsSource"` // still the question the set was copied with
 	Question  *Question `json:"question,omitempty"`
 }
 
@@ -67,16 +68,34 @@ type Paper struct {
 	BySection        []Gap        `json:"bySection"`
 	ByLevel          []Gap        `json:"byLevel"`
 	Assignments      []Assignment `json:"assignments"`
+	CopiedFrom       string       `json:"copiedFrom"` // the set it was copied from, by name
+	ReviewNote       string       `json:"reviewNote"` // why it was sent back
+	Veiled           bool         `json:"veiled"`     // its questions are kept from this person
+	May              May          `json:"may"`
+	copiedFromID     string
+	open             bool
 }
 
+// paperOf is a set this person may see the questions of.
 func paperOf(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (Paper, assessment, error) {
+	p, a, err := paperAny(c, tx, id, edit)
+	if err == nil && !p.open {
+		err = problem.New(http.StatusForbidden, "paper.in_review", "This set is with those who moderate it; its questions are theirs to see now.")
+	}
+	return p, a, err
+}
+
+// paperAny is a set of a subject this person works on, whether or not they
+// may see its questions; p.open says which.
+func paperAny(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (Paper, assessment, error) {
 	var p Paper
 	notFound := problem.New(http.StatusNotFound, "paper.not_found", "No paper has this id.")
 	if !records.UUIDShape.MatchString(id) {
 		return p, assessment{}, notFound
 	}
-	err := tx.QueryRow(c.Context(), `SELECT id::text, assessment_id::text, set_label, status, taxonomy, blueprint_version, instructions FROM papers WHERE id = $1::uuid`, id).
-		Scan(&p.ID, &p.AssessmentID, &p.Set, &p.Status, &p.Taxonomy, &p.BlueprintVersion, &p.Instructions)
+	err := tx.QueryRow(c.Context(), `SELECT p.id::text, p.assessment_id::text, p.set_label, p.status, p.taxonomy, p.blueprint_version, p.instructions, p.review_note,
+		       coalesce(p.copied_from::text, ''), coalesce((SELECT set_label FROM papers WHERE id = p.copied_from), '') FROM papers p WHERE p.id = $1::uuid`, id).
+		Scan(&p.ID, &p.AssessmentID, &p.Set, &p.Status, &p.Taxonomy, &p.BlueprintVersion, &p.Instructions, &p.ReviewNote, &p.copiedFromID, &p.CopiedFrom)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, assessment{}, notFound
 	}
@@ -85,6 +104,9 @@ func paperOf(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (Paper, assessment, e
 	}
 	a, err := loadAssessment(c, tx, p.AssessmentID, edit)
 	if err != nil {
+		return p, a, err
+	}
+	if err := permit(c, tx, &p); err != nil {
 		return p, a, err
 	}
 	return p, a, loadItems(c.Context(), tx, &p)
@@ -167,7 +189,7 @@ func loadItems(ctx context.Context, tx pgx.Tx, p *Paper) error {
 		return err
 	}
 	p.Total = trim(p.Total)
-	return nil
+	return markSame(ctx, tx, p)
 }
 
 // PaperSummary is one set in the list of an assessment's papers.
@@ -178,6 +200,7 @@ type PaperSummary struct {
 	Items   int    `json:"items"`
 	Filled  int    `json:"filled"`
 	Version int    `json:"blueprintVersion"`
+	Open    bool   `json:"open"` // this person may see its questions
 }
 
 func listPapers(c fiber.Ctx) error {
@@ -202,6 +225,13 @@ func listPapers(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return err
+	}
+	mod, _, err := moderates(c, tx)
+	if err != nil {
+		return err
+	}
+	for i := range out {
+		out[i].Open = mod || out[i].Status == "draft"
 	}
 	if out == nil {
 		out = []PaperSummary{}
@@ -318,9 +348,12 @@ func getPaper(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	p, _, err := paperOf(c, tx, c.Params("id"), false)
+	p, _, err := paperAny(c, tx, c.Params("id"), false)
 	if err != nil {
 		return err
+	}
+	if !p.open {
+		p = veiled(p)
 	}
 	return c.JSON(p)
 }
@@ -423,8 +456,9 @@ func fillPaper(c fiber.Ctx) error {
 }
 
 type itemIn struct {
-	QuestionID *string `json:"questionId"` // empty clears the slot
-	Locked     *bool   `json:"locked"`
+	QuestionID *string     `json:"questionId"` // empty clears the slot
+	Locked     *bool       `json:"locked"`
+	Question   *questionIn `json:"question"` // the slot's question as typed afresh
 }
 
 // putItem places a question in a slot (it must be of the class and subject,
@@ -451,6 +485,15 @@ func putItem(c fiber.Ctx) error {
 	if err := httpx.Decode(c, &in); err != nil {
 		return err
 	}
+	if in.Question != nil {
+		if err := retype(c, tx, p, a, p.Items[i], *in.Question); err != nil {
+			return err
+		}
+		if err := loadItems(ctx, tx, &p); err != nil {
+			return err
+		}
+		return c.JSON(p)
+	}
 	if in.QuestionID != nil && *in.QuestionID != "" {
 		var ok bool
 		if !records.UUIDShape.MatchString(*in.QuestionID) {
@@ -475,14 +518,61 @@ func putItem(c fiber.Ctx) error {
 	return c.JSON(p)
 }
 
-// duplicatePaper makes the next set as an independent copy (B3.3).
+// retype changes a slot's question to what was typed. A question no other
+// set uses is changed where it stands; one another set shares is left as it
+// is there, and the slot takes a new question, so rewriting a copied set
+// never alters the set it was copied from.
+func retype(c fiber.Ctx, tx pgx.Tx, p Paper, a assessment, it Item, q questionIn) error {
+	ctx := c.Context()
+	q.LevelID, q.SubjectID = a.levelID, a.subjectID
+	shared := false
+	if cur := it.Question; cur != nil {
+		q.LessonID, q.OutcomeID, q.Bloom, q.Solo, q.Custom, q.Difficulty = cur.LessonID, cur.OutcomeID, cur.Bloom, cur.Solo, cur.Custom, cur.Difficulty
+		q.Source, q.Status = cur.Source, cur.Status
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM paper_items WHERE question_id = $1::uuid AND paper_id <> $2::uuid)`, cur.ID, p.ID).Scan(&shared); err != nil {
+			return err
+		}
+	}
+	if it.Question == nil || shared {
+		q.Source, q.Status = "typed", "approved"
+	}
+	if err := q.valid(); err != nil {
+		return err
+	}
+	if p.BlueprintVersion != 0 && hundredths(q.Marks) != hundredths(it.Marks) {
+		return problem.Invalid(api.FieldError{Field: "marks", Code: "mismatch", Message: "This slot is worth " + it.Marks + " marks in the blueprint."})
+	}
+	m, _ := tenant.MemberFrom(c)
+	id := ""
+	if it.Question == nil || shared {
+		saved, err := insertQuestion(c, q, m.OrgID, m.UserID)
+		if err != nil {
+			return err
+		}
+		id = saved.ID
+	} else {
+		id = it.Question.ID
+		if _, err := changeQuestion(ctx, tx, id, q); err != nil {
+			return err
+		}
+	}
+	// A paper built freely takes the question's type and marks for the slot.
+	_, err := tx.Exec(ctx, `UPDATE paper_items i SET question_id = q.id,
+		       marks = CASE WHEN $3 THEN q.marks ELSE i.marks END, section = CASE WHEN $3 THEN q.qtype ELSE i.section END
+		  FROM questions q WHERE i.id = $1::uuid AND q.id = $2::uuid`, it.ID, id, p.BlueprintVersion == 0)
+	return err
+}
+
+// duplicatePaper makes the next set as an independent copy (B3.3). A teacher
+// may copy a set they no longer see, which is how the next one is written:
+// the copy is theirs, a draft, to rewrite question by question.
 func duplicatePaper(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Context()
-	p, a, err := paperOf(c, tx, c.Params("id"), true)
+	p, a, err := paperAny(c, tx, c.Params("id"), true)
 	if err != nil {
 		return err
 	}
@@ -494,8 +584,8 @@ func duplicatePaper(c fiber.Ctx) error {
 		return err
 	}
 	var id string
-	if err := tx.QueryRow(ctx, `INSERT INTO papers (org_id, assessment_id, set_label, taxonomy, blueprint_version, instructions, created_by) VALUES ($1, $2::uuid, $3, $4, $5, $6, $7) RETURNING id::text`,
-		m.OrgID, a.id, set, p.Taxonomy, p.BlueprintVersion, p.Instructions, m.UserID).Scan(&id); err != nil {
+	if err := tx.QueryRow(ctx, `INSERT INTO papers (org_id, assessment_id, set_label, taxonomy, blueprint_version, instructions, created_by, copied_from) VALUES ($1, $2::uuid, $3, $4, $5, $6, $7, $8::uuid) RETURNING id::text`,
+		m.OrgID, a.id, set, p.Taxonomy, p.BlueprintVersion, p.Instructions, m.UserID, p.ID).Scan(&id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -543,6 +633,9 @@ func finalisePaper(c fiber.Ctx) error {
 	if err := draftOnly(p); err != nil {
 		return err
 	}
+	if !p.May.Approve {
+		return problem.New(http.StatusForbidden, "paper.not_moderator", "Submit the set for approval; those who moderate papers make it final.")
+	}
 	if p.Filled < len(p.Items) || len(p.Items) == 0 {
 		return problem.New(http.StatusConflict, "paper.incomplete", "Add at least one question, and put a question in every empty slot, first.")
 	}
@@ -573,6 +666,9 @@ func finalisePaper(c fiber.Ctx) error {
 		return err
 	}
 	p.Status = "final"
+	if err := permit(c, tx, &p); err != nil {
+		return err
+	}
 	return c.JSON(p)
 }
 
@@ -591,7 +687,7 @@ func putAssignments(c fiber.Ctx) error {
 		return err
 	}
 	ctx := c.Context()
-	p, a, err := paperOf(c, tx, c.Params("id"), true)
+	p, a, err := paperAny(c, tx, c.Params("id"), true)
 	if err != nil {
 		return err
 	}
@@ -643,6 +739,9 @@ func putAssignments(c fiber.Ctx) error {
 	if err := loadItems(ctx, tx, &p); err != nil {
 		return err
 	}
+	if !p.open {
+		p = veiled(p)
+	}
 	return c.JSON(p)
 }
 
@@ -663,6 +762,7 @@ ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-s
 .note{font-style:italic;margin:2px 0 6px}.extra{font-size:12px;font-weight:400;color:#555}
 .match{border-collapse:collapse;margin-top:4px}.match td{padding:2px 28px 2px 0}
 @media print{body{padding:0}}
+{{if not .Print}}@media print{body>*{display:none}body::after{content:"Only an administrator prints a paper, once the set is final."}}{{end}}
 </style></head><body>
 <header><h1>{{.School}}</h1><div>{{.Title}}{{if .Key}} : answer key{{end}}</div>
 <div class="meta"><span>{{.Class}} · {{.Subject}}</span><span>{{.Set}}</span><span>Maximum marks: {{.Max}}</span></div></header>
@@ -678,7 +778,8 @@ ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-s
 // for staff; with ?space=true room to answer (lines by marks, boxes for
 // choices, each bit of a question its own). A section switched off for
 // print is left out, with its sub-sections, unless ?all=true; question
-// numbers stay as in the whole paper, so they match the marks sheet.
+// numbers stay as in the whole paper, so they match the marks sheet. It is
+// for reading on screen; it prints only for an administrator, once final.
 func paperHTML(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {
@@ -751,10 +852,10 @@ func paperHTML(c fiber.Ctx) error {
 	}
 	var view struct {
 		School, Title, Class, Subject, Set, Max, Instructions string
-		Key, Space                                            bool
+		Key, Space, Print                                     bool
 		Sections                                              []*sec
 	}
-	view.Set, view.Key, view.Space, view.Instructions, view.Title = p.Set, key, space, p.Instructions, a.title
+	view.Set, view.Key, view.Space, view.Instructions, view.Title, view.Print = p.Set, key, space, p.Instructions, a.title, p.May.Print
 	if err := tx.QueryRow(ctx, `
 		SELECT coalesce((SELECT display_name FROM branding_versions ORDER BY version DESC LIMIT 1), (SELECT name FROM orgs WHERE id = app_org_id())),
 		       (SELECT name FROM levels WHERE id = $1::uuid), (SELECT name FROM subjects WHERE id = $2::uuid)`, a.levelID, a.subjectID).

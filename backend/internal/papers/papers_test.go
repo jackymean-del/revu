@@ -655,3 +655,124 @@ func TestPaperHierarchy(t *testing.T) {
 		t.Fatalf("after removing a section: %d sections, %d questions", len(dup.Sections), len(dup.Items))
 	}
 }
+
+// A set goes from its teacher to those who moderate it: submitted, its
+// questions are theirs alone; the teacher may only copy it as the next set,
+// and rewriting the copy never alters the first. Only an administrator
+// prints, and only a final set.
+func TestPaperReview(t *testing.T) {
+	owner, appPool := dbtest.Open(t)
+	a := dbtest.SeedOrg(t, owner, "Org A")
+	app := server.New(config.Config{Version: "test"}, server.Deps{DB: appPool, Auth: headerAuth{}})
+	admin := caller{t, app, a.UserID, a.ID}
+	ctx := context.Background()
+	one := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		if err := owner.QueryRow(ctx, sql, args...).Scan(&v); err != nil {
+			t.Fatalf("%v\n%s", err, sql)
+		}
+		return v
+	}
+	member := func(name, role string, teaches bool) caller {
+		staff := one(`INSERT INTO staff (org_id, name) VALUES ($1, $2) RETURNING id`, a.ID, name)
+		user := name + "-" + a.UserID
+		one(`INSERT INTO memberships (org_id, clerk_user_id, role, staff_id) VALUES ($1, $2, $3, $4) RETURNING id`, a.ID, user, role, staff)
+		t.Cleanup(func() { _, _ = owner.Exec(ctx, `DELETE FROM memberships WHERE clerk_user_id = $1`, user) })
+		if teaches {
+			one(`INSERT INTO teaching_assignments (org_id, staff_id, section_id, subject_id) VALUES ($1, $2, $3, $4) RETURNING id`, a.ID, staff, a.SectionID, a.SubjectID)
+		}
+		return caller{t, app, user, a.ID}
+	}
+	teacher, head := member("tara", "teacher", true), member("cora", "coordinator", false)
+	exam := one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Review test', 'total') RETURNING id`,
+		a.ID, a.YearID, a.PeriodID, a.LevelID, a.SubjectID)
+	one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 10) RETURNING id`, a.ID, exam)
+
+	// The teacher writes Set A and sees it as it prints, but it does not print.
+	var p papers.Paper
+	teacher.json(201, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, &p)
+	base := "/v1/papers/" + p.ID
+	teacher.json(201, "POST", base+"/items", map[string]any{"sectionId": p.Sections[0].ID, "question": map[string]any{"qtype": "Short answer", "marks": "2", "text": "Name a river."}}, &p)
+	first := p.Items[0].Question.ID
+	if !p.May.Edit || !p.May.Submit || p.May.Approve || p.May.Print {
+		t.Fatalf("a teacher's draft: %+v", p.May)
+	}
+	if _, body := teacher.raw("GET", base+"/html", nil); !strings.Contains(string(body), "Name a river.") || !strings.Contains(string(body), "Only an administrator prints") {
+		t.Fatal("a draft is read on screen and does not print")
+	}
+	teacher.json(403, "POST", base+"/finalise", nil, nil) // approval is the moderators'
+
+	// Submitted, its questions are no longer the teacher's to see.
+	teacher.json(200, "POST", base+"/submit", nil, &p)
+	if p.Status != "submitted" || !p.Veiled || len(p.Items) != 0 {
+		t.Fatalf("after submitting: %s veiled %v, %d questions", p.Status, p.Veiled, len(p.Items))
+	}
+	teacher.json(200, "GET", base, nil, &p)
+	if !p.Veiled || len(p.Items) != 0 {
+		t.Fatal("a submitted set is veiled from its teacher")
+	}
+	teacher.json(403, "GET", base+"/html", nil, nil)
+	teacher.json(403, "POST", base+"/items", map[string]any{"sectionId": "x"}, nil)
+	var sets []papers.PaperSummary
+	teacher.json(200, "GET", "/v1/assessments/"+exam+"/papers", nil, &sets)
+	if len(sets) != 1 || sets[0].Open || sets[0].Status != "submitted" {
+		t.Fatalf("the teacher's list: %+v", sets)
+	}
+
+	// A moderator sees it, sends it back with a note, and the teacher has it again.
+	head.json(200, "GET", base, nil, &p)
+	if p.Veiled || len(p.Items) != 1 || !p.May.Edit || !p.May.Approve || !p.May.Return || p.May.Print {
+		t.Fatalf("a moderator's view: %+v, %d questions", p.May, len(p.Items))
+	}
+	head.json(200, "POST", base+"/return", map[string]string{"note": "Add a map question."}, &p)
+	teacher.json(200, "GET", base, nil, &p)
+	if p.Status != "draft" || p.ReviewNote != "Add a map question." || len(p.Items) != 1 {
+		t.Fatalf("sent back: %s %q", p.Status, p.ReviewNote)
+	}
+	teacher.json(409, "POST", base+"/return", nil, nil)
+	teacher.json(200, "POST", base+"/submit", nil, &p)
+
+	// The teacher's only way on is a copy, which is theirs to rewrite.
+	var b papers.Paper
+	teacher.json(201, "POST", base+"/duplicate", nil, &b)
+	if b.Veiled || b.CopiedFrom != "Set A" || len(b.Items) != 1 || !b.Items[0].Same || !b.May.Edit {
+		t.Fatalf("the copy: from %q, %d questions, same %v", b.CopiedFrom, len(b.Items), len(b.Items) == 1 && b.Items[0].Same)
+	}
+	teacher.json(200, "PUT", "/v1/papers/"+b.ID+"/items/"+b.Items[0].ID, map[string]any{"question": map[string]any{"qtype": "Short answer", "marks": "2", "text": "Name a mountain."}}, &b)
+	if b.Items[0].Same || b.Items[0].Question.ID == first || b.Items[0].Question.Text != "Name a mountain." {
+		t.Fatalf("rewritten in the copy: %+v", b.Items[0])
+	}
+	// Changed again, the copy's own question is changed where it stands.
+	second := b.Items[0].Question.ID
+	teacher.json(200, "PUT", "/v1/papers/"+b.ID+"/items/"+b.Items[0].ID, map[string]any{"question": map[string]any{"qtype": "Short answer", "marks": "3", "text": "Name two mountains."}}, &b)
+	if b.Items[0].Question.ID != second || b.Items[0].Marks != "3" {
+		t.Fatalf("changed in place: %+v", b.Items[0])
+	}
+
+	// Set A is untouched; the moderator approves it, and only the administrator prints.
+	head.json(200, "POST", base+"/finalise", nil, &p)
+	if p.Status != "final" || p.Items[0].Question.Text != "Name a river." || p.May.Print || p.May.Edit {
+		t.Fatalf("approved: %s %q %+v", p.Status, p.Items[0].Question.Text, p.May)
+	}
+	if _, body := head.raw("GET", base+"/html", nil); !strings.Contains(string(body), "Only an administrator prints") {
+		t.Fatal("a moderator does not print")
+	}
+	if _, body := admin.raw("GET", base+"/html", nil); strings.Contains(string(body), "Only an administrator prints") {
+		t.Fatal("the administrator prints a final set")
+	}
+	teacher.json(403, "GET", base+"/html", nil, nil)
+
+	// The administrator names who moderates; left out of other saves, it stays.
+	var s papers.Settings
+	admin.json(422, "PUT", "/v1/paper-settings", map[string]any{"setNames": []string{"Set A", "Set B"}, "custom": map[string]any{"name": "", "levels": []string{}}, "moderators": []string{"teacher"}}, nil)
+	admin.json(200, "PUT", "/v1/paper-settings", map[string]any{"setNames": []string{"Set A", "Set B"}, "custom": map[string]any{"name": "", "levels": []string{}}, "moderators": []string{}}, &s)
+	admin.json(200, "PUT", "/v1/paper-settings", map[string]any{"setNames": []string{"Set A", "Set B"}, "custom": map[string]any{"name": "", "levels": []string{}}}, &s)
+	if len(s.Moderators) != 0 {
+		t.Fatalf("moderators %v", s.Moderators)
+	}
+	head.json(200, "GET", base, nil, &p)
+	if !p.Veiled {
+		t.Fatal("a coordinator no longer named to moderate does not see a final set")
+	}
+}

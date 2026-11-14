@@ -3953,6 +3953,50 @@ paths:
                 $ref: "#/components/schemas/Paper"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/submit:
+    post:
+      operationId: submitPaper
+      summary: Send a complete draft to those who moderate; its questions are then theirs alone.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The set, veiled unless this person moderates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/return:
+    post:
+      operationId: returnPaper
+      summary: Send a submitted set back to its teacher with a note.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                  maxLength: 1000
+      responses:
+        "200":
+          description: The set, a draft again.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paper"
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/papers/{id}/html:
     get:
       operationId: paperHtml
@@ -7884,6 +7928,9 @@ components:
       type: object
       required: [id, seq, section, sectionId, chapter, marks, locked]
       properties:
+        sameAsSource:
+          type: boolean
+          description: Still the question the set was copied with.
         id:
           type: string
         seq:
@@ -7940,8 +7987,32 @@ components:
             $ref: "#/components/schemas/PaperAssignment"
     Paper:
       type: object
-      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, sections, items, filled, total, bySection, byLevel, assignments]
+      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, sections, items, filled, total, bySection, byLevel, assignments, copiedFrom, reviewNote, veiled, may]
       properties:
+        copiedFrom:
+          type: string
+          description: The set it was copied from, by name.
+        reviewNote:
+          type: string
+          description: Why it was sent back to its teacher.
+        veiled:
+          type: boolean
+          description: Its questions are kept from this person; sections and items are empty.
+        may:
+          type: object
+          description: What this person may do with the set.
+          required: [edit, submit, approve, return, print]
+          properties:
+            edit:
+              type: boolean
+            submit:
+              type: boolean
+            approve:
+              type: boolean
+            return:
+              type: boolean
+            print:
+              type: boolean
         id:
           type: string
         assessmentId:
@@ -7950,7 +8021,7 @@ components:
           type: string
         status:
           type: string
-          enum: [draft, final]
+          enum: [draft, submitted, final]
         taxonomy:
           type: string
           enum: [bloom, solo, custom, none]
@@ -7984,15 +8055,18 @@ components:
             $ref: "#/components/schemas/PaperAssignment"
     PaperSummary:
       type: object
-      required: [id, set, status, items, filled, blueprintVersion]
+      required: [id, set, status, items, filled, blueprintVersion, open]
       properties:
+        open:
+          type: boolean
+          description: This person may see its questions.
         id:
           type: string
         set:
           type: string
         status:
           type: string
-          enum: [draft, final]
+          enum: [draft, submitted, final]
         items:
           type: integer
         filled:
@@ -8150,6 +8224,12 @@ components:
       type: object
       required: [setNames, custom]
       properties:
+        moderators:
+          type: array
+          description: The roles that, with administrators, see a submitted set, change it and approve it. Left out, it stays as it is.
+          items:
+            type: string
+            enum: [coordinator, principal]
         setNames:
           type: array
           maxItems: 26
@@ -8177,6 +8257,8 @@ components:
           description: Empty clears the slot.
         locked:
           type: boolean
+        question:
+          $ref: "#/components/schemas/TypedQuestion"
     QuestionDraftRequest:
       type: object
       required: [levelId, subjectId, qtype, marks]

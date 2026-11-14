@@ -465,14 +465,15 @@ export const listPapers = (orgId: string, id: string, signal?: AbortSignal) => c
 export const createPaper = (orgId: string, id: string, fill: boolean, name = '', blank = false) =>
   call<Paper>(`/v1/assessments/${id}/papers`, { orgId, method: 'POST', body: { fill, name, blank } })
 export const getPaper = (orgId: string, id: string, signal?: AbortSignal) => call<Paper>(`/v1/papers/${id}`, { orgId, signal })
-export const putPaperItem = (orgId: string, id: string, item: string, body: { questionId?: string; locked?: boolean }) =>
+export const putPaperItem = (orgId: string, id: string, item: string, body: components['schemas']['PaperItemChange']) =>
   call<Paper>(`/v1/papers/${id}/items/${item}`, { orgId, method: 'PUT', body })
 export type MarksBy = components['schemas']['MarksBy']
 export const getMarksBy = (orgId: string, assessmentId: string, signal?: AbortSignal) => call<MarksBy>(`/v1/assessments/${assessmentId}/marks-by`, { orgId, signal })
 export const putMarksBy = (orgId: string, assessmentId: string, marksBy: components['schemas']['MarksByChange']['marksBy']) =>
   call<MarksBy>(`/v1/assessments/${assessmentId}/marks-by`, { orgId, method: 'PUT', body: { marksBy } })
-export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise', name = '') =>
+export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise' | 'submit', name = '') =>
   call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST', body: step === 'duplicate' ? { name } : undefined })
+export const returnPaper = (orgId: string, id: string, note: string) => call<Paper>(`/v1/papers/${id}/return`, { orgId, method: 'POST', body: { note } })
 export type PaperSection = components['schemas']['PaperSection']
 export type TypedQuestion = components['schemas']['TypedQuestion']
 export type PaperOrder = components['schemas']['PaperOrder']

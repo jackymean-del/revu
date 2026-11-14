@@ -31,10 +31,16 @@ type Custom struct {
 type Settings struct {
 	SetNames []string `json:"setNames"`
 	Custom   Custom   `json:"custom"`
+	// Moderators are the roles that, with administrators, see a submitted
+	// set, change it and approve it.
+	Moderators []string `json:"moderators"`
 }
 
+// moderatorRoles are the roles an administrator may name to moderate.
+var moderatorRoles = []string{"coordinator", "principal"}
+
 func defaultSettings() Settings {
-	return Settings{SetNames: []string{"Set A", "Set B", "Set C", "Set D"}, Custom: Custom{Levels: []string{}}}
+	return Settings{SetNames: []string{"Set A", "Set B", "Set C", "Set D"}, Custom: Custom{Levels: []string{}}, Moderators: slices.Clone(moderatorRoles)}
 }
 
 func loadSettings(ctx context.Context, tx pgx.Tx) (Settings, error) {
@@ -51,6 +57,9 @@ func loadSettings(ctx context.Context, tx pgx.Tx) (Settings, error) {
 			}
 			if got.Custom.Levels != nil {
 				s.Custom = got.Custom
+			}
+			if got.Moderators != nil {
+				s.Moderators = got.Moderators
 			}
 		}
 	}
@@ -164,10 +173,23 @@ func putSettings(c fiber.Ctx) error {
 	if len(name) > 40 || (len(levels) > 0) != (name != "") {
 		f.Add("custom", "invalid", "Name your taxonomy, up to 40 characters, and give its levels.")
 	}
+	// Left out, who moderates stays as it is.
+	mods := in.Moderators
+	if mods == nil {
+		was, err := loadSettings(c.Context(), tx)
+		if err != nil {
+			return err
+		}
+		mods = was.Moderators
+	}
+	if slices.ContainsFunc(mods, func(r string) bool { return !slices.Contains(moderatorRoles, r) }) {
+		f.Add("moderators", "unknown", "Coordinators and principals may moderate; administrators always do.")
+	}
 	if len(f) > 0 {
 		return problem.Invalid(f...)
 	}
-	s := Settings{SetNames: names, Custom: Custom{Name: name, Levels: levels}}
+	slices.Sort(mods)
+	s := Settings{SetNames: names, Custom: Custom{Name: name, Levels: levels}, Moderators: slices.Compact(mods)}
 	raw, _ := json.Marshal(s)
 	if _, err := tx.Exec(c.Context(), `UPDATE orgs SET settings = jsonb_set(settings, '{papers}', $1::jsonb) WHERE id = app_org_id()`, string(raw)); err != nil {
 		return err
