@@ -161,7 +161,7 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
     { path: 'order', body: { sections: [{ id: 'secB', itemIds: ['i3'] }, { id: 'secA', itemIds: ['i1', 'i2'] }] } },
     { path: 'section', body: { kind: 'extra' } },
     { path: 'section', body: { print: false } },
-    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '' } } },
+    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '', spaceKind: 'auto', spaceSize: 0, bits: [] } } },
   ])
   // The paper as it prints, beside the slots: with space to answer, then as the key.
   const preview = page.getByRole('complementary', { name: 'Print preview' })
@@ -169,9 +169,10 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   await preview.getByLabel('Answer key').check()
   await expect(preview.frameLocator('iframe').locator('.key')).toHaveCount(1)
   expect(api.sent.filter((s) => s.path === 'html').at(-1)?.body).toEqual({ key: 'true', space: 'true' })
-  await page.getByLabel('Marks are entered').selectOption('sections')
+  // How marks are entered is not the paper's to say: that is the administrator's, on Evaluate exam.
+  await expect(page.getByLabel('Marks are entered')).toHaveCount(0)
   await page.getByRole('button', { name: 'Finalise Set A' }).click()
-  await expect.poll(() => api.sent.find((s) => s.path === 'finalise')?.body).toEqual({ marksBy: 'sections' })
+  await expect.poll(() => api.sent.some((s) => s.path === 'finalise')).toBe(true)
   await expect(page.getByRole('button', { name: /Set A/ }).first()).toContainText('final')
 
   await page.getByRole('link', { name: /give each set to who sits it/ }).click()

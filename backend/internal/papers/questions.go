@@ -36,6 +36,9 @@ type Question struct {
 	Difficulty string   `json:"difficulty"`
 	Text       string   `json:"text"`
 	Options    []string `json:"options"`
+	Bits       []Bit    `json:"bits"`
+	SpaceKind  string   `json:"spaceKind"` // room to answer on the printed paper: auto, lines, blank, box or none
+	SpaceSize  int      `json:"spaceSize"` // lines, or the height in lines of blank space or a box
 	Answer     string   `json:"answer"`
 	Source     string   `json:"source"`
 	Status     string   `json:"status"`
@@ -44,18 +47,28 @@ type Question struct {
 	Used       int      `json:"used"` // papers it is in
 }
 
+// Bit is one lettered part of a question, (a), (b), with its own marks.
+type Bit struct {
+	Text   string `json:"text"`
+	Marks  string `json:"marks"`
+	Answer string `json:"answer"`
+}
+
 const questionCols = `q.id::text, q.level_id::text, q.subject_id::text, coalesce(q.lesson_id::text, ''), coalesce(q.outcome_id::text, ''), q.bloom, coalesce(q.solo, ''), coalesce(q.custom_level, ''), q.qtype,
-	q.marks::text, q.difficulty, q.text, q.options, q.answer, q.source, q.status,
+	q.marks::text, q.difficulty, q.text, q.options, q.answer, q.source, q.status, q.bits, q.space_kind, q.space_size,
 	(SELECT count(DISTINCT i.paper_id) FROM paper_items i WHERE i.question_id = q.id)::int`
 
 func scanQuestion(r pgx.Row) (Question, error) {
 	var q Question
-	var opts []byte
-	err := r.Scan(&q.ID, &q.LevelID, &q.SubjectID, &q.LessonID, &q.OutcomeID, &q.Bloom, &q.Solo, &q.Custom, &q.QType, &q.Marks, &q.Difficulty, &q.Text, &opts, &q.Answer, &q.Source, &q.Status, &q.Used)
+	var opts, bits []byte
+	err := r.Scan(&q.ID, &q.LevelID, &q.SubjectID, &q.LessonID, &q.OutcomeID, &q.Bloom, &q.Solo, &q.Custom, &q.QType, &q.Marks, &q.Difficulty, &q.Text, &opts, &q.Answer, &q.Source, &q.Status, &bits, &q.SpaceKind, &q.SpaceSize, &q.Used)
 	q.Marks = trim(q.Marks)
-	q.Options = []string{}
+	q.Options, q.Bits = []string{}, []Bit{}
 	if len(opts) > 0 {
 		_ = json.Unmarshal(opts, &q.Options)
+	}
+	if len(bits) > 0 {
+		_ = json.Unmarshal(bits, &q.Bits)
 	}
 	return q, err
 }
@@ -131,6 +144,9 @@ type questionIn struct {
 	Difficulty string   `json:"difficulty"`
 	Text       string   `json:"text"`
 	Options    []string `json:"options"`
+	Bits       []Bit    `json:"bits"`
+	SpaceKind  string   `json:"spaceKind"`
+	SpaceSize  int      `json:"spaceSize"`
 	Answer     string   `json:"answer"`
 	Source     string   `json:"source"`
 	Status     string   `json:"status"`
@@ -158,6 +174,40 @@ func (in *questionIn) valid() error {
 	in.Custom = strings.TrimSpace(in.Custom)
 	if len(in.Custom) > 40 {
 		f.Add("customLevel", "invalid", "A level is up to 40 characters.")
+	}
+	// With bits, the question is worth what its bits add up to.
+	if len(in.Bits) > 0 {
+		if len(in.Bits) > 12 {
+			f.Add("bits", "too_many", "Up to 12 bits.")
+		}
+		sum := 0
+		for i := range in.Bits {
+			b := &in.Bits[i]
+			b.Text, b.Marks, b.Answer = strings.TrimSpace(b.Text), strings.TrimSpace(b.Marks), strings.TrimSpace(b.Answer)
+			if b.Text == "" || len(b.Text) > 2000 || !marksShape.MatchString(b.Marks) || strings.Trim(b.Marks, "0.") == "" {
+				f.Add("bits", "invalid", "Each bit needs its text and marks above zero.")
+				break
+			}
+			sum += hundredths(b.Marks)
+		}
+		in.Marks = fromHundredths(sum)
+	}
+	if in.Bits == nil {
+		in.Bits = []Bit{}
+	}
+	// Room to answer: left to the paper unless set for this question.
+	switch in.SpaceKind {
+	case "", "auto", "none":
+		if in.SpaceKind == "" {
+			in.SpaceKind = "auto"
+		}
+		in.SpaceSize = 0
+	case "lines", "blank", "box":
+		if in.SpaceSize < 1 || in.SpaceSize > 60 {
+			f.Add("spaceSize", "range", "Give the room to answer as 1 to 60 lines.")
+		}
+	default:
+		f.Add("spaceKind", "unknown", "Room to answer is automatic, lines, blank space, a box, or none.")
 	}
 	if strings.TrimSpace(in.QType) == "" {
 		f.Add("qtype", "required", "Choose the question type.")
@@ -230,13 +280,14 @@ func insertQuestion(c fiber.Ctx, in questionIn, orgID, userID string) (Question,
 		return Question{}, err
 	}
 	opts, _ := json.Marshal(in.Options)
+	bits, _ := json.Marshal(in.Bits)
 	return scanQuestion(tx.QueryRow(c.Context(), `
 		WITH n AS (
-			INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, difficulty, text, options, answer, source, status, created_by, solo, custom_level)
-			VALUES ($1, $2::uuid, $3::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8::numeric, $9, $10, $11::jsonb, $12, $13, $14, $15, nullif($16, ''), nullif($17, '')) RETURNING *)
+			INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, difficulty, text, options, answer, source, status, created_by, solo, custom_level, bits, space_kind, space_size)
+			VALUES ($1, $2::uuid, $3::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8::numeric, $9, $10, $11::jsonb, $12, $13, $14, $15, nullif($16, ''), nullif($17, ''), $18::jsonb, $19, $20) RETURNING *)
 		SELECT `+questionCols+` FROM n q`,
 		orgID, in.LevelID, in.SubjectID, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts),
-		strings.TrimSpace(in.Answer), in.Source, in.Status, userID, in.Solo, in.Custom))
+		strings.TrimSpace(in.Answer), in.Source, in.Status, userID, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize))
 }
 
 // updateQuestion changes a question. A question already in a final paper
@@ -274,17 +325,24 @@ func updateQuestion(c fiber.Ctx) error {
 		return err
 	}
 	opts, _ := json.Marshal(in.Options)
+	bits, _ := json.Marshal(in.Bits)
 	if inFinal && in.Status != "retired" {
 		return problem.New(http.StatusConflict, "question.in_final_paper", "This question is in a final paper; add a new question instead of changing it.")
 	}
 	q, err := scanQuestion(tx.QueryRow(ctx, `
 		WITH u AS (
 			UPDATE questions SET lesson_id = nullif($2, '')::uuid, outcome_id = nullif($3, '')::uuid, bloom = $4, qtype = $5, marks = $6::numeric, difficulty = $7,
-			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), updated_at = now()
+			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), bits = $14::jsonb, space_kind = $15, space_size = $16, updated_at = now()
 			 WHERE id = $1::uuid RETURNING *)
 		SELECT `+questionCols+` FROM u q`,
-		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom))
+		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize))
 	if err != nil {
+		return err
+	}
+	// In papers built freely and still in draft, the question's slot follows
+	// its new type and marks.
+	if _, err := tx.Exec(ctx, `UPDATE paper_items i SET marks = q.marks, section = q.qtype FROM questions q, papers p
+		WHERE q.id = $1::uuid AND i.question_id = q.id AND p.id = i.paper_id AND p.status = 'draft' AND p.blueprint_version = 0`, id); err != nil {
 		return err
 	}
 	if err := audit.Record(c, audit.Entry{Action: "update", Entity: "questions", EntityID: id, After: map[string]any{"status": q.Status}}); err != nil {
@@ -295,3 +353,18 @@ func updateQuestion(c fiber.Ctx) error {
 
 // jsonUnmarshal reads a question's options as stored.
 func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }
+
+// hundredths reads marks as whole hundredths; fromHundredths writes them back.
+func hundredths(s string) int {
+	whole, frac, _ := strings.Cut(s, ".")
+	n := 0
+	for _, r := range whole {
+		n = n*10 + int(r-'0')
+	}
+	frac = (frac + "00")[:2]
+	return n*100 + int(frac[0]-'0')*10 + int(frac[1]-'0')
+}
+
+func fromHundredths(h int) string {
+	return trim(strconv.Itoa(h/100) + "." + string(rune('0'+h%100/10)) + string(rune('0'+h%10)))
+}

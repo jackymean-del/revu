@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { listAssessments, listStructure, type Subject, type TeachingAssignment } from '../api/client'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getMarksBy, listAssessments, listStructure, putMarksBy, type Subject, type TeachingAssignment } from '../api/client'
+import { ApiError } from '../api/problem'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 import { EntryGrid } from './marks/EntryGrid'
+import { PAPER } from './papers/types'
 import { useSectionNames } from './people/sections'
 
 /** Marks: choose an assessment and a section, then enter marks on the grid. */
@@ -24,6 +26,7 @@ export function Marks() {
     enabled: !!orgId && !leads && !!current?.staffId,
   }).data
   const [picked, setPicked] = useState(search.a ?? '')
+  const [by, setBy] = useState('')
 
   if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
@@ -79,9 +82,10 @@ export function Marks() {
               ))}
             </select>
           </label>
+          {entry && <MarksByChoice orgId={orgId} assessmentId={entry.a.id} onChange={setBy} />}
           {entry && (
             <EntryGrid
-              key={entry.key}
+              key={`${entry.key}/${by}`}
               orgId={orgId}
               assessmentId={entry.a.id}
               sectionId={entry.sectionId}
@@ -90,6 +94,63 @@ export function Marks() {
             />
           )}
         </>
+      )}
+    </div>
+  )
+}
+
+const BY: Record<string, string> = { questions: 'question by question', sections: `${PAPER.section} by ${PAPER.section}`, total: 'as one total' }
+
+/**
+ * How marks are entered for an assessment with a final paper: a mark for
+ * each question, for each section of the paper, or the total only. An
+ * administrator chooses, and only until the first mark is entered; the
+ * holistic report is as detailed as this.
+ */
+function MarksByChoice({ orgId, assessmentId, onChange }: { orgId: string; assessmentId: string; onChange: (marksBy: string) => void }) {
+  const qc = useQueryClient()
+  const by = useQuery({ queryKey: ['marks-by', orgId, assessmentId], queryFn: ({ signal }) => getMarksBy(orgId, assessmentId, signal), retry: false })
+  const change = useMutation({
+    mutationFn: (v: 'questions' | 'sections' | 'total') => putMarksBy(orgId, assessmentId, v),
+    onSuccess: (v) => {
+      qc.setQueryData(['marks-by', orgId, assessmentId], v)
+      void qc.invalidateQueries({ queryKey: ['assessments', orgId] })
+      void qc.invalidateQueries({ queryKey: ['marks', orgId, assessmentId] })
+      void qc.invalidateQueries({ queryKey: ['layout', orgId, assessmentId] })
+      onChange(v.marksBy) // the grid is laid out afresh
+    },
+  })
+  const v = by.data
+  if (!v?.marksBy) return null
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm">
+      {v.mayChange ? (
+        <label className="flex items-center gap-2 font-semibold">
+          Marks are entered
+          <select className="rounded-md border border-line bg-white px-2 py-1 font-normal" value={v.marksBy} disabled={change.isPending} onChange={(e) => change.mutate(e.target.value as 'questions' | 'sections' | 'total')}>
+            {Object.entries(BY).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <span>
+          Marks are entered <strong>{BY[v.marksBy]}</strong>.
+        </span>
+      )}
+      <span className="text-xs text-muted">
+        {v.mayChange
+          ? 'Your choice as administrator, until the first mark is entered. The holistic report is as detailed as this.'
+          : v.marked
+            ? 'Fixed, since marks have been entered.'
+            : 'An administrator sets this before marks are entered.'}
+      </span>
+      {change.error && (
+        <span role="alert" className="font-semibold text-red-700">
+          {change.error instanceof ApiError ? change.error.message : 'That did not work. Try again.'}
+        </span>
       )}
     </div>
   )

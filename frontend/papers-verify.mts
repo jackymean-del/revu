@@ -2,7 +2,7 @@
  * Blueprint totals while typing, and sharing sets out. Run: npx tsx papers-verify.mts
  */
 import type { components } from './src/api/schema.gen.ts'
-import { hundredths, marks, moveItem, moveSection, needs, remaining, share, toInput, totals } from './src/lib/papers.ts'
+import { bitsAlike, hundredths, marks, moveItem, moveSection, needs, remaining, share, toInput, totals } from './src/lib/papers.ts'
 import { levelLabel, levelsOf, questionLevel } from './src/lib/taxonomy.ts'
 
 let fail = 0
@@ -52,12 +52,20 @@ ok(three.filter((s) => s === 'A').length === 2 && three.includes('C'), 'three se
 
 const ord = { sections: [{ id: 'A', itemIds: ['1', '2', '3'] }, { id: 'B', itemIds: ['4'] }] }
 const flat = (o: typeof ord) => o.sections.map((x) => x.id + ':' + x.itemIds.join('')).join(' ')
-ok(flat(moveSection(ord, 'B', 0)) === 'B:4 A:123', 'a section moves up', flat(moveSection(ord, 'B', 0)))
+ok(flat(moveSection(ord, {}, 'B', 'A')) === 'B:4 A:123', 'a section moves up', flat(moveSection(ord, {}, 'B', 'A')))
+const tree = { sections: [{ id: 'A', itemIds: ['1'] }, { id: 'A1', itemIds: ['2'] }, { id: 'A2', itemIds: [] }, { id: 'B', itemIds: ['3'] }, { id: 'B1', itemIds: [] }] }
+const up = { A1: 'A', A2: 'A', B1: 'B' }
+ok(flat(moveSection(tree, up, 'B', 'A')) === 'B:3 B1: A:1 A1:2 A2:', 'a section moves with its sub-sections', flat(moveSection(tree, up, 'B', 'A')))
+ok(flat(moveSection(tree, up, 'A', 'B1')) === 'B:3 B1: A:1 A1:2 A2:', 'dropped on a sub-section, it takes the place of the section above it')
+ok(flat(moveSection(tree, up, 'A2', 'A1')) === 'A:1 A2: A1:2 B:3 B1:', 'a sub-section moves among its own')
+ok(flat(moveSection(tree, up, 'A1', 'B1')) === flat(tree) && flat(moveSection(tree, up, 'A', 'A1')) === flat(tree), 'a sub-section stays in its section')
 ok(flat(moveItem(ord, '1', 'A', 3)) === 'A:231 B:4', 'a question moves down within its section', flat(moveItem(ord, '1', 'A', 3)))
 ok(flat(moveItem(ord, '1', 'A', 2)) === 'A:213 B:4', 'one place down', flat(moveItem(ord, '1', 'A', 2)))
 ok(flat(moveItem(ord, '3', 'A', 0)) === 'A:312 B:4', 'and up')
 ok(flat(moveItem(ord, '2', 'B', 0)) === 'A:13 B:24', 'a question moves to another section')
-ok(flat(moveItem(ord, '9', 'B', 0)) === flat(ord) && flat(moveSection(ord, 'A', 5)) === flat(ord), 'an impossible move changes nothing')
+ok(flat(moveItem(ord, '9', 'B', 0)) === flat(ord) && flat(moveSection(ord, {}, 'A', 'Z')) === flat(ord), 'an impossible move changes nothing')
+
+ok(bitsAlike([{ marks: '2' }, { marks: '2.0' }]) && !bitsAlike([{ marks: '2' }, { marks: '3' }]) && !bitsAlike([{ marks: '2' }]), 'bits all worth the same need no marks of their own')
 
 console.log(fail ? `\n${fail} failed` : '\npaper helpers hold')
 process.exit(fail ? 1 : 0)

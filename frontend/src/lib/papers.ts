@@ -157,14 +157,43 @@ export function orderOf(p: Paper): Order {
   return { sections: p.sections.map((s) => ({ id: s.id, itemIds: p.items.filter((i) => i.sectionId === s.id).map((i) => i.id) })) }
 }
 
-/** A section moved to another place among the sections. */
-export function moveSection(o: Order, id: string, to: number): Order {
-  const from = o.sections.findIndex((s) => s.id === id)
-  if (from < 0 || to < 0 || to >= o.sections.length || from === to) return o
-  const sections = [...o.sections]
-  const [moved] = sections.splice(from, 1)
-  sections.splice(to, 0, moved)
-  return { sections }
+/**
+ * Whether a question's bits, two or more, all carry the same marks. They
+ * then show no marks of their own: the question says it once.
+ */
+export const bitsAlike = (bits: { marks: string }[]) => bits.length > 1 && bits.every((b) => hundredths(b.marks) === hundredths(bits[0].marks))
+
+/** Each sub-section's own section, by id. */
+export type Parents = Record<string, string | undefined>
+export const parentsOf = (p: Paper): Parents => Object.fromEntries(p.sections.map((s) => [s.id, s.parentId || undefined]))
+
+/**
+ * A section moved to where another stands. A section takes its sub-sections
+ * with it; a sub-section moves among those of its own section only.
+ */
+export function moveSection(o: Order, parents: Parents, id: string, onto: string): Order {
+  const at = (x: string) => o.sections.findIndex((s) => s.id === x)
+  if (id === onto || at(id) < 0 || at(onto) < 0) return o
+  if (parents[id]) {
+    if (parents[onto] !== parents[id]) return o
+    const sections = [...o.sections]
+    const to = at(onto)
+    const [moved] = sections.splice(at(id), 1)
+    sections.splice(to, 0, moved)
+    return { sections }
+  }
+  const top = parents[onto] ?? onto
+  if (top === id) return o
+  const blocks: Order['sections'][] = []
+  for (const s of o.sections) {
+    if (parents[s.id]) blocks.at(-1)?.push(s)
+    else blocks.push([s])
+  }
+  const from = blocks.findIndex((b) => b[0].id === id)
+  const to = blocks.findIndex((b) => b[0].id === top)
+  const [moved] = blocks.splice(from, 1)
+  blocks.splice(to, 0, moved)
+  return { sections: blocks.flat() }
 }
 
 /** A question moved to a place in a section, its own or another. */

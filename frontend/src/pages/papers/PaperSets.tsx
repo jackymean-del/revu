@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createPaper, getPaper, getPaperHtml, paperStep, type Blueprint, type MarksBy, type Paper, type PaperSummary, type Question } from '../../api/client'
+import { createPaper, getPaper, getPaperHtml, paperStep, type Blueprint, type Paper, type PaperSummary, type Question } from '../../api/client'
 import { ApiError } from '../../api/problem'
 import { SectionCards } from './SectionCards'
 import { PAPER } from './types'
@@ -22,7 +22,8 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
   const [pick, setPick] = useState('')
   const [fill, setFill] = useState(true)
   const [name, setName] = useState('')
-  const [marksBy, setMarksBy] = useState<MarksBy>('questions')
+  const [view, setView] = usePreviewView()
+  const split = useRef<HTMLDivElement>(null)
   const selected = sets.find((s) => s.id === pick) ?? sets.find((s) => s.status === 'draft') ?? sets[0]
   const paper = useQuery({ queryKey: ['paper', orgId, selected?.id], queryFn: ({ signal }) => getPaper(orgId, selected!.id, signal), enabled: !!selected })
   // The next of the institution's set names not used yet.
@@ -38,7 +39,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
   }
   const make = useMutation({ mutationFn: (blank: boolean) => createPaper(orgId, assessmentId, fill, name.trim() || nextName, blank), onSuccess: done })
   const step = useMutation({
-    mutationFn: (s: 'fill' | 'duplicate' | 'finalise') => paperStep(orgId, selected!.id, s, s === 'duplicate' ? name.trim() || nextName : '', marksBy),
+    mutationFn: (s: 'fill' | 'duplicate' | 'finalise') => paperStep(orgId, selected!.id, s, s === 'duplicate' ? name.trim() || nextName : ''),
     onSuccess: (p, s) => {
       done(p)
       if (s === 'finalise') void qc.invalidateQueries({ queryKey: ['assessments', orgId] })
@@ -116,16 +117,9 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
               </button>
             </span>
             {draft && (
-              <span className="flex items-center gap-1.5">
-                <select aria-label="Marks are entered" className={field} value={marksBy} onChange={(e) => setMarksBy(e.target.value as MarksBy)} title="How marks will be entered for this assessment; the holistic report is as detailed as this">
-                  <option value="questions">Marks by question</option>
-                  <option value="sections">Marks by {PAPER.section}</option>
-                  <option value="total">Total marks only</option>
-                </select>
-                <button type="button" className={primary} disabled={step.isPending || empty > 0 || p.items.length === 0} onClick={() => step.mutate('finalise')}>
-                  Finalise {p.set}
-                </button>
-              </span>
+              <button type="button" className={primary} disabled={step.isPending || empty > 0 || p.items.length === 0} onClick={() => step.mutate('finalise')}>
+                Finalise {p.set}
+              </button>
             )}
           </>
         )}
@@ -138,19 +132,81 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
       {!p ? (
         <p className="text-sm text-muted">Loading</p>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-2">
-          <div className="min-w-0 space-y-4">
-            <p role="status" className="text-sm">
-              {p.filled} of {p.items.length} slots filled · {p.total} marks
-              {p.status === 'final' ? ' · final' : empty ? ` · ${empty} still to choose` : ' · ready to finalise'}
-            </p>
+        <div ref={split} className="items-start gap-1 lg:flex">
+          <div className="min-w-0 flex-1 space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <p role="status" className="flex-1 text-sm">
+                {p.filled} of {p.items.length} slots filled · {p.total} marks
+                {p.status === 'final' ? ' · final' : empty ? ` · ${empty} still to choose` : ' · ready to finalise'}
+              </p>
+              <button type="button" className={button} aria-pressed={view.show} onClick={() => setView({ ...view, show: !view.show })}>
+                {view.show ? 'Hide the preview' : 'Show the preview'}
+              </button>
+            </div>
             <SectionCards key={p.id} orgId={orgId} paper={p} bank={bank} onChange={done} />
           </div>
-          <Preview orgId={orgId} paper={p} />
+          {view.show && (
+            <>
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Width of the preview"
+                aria-valuemin={PREVIEW.min}
+                aria-valuemax={PREVIEW.max}
+                aria-valuenow={view.width}
+                tabIndex={0}
+                title="Drag, or use the left and right arrow keys, to make the preview wider or narrower"
+                className="hidden w-2 shrink-0 cursor-col-resize self-stretch rounded-full hover:bg-brand/30 focus-visible:bg-brand/40 lg:block"
+                onPointerDown={(e) => {
+                  e.preventDefault() // no text is selected while dragging
+                  e.currentTarget.focus()
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                }}
+                onPointerMove={(e) => {
+                  const box = split.current?.getBoundingClientRect()
+                  if (!e.currentTarget.hasPointerCapture(e.pointerId) || !box) return
+                  setView({ ...view, width: previewWidth(((box.right - e.clientX) / box.width) * 100) })
+                }}
+                onKeyDown={(e) => {
+                  const by = e.key === 'ArrowLeft' ? 5 : e.key === 'ArrowRight' ? -5 : 0
+                  if (!by) return
+                  e.preventDefault()
+                  setView({ ...view, width: previewWidth(view.width + by) })
+                }}
+              />
+              <div className="mt-4 min-w-0 lg:sticky lg:top-4 lg:mt-0 lg:w-(--preview) lg:shrink-0" style={{ '--preview': `${view.width}%` } as React.CSSProperties}>
+                <Preview orgId={orgId} paper={p} />
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>
   )
+}
+
+const PREVIEW = { min: 25, max: 70 }
+const previewWidth = (percent: number) => Math.round(Math.min(PREVIEW.max, Math.max(PREVIEW.min, percent)))
+
+/** Whether the preview shows and how wide it is, of the whole; kept on this device. */
+function usePreviewView() {
+  const [view, set] = useState(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem('revu.paper.preview') ?? '{}') as { show?: boolean; width?: number }
+      return { show: v.show !== false, width: previewWidth(v.width ?? 50) }
+    } catch {
+      return { show: true, width: 50 }
+    }
+  })
+  const save = (v: typeof view) => {
+    set(v)
+    try {
+      localStorage.setItem('revu.paper.preview', JSON.stringify(v))
+    } catch {
+      // Not kept; it still works for this visit.
+    }
+  }
+  return [view, save] as const
 }
 
 /** The paper as it prints, refreshed as slots change. */
@@ -166,7 +222,7 @@ function Preview({ orgId, paper }: { orgId: string; paper: Paper }) {
     placeholderData: (prev) => prev,
   })
   return (
-    <aside aria-label="Print preview" className="min-w-0 rounded-2xl border border-line bg-white lg:sticky lg:top-4">
+    <aside aria-label="Print preview" className="min-w-0 rounded-2xl border border-line bg-white">
       <div className="flex flex-wrap items-center gap-3 border-b border-line px-3 py-2 text-sm">
         <h3 className="mr-auto font-bold">As it prints</h3>
         <label className="flex items-center gap-1.5">

@@ -2270,6 +2270,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/assessments/{id}/marks-by": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How this assessment's marks are entered, and whether that can still change. */
+        get: operations["getMarksBy"];
+        /** Administrators only, before any mark: enter marks by question, by section or as one total. */
+        put: operations["putMarksBy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/papers/{id}/finalise": {
         parameters: {
             query?: never;
@@ -2279,7 +2297,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fix a set; the first sets the parts marks are entered by, tagged with learning outcomes. */
+        /** Fix a set; the first sets one part a question for marks, tagged with learning outcomes. */
         post: operations["finalisePaper"];
         delete?: never;
         options?: never;
@@ -4311,8 +4329,22 @@ export interface components {
             source: "typed" | "ai" | "imported";
             /** @enum {string} */
             status: "draft" | "approved" | "retired";
+            /** @description Lettered parts, (a), (b); the question is worth what they add up to. */
+            bits?: components["schemas"]["QuestionBit"][];
+            /**
+             * @description Room to answer on the printed paper; auto goes by the marks.
+             * @enum {string}
+             */
+            spaceKind?: "auto" | "lines" | "blank" | "box" | "none";
+            /** @description Lines, or the height in lines of blank space or a box. */
+            spaceSize?: number;
             /** @description How many papers it is in. */
             used: number;
+        };
+        QuestionBit: {
+            text: string;
+            marks: string;
+            answer?: string;
         };
         QuestionInput: {
             levelId: string;
@@ -4335,6 +4367,15 @@ export interface components {
             source?: "typed" | "ai" | "imported";
             /** @enum {string} */
             status?: "draft" | "approved" | "retired";
+            /** @description Lettered parts, (a), (b); the question is worth what they add up to. */
+            bits?: components["schemas"]["QuestionBit"][];
+            /**
+             * @description Room to answer on the printed paper; auto goes by the marks.
+             * @enum {string}
+             */
+            spaceKind?: "auto" | "lines" | "blank" | "box" | "none";
+            /** @description Lines, or the height in lines of blank space or a box. */
+            spaceSize?: number;
         };
         PaperItem: {
             id: string;
@@ -4394,6 +4435,8 @@ export interface components {
         };
         PaperSection: {
             id: string;
+            /** @description A sub-section names the section it sits in. */
+            parentId?: string;
             seq: number;
             title: string;
             instructions: string;
@@ -4412,6 +4455,8 @@ export interface components {
             /** @enum {string} */
             kind?: "core" | "extra";
             print?: boolean;
+            /** @description On adding, the section this sub-section sits in. */
+            parentId?: string;
         };
         PaperItemAdd: {
             sectionId: string;
@@ -4424,6 +4469,15 @@ export interface components {
             text: string;
             options?: string[];
             answer?: string;
+            /** @description Lettered parts, (a), (b); the question is worth what they add up to. */
+            bits?: components["schemas"]["QuestionBit"][];
+            /**
+             * @description Room to answer on the printed paper; auto goes by the marks.
+             * @enum {string}
+             */
+            spaceKind?: "auto" | "lines" | "blank" | "box" | "none";
+            /** @description Lines, or the height in lines of blank space or a box. */
+            spaceSize?: number;
             bloom?: string;
             difficulty?: string;
             lessonId?: string;
@@ -4435,12 +4489,17 @@ export interface components {
                 itemIds: string[];
             }[];
         };
-        PaperFinalise: {
-            /**
-             * @description How marks are entered; questions when left out.
-             * @enum {string}
-             */
-            marksBy?: "questions" | "sections" | "total";
+        MarksBy: {
+            /** @description questions, sections or total; empty while no set is final. */
+            marksBy: string;
+            /** @description A mark has been entered, so this is fixed. */
+            marked: boolean;
+            /** @description An administrator, with a final set and no mark yet. */
+            mayChange: boolean;
+        };
+        MarksByChange: {
+            /** @enum {string} */
+            marksBy: "questions" | "sections" | "total";
         };
         PaperCreate: {
             /** @description Start with one empty section and no blueprint. */
@@ -9759,6 +9818,62 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getMarksBy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How marks are entered. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarksBy"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putMarksBy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarksByChange"];
+            };
+        };
+        responses: {
+            /** @description How marks are entered now. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarksBy"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     finalisePaper: {
         parameters: {
             query?: never;
@@ -9771,11 +9886,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PaperFinalise"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description The final set. */
             200: {

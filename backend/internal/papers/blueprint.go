@@ -49,6 +49,8 @@ func Routes(g fiber.Router, o Options) {
 	g.Put("/papers/:id/sections/:section", putSection)
 	g.Delete("/papers/:id/sections/:section", deleteSection)
 	g.Put("/papers/:id/order", putOrder)
+	g.Get("/assessments/:id/marks-by", getMarksBy)
+	g.Put("/assessments/:id/marks-by", putMarksBy)
 	g.Post("/papers/:id/fill", fillPaper)
 	g.Post("/papers/:id/duplicate", duplicatePaper)
 	g.Post("/papers/:id/finalise", finalisePaper)

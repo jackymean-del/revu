@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -18,9 +19,12 @@ import (
 
 // Section is a named part of a paper: its questions sit in it, in order.
 // An extra section is not counted in the marks; one switched off for print
-// stays in the paper but is left off the printed copy.
+// stays in the paper but is left off the printed copy. A section may hold
+// sub-sections, one level down; a section's count and marks take in its
+// sub-sections', and whether it counts is the section's to say.
 type Section struct {
 	ID           string `json:"id"`
+	ParentID     string `json:"parentId,omitempty"` // a sub-section names the section it sits in
 	Seq          int    `json:"seq"`
 	Title        string `json:"title"`
 	Instructions string `json:"instructions"`
@@ -32,14 +36,14 @@ type Section struct {
 
 func queueSections(b *pgx.Batch, p *Paper) {
 	b.Queue(`
-		SELECT s.id::text, s.seq, s.title, s.instructions, s.kind, s.print,
-		       (SELECT count(*) FROM paper_items i WHERE i.section_id = s.id)::int,
-		       (SELECT coalesce(sum(i.marks), 0) FROM paper_items i WHERE i.section_id = s.id)::text
+		SELECT s.id::text, coalesce(s.parent_id::text, ''), s.seq, s.title, s.instructions, s.kind, s.print,
+		       (SELECT count(*) FROM paper_items i JOIN paper_sections x ON x.id = i.section_id WHERE x.id = s.id OR x.parent_id = s.id)::int,
+		       (SELECT coalesce(sum(i.marks), 0) FROM paper_items i JOIN paper_sections x ON x.id = i.section_id WHERE x.id = s.id OR x.parent_id = s.id)::text
 		  FROM paper_sections s WHERE s.paper_id = $1::uuid ORDER BY s.seq`, p.ID).Query(func(rows pgx.Rows) error {
 		p.Sections = []Section{}
 		for rows.Next() {
 			var s Section
-			if err := rows.Scan(&s.ID, &s.Seq, &s.Title, &s.Instructions, &s.Kind, &s.Print, &s.Questions, &s.Marks); err != nil {
+			if err := rows.Scan(&s.ID, &s.ParentID, &s.Seq, &s.Title, &s.Instructions, &s.Kind, &s.Print, &s.Questions, &s.Marks); err != nil {
 				return err
 			}
 			s.Marks = trim(s.Marks)
@@ -89,6 +93,7 @@ type sectionIn struct {
 	Instructions *string `json:"instructions"`
 	Kind         *string `json:"kind"`
 	Print        *bool   `json:"print"`
+	ParentID     string  `json:"parentId"` // on adding: the section this sub-section sits in
 }
 
 func (in sectionIn) check() error {
@@ -104,8 +109,9 @@ func (in sectionIn) check() error {
 	return nil
 }
 
-// addSection adds a section at the end; with no title it takes the next
-// letter (Section A, Section B, ...).
+// addSection adds a section at the end, or a sub-section at the end of the
+// section named; with no title it takes the next letter (Section A, Section
+// B, ...) or, for a sub-section, the next number (Part 1, Part 2, ...).
 func addSection(c fiber.Ctx) error {
 	tx, p, _, err := draft(c)
 	if err != nil {
@@ -116,17 +122,40 @@ func addSection(c fiber.Ctx) error {
 	if err := in.check(); err != nil {
 		return err
 	}
-	if len(p.Sections) >= 26 {
-		return problem.New(http.StatusConflict, "paper.too_many_sections", "A paper has at most 26 sections.")
+	tops, kids, at := 0, 0, len(p.Sections)+1
+	for i, s := range p.Sections {
+		switch {
+		case s.ParentID == "":
+			tops++
+		case s.ParentID == in.ParentID:
+			kids++
+		}
+		if in.ParentID != "" && (s.ID == in.ParentID || s.ParentID == in.ParentID) {
+			at = i + 2
+		}
 	}
-	title := "Section " + string(rune('A'+len(p.Sections)))
+	title := "Section " + string(rune('A'+tops))
+	if in.ParentID != "" {
+		i := slices.IndexFunc(p.Sections, func(s Section) bool { return s.ID == in.ParentID && s.ParentID == "" })
+		if i < 0 {
+			return problem.Invalid(api.FieldError{Field: "parentId", Code: "unknown", Message: "A sub-section sits in a section of this paper."})
+		}
+		// Whether it counts is the section's to say.
+		title, in.Kind = "Part "+strconv.Itoa(kids+1), &p.Sections[i].Kind
+	}
+	if tops >= 26 && in.ParentID == "" || kids >= 26 || len(p.Sections) >= 100 {
+		return problem.New(http.StatusConflict, "paper.too_many_sections", "A paper has at most 26 sections, each with at most 26 sub-sections.")
+	}
 	if in.Title != nil {
 		title = strings.TrimSpace(*in.Title)
 	}
 	m, _ := tenant.MemberFrom(c)
-	if _, err := tx.Exec(c.Context(), `INSERT INTO paper_sections (org_id, paper_id, seq, title, instructions, kind, print)
-		VALUES ($1, $2::uuid, (SELECT coalesce(max(seq), 0) + 1 FROM paper_sections WHERE paper_id = $2::uuid), $3, coalesce($4, ''), coalesce($5, 'core'), coalesce($6, true))`,
-		m.OrgID, p.ID, title, in.Instructions, in.Kind, in.Print); err != nil {
+	if _, err := tx.Exec(c.Context(), `UPDATE paper_sections SET seq = seq + 1 WHERE paper_id = $1::uuid AND seq >= $2`, p.ID, at); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(c.Context(), `INSERT INTO paper_sections (org_id, paper_id, parent_id, seq, title, instructions, kind, print)
+		VALUES ($1, $2::uuid, nullif($7, '')::uuid, $8, $3, coalesce($4, ''), coalesce($5, 'core'), coalesce($6, true))`,
+		m.OrgID, p.ID, title, in.Instructions, in.Kind, in.Print, in.ParentID, at); err != nil {
 		return err
 	}
 	return reply(c, tx, p, http.StatusCreated)
@@ -145,22 +174,31 @@ func putSection(c fiber.Ctx) error {
 		return err
 	}
 	sid := c.Params("section")
-	if !slices.ContainsFunc(p.Sections, func(s Section) bool { return s.ID == sid }) {
+	i := slices.IndexFunc(p.Sections, func(s Section) bool { return s.ID == sid })
+	if i < 0 {
 		return problem.New(http.StatusNotFound, "section.not_found", "No such section in this paper.")
 	}
 	if in.Title != nil {
 		t := strings.TrimSpace(*in.Title)
 		in.Title = &t
 	}
+	if p.Sections[i].ParentID != "" {
+		in.Kind = nil // a sub-section counts as its section does
+	}
 	if _, err := tx.Exec(c.Context(), `UPDATE paper_sections SET title = coalesce($2, title), instructions = coalesce($3, instructions), kind = coalesce($4, kind), print = coalesce($5, print)
 		WHERE id = $1::uuid`, sid, in.Title, in.Instructions, in.Kind, in.Print); err != nil {
 		return err
 	}
+	if in.Kind != nil {
+		if _, err := tx.Exec(c.Context(), `UPDATE paper_sections SET kind = $2 WHERE parent_id = $1::uuid`, sid, *in.Kind); err != nil {
+			return err
+		}
+	}
 	return reply(c, tx, p, http.StatusOK)
 }
 
-// deleteSection removes a section and its questions from the paper; the
-// questions stay in the bank.
+// deleteSection removes a section, its sub-sections and their questions
+// from the paper; the questions stay in the bank.
 func deleteSection(c fiber.Ctx) error {
 	tx, p, _, err := draft(c)
 	if err != nil {
@@ -257,7 +295,8 @@ type orderIn struct {
 
 // putOrder sets the order of everything at once: the sections, and the
 // questions in each, which may move between sections. Every section and
-// question of the paper is named exactly once.
+// question of the paper is named exactly once, and a section's sub-sections
+// follow it directly.
 func putOrder(c fiber.Ctx) error {
 	tx, p, _, err := draft(c)
 	if err != nil {
@@ -274,9 +313,16 @@ func putOrder(c fiber.Ctx) error {
 	seenS, seenI := map[string]bool{}, map[string]bool{}
 	n := 0
 	var b pgx.Batch
+	top := ""
 	for i, s := range in.Sections {
-		if seenS[s.ID] || !slices.ContainsFunc(p.Sections, func(x Section) bool { return x.ID == s.ID }) {
+		at := slices.IndexFunc(p.Sections, func(x Section) bool { return x.ID == s.ID })
+		if seenS[s.ID] || at < 0 {
 			return bad
+		}
+		if parent := p.Sections[at].ParentID; parent == "" {
+			top = s.ID
+		} else if parent != top {
+			return problem.Invalid(api.FieldError{Field: "sections", Code: "invalid", Message: "A sub-section stays in its section."})
 		}
 		seenS[s.ID] = true
 		b.Queue(`UPDATE paper_sections SET seq = $2 WHERE id = $1::uuid`, s.ID, i+1)

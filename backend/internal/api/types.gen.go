@@ -714,6 +714,27 @@ func (e LevelSubjectApplicability) Valid() bool {
 	}
 }
 
+// Defines values for MarksByChangeMarksBy.
+const (
+	MarksByChangeMarksByQuestions MarksByChangeMarksBy = "questions"
+	MarksByChangeMarksBySections  MarksByChangeMarksBy = "sections"
+	MarksByChangeMarksByTotal     MarksByChangeMarksBy = "total"
+)
+
+// Valid indicates whether the value is a known member of the MarksByChangeMarksBy enum.
+func (e MarksByChangeMarksBy) Valid() bool {
+	switch e {
+	case MarksByChangeMarksByQuestions:
+		return true
+	case MarksByChangeMarksBySections:
+		return true
+	case MarksByChangeMarksByTotal:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MarksGridApplicability.
 const (
 	MarksGridApplicabilityAll      MarksGridApplicability = "all"
@@ -945,27 +966,6 @@ func (e PaperTaxonomy) Valid() bool {
 	}
 }
 
-// Defines values for PaperFinaliseMarksBy.
-const (
-	PaperFinaliseMarksByQuestions PaperFinaliseMarksBy = "questions"
-	PaperFinaliseMarksBySections  PaperFinaliseMarksBy = "sections"
-	PaperFinaliseMarksByTotal     PaperFinaliseMarksBy = "total"
-)
-
-// Valid indicates whether the value is a known member of the PaperFinaliseMarksBy enum.
-func (e PaperFinaliseMarksBy) Valid() bool {
-	switch e {
-	case PaperFinaliseMarksByQuestions:
-		return true
-	case PaperFinaliseMarksBySections:
-		return true
-	case PaperFinaliseMarksByTotal:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PaperSectionKind.
 const (
 	PaperSectionKindCore  PaperSectionKind = "core"
@@ -1155,6 +1155,33 @@ func (e QuestionSource) Valid() bool {
 	}
 }
 
+// Defines values for QuestionSpaceKind.
+const (
+	QuestionSpaceKindAuto  QuestionSpaceKind = "auto"
+	QuestionSpaceKindBlank QuestionSpaceKind = "blank"
+	QuestionSpaceKindBox   QuestionSpaceKind = "box"
+	QuestionSpaceKindLines QuestionSpaceKind = "lines"
+	QuestionSpaceKindNone  QuestionSpaceKind = "none"
+)
+
+// Valid indicates whether the value is a known member of the QuestionSpaceKind enum.
+func (e QuestionSpaceKind) Valid() bool {
+	switch e {
+	case QuestionSpaceKindAuto:
+		return true
+	case QuestionSpaceKindBlank:
+		return true
+	case QuestionSpaceKindBox:
+		return true
+	case QuestionSpaceKindLines:
+		return true
+	case QuestionSpaceKindNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QuestionStatus.
 const (
 	QuestionStatusApproved QuestionStatus = "approved"
@@ -1215,6 +1242,33 @@ func (e QuestionInputSource) Valid() bool {
 	case QuestionInputSourceImported:
 		return true
 	case QuestionInputSourceTyped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QuestionInputSpaceKind.
+const (
+	QuestionInputSpaceKindAuto  QuestionInputSpaceKind = "auto"
+	QuestionInputSpaceKindBlank QuestionInputSpaceKind = "blank"
+	QuestionInputSpaceKindBox   QuestionInputSpaceKind = "box"
+	QuestionInputSpaceKindLines QuestionInputSpaceKind = "lines"
+	QuestionInputSpaceKindNone  QuestionInputSpaceKind = "none"
+)
+
+// Valid indicates whether the value is a known member of the QuestionInputSpaceKind enum.
+func (e QuestionInputSpaceKind) Valid() bool {
+	switch e {
+	case QuestionInputSpaceKindAuto:
+		return true
+	case QuestionInputSpaceKindBlank:
+		return true
+	case QuestionInputSpaceKindBox:
+		return true
+	case QuestionInputSpaceKindLines:
+		return true
+	case QuestionInputSpaceKindNone:
 		return true
 	default:
 		return false
@@ -2178,6 +2232,33 @@ func (e TileStatus) Valid() bool {
 	case Info:
 		return true
 	case Ok:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TypedQuestionSpaceKind.
+const (
+	TypedQuestionSpaceKindAuto  TypedQuestionSpaceKind = "auto"
+	TypedQuestionSpaceKindBlank TypedQuestionSpaceKind = "blank"
+	TypedQuestionSpaceKindBox   TypedQuestionSpaceKind = "box"
+	TypedQuestionSpaceKindLines TypedQuestionSpaceKind = "lines"
+	TypedQuestionSpaceKindNone  TypedQuestionSpaceKind = "none"
+)
+
+// Valid indicates whether the value is a known member of the TypedQuestionSpaceKind enum.
+func (e TypedQuestionSpaceKind) Valid() bool {
+	switch e {
+	case TypedQuestionSpaceKindAuto:
+		return true
+	case TypedQuestionSpaceKindBlank:
+		return true
+	case TypedQuestionSpaceKindBox:
+		return true
+	case TypedQuestionSpaceKindLines:
+		return true
+	case TypedQuestionSpaceKindNone:
 		return true
 	default:
 		return false
@@ -3416,6 +3497,26 @@ type LevelSubjectInput struct {
 	SubjectId string `json:"subjectId"`
 }
 
+// MarksBy defines model for MarksBy.
+type MarksBy struct {
+	// Marked A mark has been entered, so this is fixed.
+	Marked bool `json:"marked"`
+
+	// MarksBy questions, sections or total; empty while no set is final.
+	MarksBy string `json:"marksBy"`
+
+	// MayChange An administrator, with a final set and no mark yet.
+	MayChange bool `json:"mayChange"`
+}
+
+// MarksByChange defines model for MarksByChange.
+type MarksByChange struct {
+	MarksBy MarksByChangeMarksBy `json:"marksBy"`
+}
+
+// MarksByChangeMarksBy defines model for MarksByChange.MarksBy.
+type MarksByChangeMarksBy string
+
 // MarksGrid defines model for MarksGrid.
 type MarksGrid struct {
 	Applicability MarksGridApplicability `json:"applicability"`
@@ -3632,15 +3733,6 @@ type PaperCreate struct {
 	Name string `json:"name,omitempty"`
 }
 
-// PaperFinalise defines model for PaperFinalise.
-type PaperFinalise struct {
-	// MarksBy How marks are entered; questions when left out.
-	MarksBy PaperFinaliseMarksBy `json:"marksBy,omitempty"`
-}
-
-// PaperFinaliseMarksBy How marks are entered; questions when left out.
-type PaperFinaliseMarksBy string
-
 // PaperGap defines model for PaperGap.
 type PaperGap struct {
 	Filled  string `json:"filled"`
@@ -3696,12 +3788,15 @@ type PaperSection struct {
 	Instructions string `json:"instructions"`
 
 	// Kind An extra section is not counted in the marks.
-	Kind      PaperSectionKind `json:"kind"`
-	Marks     string           `json:"marks"`
-	Print     bool             `json:"print"`
-	Questions int              `json:"questions"`
-	Seq       int              `json:"seq"`
-	Title     string           `json:"title"`
+	Kind  PaperSectionKind `json:"kind"`
+	Marks string           `json:"marks"`
+
+	// ParentId A sub-section names the section it sits in.
+	ParentId  string `json:"parentId,omitempty"`
+	Print     bool   `json:"print"`
+	Questions int    `json:"questions"`
+	Seq       int    `json:"seq"`
+	Title     string `json:"title"`
 }
 
 // PaperSectionKind An extra section is not counted in the marks.
@@ -3711,8 +3806,11 @@ type PaperSectionKind string
 type PaperSectionChange struct {
 	Instructions string                 `json:"instructions,omitempty"`
 	Kind         PaperSectionChangeKind `json:"kind,omitempty"`
-	Print        bool                   `json:"print,omitempty"`
-	Title        string                 `json:"title,omitempty"`
+
+	// ParentId On adding, the section this sub-section sits in.
+	ParentId string `json:"parentId,omitempty"`
+	Print    bool   `json:"print,omitempty"`
+	Title    string `json:"title,omitempty"`
 }
 
 // PaperSectionChangeKind defines model for PaperSectionChange.Kind.
@@ -3868,7 +3966,10 @@ type PromotionRequest struct {
 
 // Question defines model for Question.
 type Question struct {
-	Answer      string             `json:"answer"`
+	Answer string `json:"answer"`
+
+	// Bits Lettered parts, (a), (b); the question is worth what they add up to.
+	Bits        []QuestionBit      `json:"bits,omitempty"`
 	Bloom       Bloom              `json:"bloom"`
 	CustomLevel string             `json:"customLevel,omitempty"`
 	Difficulty  QuestionDifficulty `json:"difficulty"`
@@ -3881,9 +3982,15 @@ type Question struct {
 	Qtype       string             `json:"qtype"`
 	Solo        string             `json:"solo,omitempty"`
 	Source      QuestionSource     `json:"source"`
-	Status      QuestionStatus     `json:"status"`
-	SubjectId   string             `json:"subjectId"`
-	Text        string             `json:"text"`
+
+	// SpaceKind Room to answer on the printed paper; auto goes by the marks.
+	SpaceKind QuestionSpaceKind `json:"spaceKind,omitempty"`
+
+	// SpaceSize Lines, or the height in lines of blank space or a box.
+	SpaceSize int            `json:"spaceSize,omitempty"`
+	Status    QuestionStatus `json:"status"`
+	SubjectId string         `json:"subjectId"`
+	Text      string         `json:"text"`
 
 	// Used How many papers it is in.
 	Used int `json:"used"`
@@ -3895,8 +4002,18 @@ type QuestionDifficulty string
 // QuestionSource defines model for Question.Source.
 type QuestionSource string
 
+// QuestionSpaceKind Room to answer on the printed paper; auto goes by the marks.
+type QuestionSpaceKind string
+
 // QuestionStatus defines model for Question.Status.
 type QuestionStatus string
+
+// QuestionBit defines model for QuestionBit.
+type QuestionBit struct {
+	Answer string `json:"answer,omitempty"`
+	Marks  string `json:"marks"`
+	Text   string `json:"text"`
+}
 
 // QuestionDraftRequest defines model for QuestionDraftRequest.
 type QuestionDraftRequest struct {
@@ -3922,6 +4039,9 @@ type QuestionDraftRequestTaxonomy string
 type QuestionInput struct {
 	Answer string `json:"answer,omitempty"`
 
+	// Bits Lettered parts, (a), (b); the question is worth what they add up to.
+	Bits []QuestionBit `json:"bits,omitempty"`
+
 	// Bloom Suggested from the wording when empty.
 	Bloom string `json:"bloom,omitempty"`
 
@@ -3936,8 +4056,14 @@ type QuestionInput struct {
 	Qtype       string   `json:"qtype"`
 
 	// Solo prestructural, unistructural, multistructural, relational or extended.
-	Solo      string              `json:"solo,omitempty"`
-	Source    QuestionInputSource `json:"source,omitempty"`
+	Solo   string              `json:"solo,omitempty"`
+	Source QuestionInputSource `json:"source,omitempty"`
+
+	// SpaceKind Room to answer on the printed paper; auto goes by the marks.
+	SpaceKind QuestionInputSpaceKind `json:"spaceKind,omitempty"`
+
+	// SpaceSize Lines, or the height in lines of blank space or a box.
+	SpaceSize int                 `json:"spaceSize,omitempty"`
 	Status    QuestionInputStatus `json:"status,omitempty"`
 	SubjectId string              `json:"subjectId"`
 	Text      string              `json:"text"`
@@ -3945,6 +4071,9 @@ type QuestionInput struct {
 
 // QuestionInputSource defines model for QuestionInput.Source.
 type QuestionInputSource string
+
+// QuestionInputSpaceKind Room to answer on the printed paper; auto goes by the marks.
+type QuestionInputSpaceKind string
 
 // QuestionInputStatus defines model for QuestionInput.Status.
 type QuestionInputStatus string
@@ -4990,16 +5119,28 @@ type TileStatus string
 
 // TypedQuestion defines model for TypedQuestion.
 type TypedQuestion struct {
-	Answer     string   `json:"answer,omitempty"`
-	Bloom      string   `json:"bloom,omitempty"`
-	Difficulty string   `json:"difficulty,omitempty"`
-	LessonId   string   `json:"lessonId,omitempty"`
-	Marks      string   `json:"marks"`
-	Options    []string `json:"options,omitempty"`
-	OutcomeId  string   `json:"outcomeId,omitempty"`
-	Qtype      string   `json:"qtype"`
-	Text       string   `json:"text"`
+	Answer string `json:"answer,omitempty"`
+
+	// Bits Lettered parts, (a), (b); the question is worth what they add up to.
+	Bits       []QuestionBit `json:"bits,omitempty"`
+	Bloom      string        `json:"bloom,omitempty"`
+	Difficulty string        `json:"difficulty,omitempty"`
+	LessonId   string        `json:"lessonId,omitempty"`
+	Marks      string        `json:"marks"`
+	Options    []string      `json:"options,omitempty"`
+	OutcomeId  string        `json:"outcomeId,omitempty"`
+	Qtype      string        `json:"qtype"`
+
+	// SpaceKind Room to answer on the printed paper; auto goes by the marks.
+	SpaceKind TypedQuestionSpaceKind `json:"spaceKind,omitempty"`
+
+	// SpaceSize Lines, or the height in lines of blank space or a box.
+	SpaceSize int    `json:"spaceSize,omitempty"`
+	Text      string `json:"text"`
 }
+
+// TypedQuestionSpaceKind Room to answer on the printed paper; auto goes by the marks.
+type TypedQuestionSpaceKind string
 
 // UndoResult defines model for UndoResult.
 type UndoResult struct {
@@ -5181,6 +5322,18 @@ type GetMarksGridParams struct {
 
 // LockAssessmentParams defines parameters for LockAssessment.
 type LockAssessmentParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// GetMarksByParams defines parameters for GetMarksBy.
+type GetMarksByParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutMarksByParams defines parameters for PutMarksBy.
+type PutMarksByParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -6479,6 +6632,9 @@ type StepBlueprintJSONRequestBody = BlueprintStep
 // ApplyBulkWriteJSONRequestBody defines body for ApplyBulkWrite for application/json ContentType.
 type ApplyBulkWriteJSONRequestBody = BulkInput
 
+// PutMarksByJSONRequestBody defines body for PutMarksBy for application/json ContentType.
+type PutMarksByJSONRequestBody = MarksByChange
+
 // CreatePaperJSONRequestBody defines body for CreatePaper for application/json ContentType.
 type CreatePaperJSONRequestBody = PaperCreate
 
@@ -6571,9 +6727,6 @@ type PutPaperAssignmentsJSONRequestBody = PaperAssignments
 
 // DuplicatePaperJSONRequestBody defines body for DuplicatePaper for application/json ContentType.
 type DuplicatePaperJSONRequestBody = PaperCreate
-
-// FinalisePaperJSONRequestBody defines body for FinalisePaper for application/json ContentType.
-type FinalisePaperJSONRequestBody = PaperFinalise
 
 // AddPaperItemJSONRequestBody defines body for AddPaperItem for application/json ContentType.
 type AddPaperItemJSONRequestBody = PaperItemAdd

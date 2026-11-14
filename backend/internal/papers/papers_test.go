@@ -442,8 +442,17 @@ func TestFreePaper(t *testing.T) {
 	}
 
 	// Marks by section: one part a core section, tagged with its outcomes.
-	admin.json(422, "POST", base+"/finalise", map[string]string{"marksBy": "pages"}, nil)
-	admin.json(200, "POST", base+"/finalise", map[string]string{"marksBy": "sections"}, &p)
+	// The paper is finalised with marks by question; how they are entered is
+	// then the administrator's choice, until a mark is entered.
+	var by papers.MarksBy
+	admin.json(409, "PUT", "/v1/assessments/"+exam+"/marks-by", map[string]string{"marksBy": "sections"}, nil) // no final paper yet
+	admin.json(200, "POST", base+"/finalise", nil, &p)
+	admin.json(200, "GET", "/v1/assessments/"+exam+"/marks-by", nil, &by)
+	if by.MarksBy != "questions" || !by.MayChange || by.Marked {
+		t.Fatalf("after finalising: %+v", by)
+	}
+	admin.json(422, "PUT", "/v1/assessments/"+exam+"/marks-by", map[string]string{"marksBy": "pages"}, nil)
+	admin.json(200, "PUT", "/v1/assessments/"+exam+"/marks-by", map[string]string{"marksBy": "sections"}, &by)
 	got := one(`SELECT string_agg(p.name || '=' || p.max_marks::int || ':' || (SELECT count(*) FROM part_tags t WHERE t.part_id = p.id), ', ' ORDER BY p.seq)
 		|| ' ' || (SELECT marks_by || '/' || entry_mode FROM assessments WHERE id = $1)
 		FROM assessment_parts p WHERE p.assessment_id = $1 AND p.deleted_at IS NULL`, exam)
@@ -451,4 +460,153 @@ func TestFreePaper(t *testing.T) {
 		t.Fatalf("parts by section: %s", got)
 	}
 	admin.json(409, "POST", base+"/sections", nil, nil) // final
+}
+
+// A paper at every level: sections, sub-sections, questions and their bits.
+func TestPaperHierarchy(t *testing.T) {
+	owner, appPool := dbtest.Open(t)
+	a := dbtest.SeedOrg(t, owner, "Org A")
+	app := server.New(config.Config{Version: "test"}, server.Deps{DB: appPool, Auth: headerAuth{}})
+	admin := caller{t, app, a.UserID, a.ID}
+	ctx := context.Background()
+	one := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		if err := owner.QueryRow(ctx, sql, args...).Scan(&v); err != nil {
+			t.Fatalf("%v\n%s", err, sql)
+		}
+		return v
+	}
+	exam := one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Class test', 'total') RETURNING id`,
+		a.ID, a.YearID, a.PeriodID, a.LevelID, a.SubjectID)
+	one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 10) RETURNING id`, a.ID, exam)
+	outcome := one(`SELECT id FROM learning_outcomes WHERE org_id = $1`, a.ID)
+
+	var p papers.Paper
+	admin.json(201, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, &p)
+	base := "/v1/papers/" + p.ID
+	secA := p.Sections[0].ID
+	admin.json(201, "POST", base+"/sections", nil, &p) // Section B
+	secB := p.Sections[1].ID
+	// Sub-sections land at the end of their own section, before the next one.
+	admin.json(201, "POST", base+"/sections", map[string]any{"parentId": secA}, &p)
+	admin.json(201, "POST", base+"/sections", map[string]any{"parentId": secA, "title": "Grammar"}, &p)
+	if len(p.Sections) != 4 || p.Sections[1].Title != "Part 1" || p.Sections[2].Title != "Grammar" || p.Sections[2].ParentID != secA || p.Sections[3].ID != secB {
+		t.Fatalf("sub-sections %+v", p.Sections)
+	}
+	part1, grammar := p.Sections[1].ID, p.Sections[2].ID
+	admin.json(422, "POST", base+"/sections", map[string]any{"parentId": part1}, nil) // one level down only
+
+	add := func(section string, q map[string]any) {
+		q["outcomeId"] = outcome
+		admin.json(201, "POST", base+"/items", map[string]any{"sectionId": section, "question": q}, &p)
+	}
+	add(secA, map[string]any{"qtype": "Short answer", "marks": "1", "text": "Name a noun."})
+	add(part1, map[string]any{"qtype": "Long answer", "marks": "9", "text": "Read the passage and answer.", "bits": []map[string]any{
+		{"text": "Who is the speaker?", "marks": "1.5", "answer": "The poet"},
+		{"text": "What does the river stand for?", "marks": "2.5"},
+	}})
+	add(grammar, map[string]any{"qtype": "Short answer", "marks": "2", "text": "Correct the sentence."})
+	add(secB, map[string]any{"qtype": "Essay", "marks": "4", "text": "Write a letter."})
+	admin.json(422, "POST", base+"/items", map[string]any{"sectionId": secB, "question": map[string]any{"qtype": "Short answer", "marks": "1", "text": "x", "bits": []map[string]any{{"text": "y", "marks": "0"}}}}, nil)
+	// With bits a question is worth what they add up to; a section's marks take in its sub-sections'.
+	withBits := p.Items[1]
+	if withBits.Marks != "4" || len(withBits.Question.Bits) != 2 || p.Sections[0].Marks != "7" || p.Sections[0].Questions != 3 || p.Sections[1].Marks != "4" || p.Total != "11" {
+		t.Fatalf("marks: item %s, section A %s (%d), part 1 %s, total %s", withBits.Marks, p.Sections[0].Marks, p.Sections[0].Questions, p.Sections[1].Marks, p.Total)
+	}
+
+	// Changing a question in place: its bits, and so its marks, in the paper too.
+	q := withBits.Question
+	var changed papers.Question
+	admin.json(200, "PUT", "/v1/questions/"+q.ID, map[string]any{"levelId": q.LevelID, "subjectId": q.SubjectID, "outcomeId": outcome, "qtype": q.QType, "marks": "1", "text": q.Text, "bits": []map[string]any{
+		{"text": "Who is the speaker?", "marks": "2", "answer": "The poet"},
+		{"text": "What does the river stand for?", "marks": "3"},
+	}}, &changed)
+	admin.json(200, "GET", base, nil, &p)
+	if changed.Marks != "5" || p.Items[1].Marks != "5" || p.Total != "12" {
+		t.Fatalf("after the change: question %s, item %s, total %s", changed.Marks, p.Items[1].Marks, p.Total)
+	}
+
+	// Order: a sub-section stays in its section; sections move with theirs.
+	ids := func(section string) []string {
+		out := []string{}
+		for _, it := range p.Items {
+			if it.SectionID == section {
+				out = append(out, it.ID)
+			}
+		}
+		return out
+	}
+	sec := func(id string) map[string]any { return map[string]any{"id": id, "itemIds": ids(id)} }
+	admin.json(422, "PUT", base+"/order", map[string]any{"sections": []map[string]any{sec(secA), sec(part1), sec(secB), sec(grammar)}}, nil)
+	admin.json(200, "PUT", base+"/order", map[string]any{"sections": []map[string]any{sec(secB), sec(secA), sec(grammar), sec(part1)}}, &p)
+	if p.Sections[0].ID != secB || p.Sections[2].ID != grammar || p.Items[0].Question.Text != "Write a letter." || p.Items[3].Question.Text != "Read the passage and answer." {
+		t.Fatalf("order %+v", p.Sections)
+	}
+
+	// Extra is the section's to say, and its sub-sections follow.
+	admin.json(200, "PUT", base+"/sections/"+grammar, map[string]any{"kind": "extra", "print": false}, &p)
+	if p.Sections[2].Kind != "core" || p.Sections[2].Print || p.Total != "12" {
+		t.Fatalf("a sub-section counts as its section does: %+v total %s", p.Sections[2], p.Total)
+	}
+	_, body := admin.raw("GET", base+"/html?space=true", nil)
+	page := string(body)
+	if strings.Contains(page, "Grammar") || !strings.Contains(page, "<h3>Part 1") || !strings.Contains(page, `<span class="l">(b)</span>What does the river stand for?`) || !strings.Contains(page, "[3]") {
+		t.Fatalf("print: sub-section headings, bits lettered with their marks, an unprinted sub-section left out\n%s", page)
+	}
+	if _, key := admin.raw("GET", base+"/html?key=true&all=true", nil); !strings.Contains(string(key), "The poet") || !strings.Contains(string(key), "Grammar") {
+		t.Fatalf("the key carries each bit's answer")
+	}
+	admin.json(200, "PUT", base+"/sections/"+grammar, map[string]any{"print": true}, &p)
+
+	// Bits all worth the same carry no marks of their own in print; the room
+	// to answer is as set for the question.
+	add(secB, map[string]any{"qtype": "Map or diagram", "marks": "1", "text": "Draw and label.", "spaceKind": "box", "spaceSize": 6, "bits": []map[string]any{
+		{"text": "A leaf", "marks": "2"}, {"text": "A root", "marks": "2"}}})
+	add(secB, map[string]any{"qtype": "Short answer", "marks": "1", "text": "Say it aloud.", "spaceKind": "none"})
+	add(secB, map[string]any{"qtype": "Short answer", "marks": "1", "text": "Work it out.", "spaceKind": "blank", "spaceSize": 3})
+	add(secB, map[string]any{"qtype": "Multiple choice", "marks": "1", "text": "Pick one and say why.", "options": []string{"a", "b"}, "spaceKind": "lines", "spaceSize": 5})
+	admin.json(422, "POST", base+"/items", map[string]any{"sectionId": secB, "question": map[string]any{"qtype": "Short answer", "marks": "1", "text": "x", "spaceKind": "lines"}}, nil)
+	_, body = admin.raw("GET", base+"/html?space=true", nil)
+	page = string(body)
+	for _, want := range []string{`[2 × 2 = 4]`, `<span class="l">(a)</span>A leaf<div class="draw" style="height:156px">`, `<div class="blank" style="height:78px">`, strings.Repeat("<div></div>", 5) + "</div></li>"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("print lacks %q in %s", want, page)
+		}
+	}
+	for _, id := range ids(secB)[1:] {
+		admin.json(200, "DELETE", base+"/items/"+id, nil, &p)
+	}
+
+	// A copy keeps the hierarchy.
+	var dup papers.Paper
+	admin.json(201, "POST", base+"/duplicate", nil, &dup)
+	if len(dup.Sections) != 4 || dup.Sections[2].ParentID != dup.Sections[1].ID || dup.Sections[3].ParentID != dup.Sections[1].ID || dup.Sections[2].Title != "Grammar" {
+		t.Fatalf("duplicate %+v", dup.Sections)
+	}
+
+	// Marks by section: a sub-section holding questions is a part of its own.
+	admin.json(200, "POST", base+"/finalise", nil, &p)
+	admin.json(200, "PUT", "/v1/assessments/"+exam+"/marks-by", map[string]string{"marksBy": "sections"}, nil)
+	rows, err := owner.Query(ctx, `SELECT name || '=' || max_marks::text FROM assessment_parts WHERE assessment_id = $1 AND deleted_at IS NULL ORDER BY seq`, exam)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parts []string
+	for rows.Next() {
+		var s string
+		_ = rows.Scan(&s)
+		parts = append(parts, s)
+	}
+	if got := strings.Join(parts, ", "); got != "Section B=4.00, Section A=1.00, Section A: Grammar=2.00, Section A: Part 1=5.00" {
+		t.Fatalf("parts %s", got)
+	}
+	if n := one(`SELECT count(*)::text FROM part_tags WHERE paper_id = $1`, p.ID); n != "4" {
+		t.Fatalf("each part tagged with its outcome: %s", n)
+	}
+	// Removing a section takes its sub-sections with it.
+	admin.json(200, "DELETE", "/v1/papers/"+dup.ID+"/sections/"+dup.Sections[1].ID, nil, &dup)
+	if len(dup.Sections) != 1 || len(dup.Items) != 1 {
+		t.Fatalf("after removing a section: %d sections, %d questions", len(dup.Sections), len(dup.Items))
+	}
 }

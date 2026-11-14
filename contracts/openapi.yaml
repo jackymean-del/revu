@@ -3884,15 +3884,49 @@ paths:
                 $ref: "#/components/schemas/Paper"
         default:
           $ref: "#/components/responses/Problem"
-  /v1/papers/{id}/finalise:
-    post:
-      operationId: finalisePaper
+  /v1/assessments/{id}/marks-by:
+    get:
+      operationId: getMarksBy
+      summary: How this assessment's marks are entered, and whether that can still change.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: How marks are entered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarksBy"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putMarksBy
+      summary: "Administrators only, before any mark: enter marks by question, by section or as one total."
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - $ref: "#/components/parameters/Id"
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PaperFinalise"
-      summary: Fix a set; the first sets the parts marks are entered by, tagged with learning outcomes.
+              $ref: "#/components/schemas/MarksByChange"
+      responses:
+        "200":
+          description: How marks are entered now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarksBy"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/papers/{id}/finalise:
+    post:
+      operationId: finalisePaper
+      summary: Fix a set; the first sets one part a question for marks, tagged with learning outcomes.
       tags: [papers]
       parameters:
         - $ref: "#/components/parameters/OrgId"
@@ -7710,9 +7744,35 @@ components:
         status:
           type: string
           enum: [draft, approved, retired]
+        bits:
+          type: array
+          maxItems: 12
+          description: Lettered parts, (a), (b); the question is worth what they add up to.
+          items:
+            $ref: "#/components/schemas/QuestionBit"
+        spaceKind:
+          type: string
+          enum: [auto, lines, blank, box, none]
+          description: Room to answer on the printed paper; auto goes by the marks.
+        spaceSize:
+          type: integer
+          minimum: 0
+          maximum: 60
+          description: Lines, or the height in lines of blank space or a box.
         used:
           type: integer
           description: How many papers it is in.
+    QuestionBit:
+      type: object
+      required: [text, marks]
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        marks:
+          type: string
+        answer:
+          type: string
     QuestionInput:
       type: object
       required: [levelId, subjectId, qtype, marks, text]
@@ -7756,6 +7816,21 @@ components:
         status:
           type: string
           enum: [draft, approved, retired]
+        bits:
+          type: array
+          maxItems: 12
+          description: Lettered parts, (a), (b); the question is worth what they add up to.
+          items:
+            $ref: "#/components/schemas/QuestionBit"
+        spaceKind:
+          type: string
+          enum: [auto, lines, blank, box, none]
+          description: Room to answer on the printed paper; auto goes by the marks.
+        spaceSize:
+          type: integer
+          minimum: 0
+          maximum: 60
+          description: Lines, or the height in lines of blank space or a box.
     PaperItem:
       type: object
       required: [id, seq, section, sectionId, chapter, marks, locked]
@@ -7881,6 +7956,9 @@ components:
       properties:
         id:
           type: string
+        parentId:
+          type: string
+          description: A sub-section names the section it sits in.
         seq:
           type: integer
         title:
@@ -7911,6 +7989,9 @@ components:
           enum: [core, extra]
         print:
           type: boolean
+        parentId:
+          type: string
+          description: On adding, the section this sub-section sits in.
     PaperItemAdd:
       type: object
       required: [sectionId]
@@ -7937,6 +8018,21 @@ components:
             type: string
         answer:
           type: string
+        bits:
+          type: array
+          maxItems: 12
+          description: Lettered parts, (a), (b); the question is worth what they add up to.
+          items:
+            $ref: "#/components/schemas/QuestionBit"
+        spaceKind:
+          type: string
+          enum: [auto, lines, blank, box, none]
+          description: Room to answer on the printed paper; auto goes by the marks.
+        spaceSize:
+          type: integer
+          minimum: 0
+          maximum: 60
+          description: Lines, or the height in lines of blank space or a box.
         bloom:
           type: string
         difficulty:
@@ -7961,13 +8057,26 @@ components:
                 type: array
                 items:
                   type: string
-    PaperFinalise:
+    MarksBy:
       type: object
+      required: [marksBy, marked, mayChange]
+      properties:
+        marksBy:
+          type: string
+          description: questions, sections or total; empty while no set is final.
+        marked:
+          type: boolean
+          description: A mark has been entered, so this is fixed.
+        mayChange:
+          type: boolean
+          description: An administrator, with a final set and no mark yet.
+    MarksByChange:
+      type: object
+      required: [marksBy]
       properties:
         marksBy:
           type: string
           enum: [questions, sections, total]
-          description: How marks are entered; questions when left out.
     PaperCreate:
       type: object
       properties:

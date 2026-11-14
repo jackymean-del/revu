@@ -465,13 +465,16 @@ export const createPaper = (orgId: string, id: string, fill: boolean, name = '',
 export const getPaper = (orgId: string, id: string, signal?: AbortSignal) => call<Paper>(`/v1/papers/${id}`, { orgId, signal })
 export const putPaperItem = (orgId: string, id: string, item: string, body: { questionId?: string; locked?: boolean }) =>
   call<Paper>(`/v1/papers/${id}/items/${item}`, { orgId, method: 'PUT', body })
-export type MarksBy = 'questions' | 'sections' | 'total'
-export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise', name = '', marksBy: MarksBy = 'questions') =>
-  call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST', body: step === 'duplicate' ? { name } : step === 'finalise' ? { marksBy } : undefined })
+export type MarksBy = components['schemas']['MarksBy']
+export const getMarksBy = (orgId: string, assessmentId: string, signal?: AbortSignal) => call<MarksBy>(`/v1/assessments/${assessmentId}/marks-by`, { orgId, signal })
+export const putMarksBy = (orgId: string, assessmentId: string, marksBy: components['schemas']['MarksByChange']['marksBy']) =>
+  call<MarksBy>(`/v1/assessments/${assessmentId}/marks-by`, { orgId, method: 'PUT', body: { marksBy } })
+export const paperStep = (orgId: string, id: string, step: 'fill' | 'duplicate' | 'finalise', name = '') =>
+  call<Paper>(`/v1/papers/${id}/${step}`, { orgId, method: 'POST', body: step === 'duplicate' ? { name } : undefined })
 export type PaperSection = components['schemas']['PaperSection']
 export type TypedQuestion = components['schemas']['TypedQuestion']
 export type PaperOrder = components['schemas']['PaperOrder']
-export const addPaperSection = (orgId: string, id: string) => call<Paper>(`/v1/papers/${id}/sections`, { orgId, method: 'POST', body: {} })
+export const addPaperSection = (orgId: string, id: string, parentId?: string) => call<Paper>(`/v1/papers/${id}/sections`, { orgId, method: 'POST', body: parentId ? { parentId } : {} })
 export const putPaperSection = (orgId: string, id: string, section: string, body: components['schemas']['PaperSectionChange']) =>
   call<Paper>(`/v1/papers/${id}/sections/${section}`, { orgId, method: 'PUT', body })
 export const deletePaperSection = (orgId: string, id: string, section: string) => call<Paper>(`/v1/papers/${id}/sections/${section}`, { orgId, method: 'DELETE' })

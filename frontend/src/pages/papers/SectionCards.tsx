@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import {
   addPaperItem,
   addPaperSection,
   deletePaperItem,
   deletePaperSection,
+  getPaper,
   putPaperItem,
   putPaperOrder,
   putPaperSection,
+  updateQuestion,
   type Paper,
   type PaperItem,
   type PaperSection,
@@ -15,8 +17,9 @@ import {
   type TypedQuestion,
 } from '../../api/client'
 import { ApiError } from '../../api/problem'
-import { hundredths, moveItem, moveSection, orderOf, type Order } from '../../lib/papers'
+import { bitsAlike, hundredths, marks, moveItem, moveSection, orderOf, parentsOf, type Order, type Parents } from '../../lib/papers'
 import { levelLabel, questionLevel, type Taxonomy } from '../../lib/taxonomy'
+import { Outline, type Place } from './Outline'
 import { usePaperSettings } from './settings'
 import { TypeSelect } from './TypeSelect'
 import { PAPER, hasOptions } from './types'
@@ -26,62 +29,111 @@ const button = 'rounded-lg border border-line bg-white px-2.5 py-1 text-sm font-
 const icon = 'grid size-7 place-items-center rounded border border-line bg-white text-sm text-muted hover:bg-canvas disabled:opacity-30'
 const field = 'rounded-md border border-line bg-white px-2 py-1.5 text-sm'
 const isMatch = (qtype: string) => /match/i.test(qtype)
+const letter = (i: number) => String.fromCharCode(97 + i)
 
 type Drag = { kind: 'section'; id: string } | { kind: 'item'; id: string } | null
+type View = 'cards' | 'list' | 'outline'
+
+/** What every card of one paper shares. */
+interface Board {
+  orgId: string
+  paper: Paper
+  bank: Question[]
+  draft: boolean
+  all: boolean
+  open: Set<string>
+  toggle: (id: string) => void
+  editing: string
+  setEditing: (itemId: string) => void
+  drag: Drag
+  setDrag: (d: Drag) => void
+  busy: boolean
+  order: Order
+  parents: Parents
+  onOrder: (o: Order) => void
+  onChange: (p: Paper) => void
+}
 
 /**
- * The paper as section cards. A card shows its name, whether it is core or
- * extra and whether it prints; opened, it is where the section is named and
- * its questions are typed, picked from the bank, ordered and removed.
- * Everything moves by drag and drop, or by the up and down buttons.
+ * The paper at every level: sections, the sub-sections in them, questions,
+ * and a question's bits. As cards, a section shows its name, whether it is
+ * core or extra and whether it prints; opened, it is where it is named and
+ * its questions are typed, picked from the bank, changed, ordered and
+ * removed. Everything moves by drag and drop, or by the up and down
+ * buttons. The outline shows the whole paper as a tree and goes straight to
+ * any level of it.
  */
 export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; paper: Paper; bank: Question[]; onChange: (p: Paper) => void }) {
   const draft = paper.status === 'draft'
-  const [open, setOpen] = useState<string>(paper.sections[0]?.id ?? '')
-  const [all, setAll] = useState(false)
+  const [open, setOpen] = useState<Set<string>>(() => new Set(paper.sections.slice(0, 1).map((s) => s.id)))
+  const [view, setView] = useState<View>('cards')
+  const [editing, setEditing] = useState('')
   const [drag, setDrag] = useState<Drag>(null)
+  const goal = useRef('')
   const reorder = useMutation({ mutationFn: (o: Order) => putPaperOrder(orgId, paper.id, o), onSuccess: onChange })
-  const add = useMutation({ mutationFn: () => addPaperSection(orgId, paper.id), onSuccess: (p) => (onChange(p), setOpen(p.sections.at(-1)?.id ?? '')) })
-  const order = orderOf(paper)
+  const add = useMutation({ mutationFn: () => addPaperSection(orgId, paper.id), onSuccess: (p) => (onChange(p), setOpen(new Set([...open, p.sections.filter((s) => !s.parentId).at(-1)?.id ?? '']))) })
   const err = (reorder.error ?? add.error) as Error | null
+  const tops = paper.sections.filter((s) => !s.parentId)
+
+  // After a jump from the outline, bring the place asked for into view.
+  useEffect(() => {
+    if (!goal.current) return
+    document.getElementById(goal.current)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    goal.current = ''
+  })
+  const go = (to: Place) => {
+    const s = paper.sections.find((x) => x.id === to.sectionId)
+    setOpen(new Set([...open, to.sectionId, s?.parentId ?? to.sectionId]))
+    setEditing(to.itemId && draft ? to.itemId : '')
+    goal.current = to.itemId ? `item-${to.itemId}` : `sec-${to.sectionId}`
+    setView('cards')
+  }
+
+  const board: Board = {
+    orgId,
+    paper,
+    bank,
+    draft,
+    all: view === 'list',
+    open,
+    toggle: (id) => setOpen((was) => new Set(was.has(id) ? [...was].filter((x) => x !== id) : [...was, id])),
+    editing,
+    setEditing,
+    drag,
+    setDrag,
+    busy: reorder.isPending,
+    order: orderOf(paper),
+    parents: parentsOf(paper),
+    onOrder: (o) => reorder.mutate(o),
+    onChange,
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <div role="group" aria-label="View" className="flex rounded-lg bg-mist p-0.5">
-          {[
-            [false, 'Cards'],
-            [true, 'Full list'],
-          ].map(([v, label]) => (
-            <button key={String(label)} type="button" aria-pressed={all === v} onClick={() => setAll(v as boolean)} className={`rounded-md px-2.5 py-1 font-semibold ${all === v ? 'bg-white text-brand shadow-sm' : 'text-muted'}`}>
+          {(
+            [
+              ['cards', 'Cards'],
+              ['list', 'Full list'],
+              ['outline', 'Outline'],
+            ] as const
+          ).map(([v, label]) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`rounded-md px-2.5 py-1 font-semibold ${view === v ? 'bg-white text-brand shadow-sm' : 'text-muted'}`}>
               {label}
             </button>
           ))}
         </div>
-        {draft && <span className="text-xs text-muted">Drag a card or a question to move it, or use the arrows.</span>}
+        {view === 'outline' ? (
+          <span className="text-xs text-muted">The whole paper, level by level. Choose any line to go to it.</span>
+        ) : (
+          draft && <span className="text-xs text-muted">Drag a card or a question to move it, or use the arrows.</span>
+        )}
       </div>
       {err && <Problem error={err} />}
-      {paper.sections.map((s, i) => (
-        <SectionCard
-          key={s.id}
-          orgId={orgId}
-          paper={paper}
-          section={s}
-          index={i}
-          open={all || open === s.id}
-          onToggle={() => setOpen(open === s.id ? '' : s.id)}
-          bank={bank}
-          draft={draft}
-          drag={drag}
-          setDrag={setDrag}
-          busy={reorder.isPending}
-          onOrder={(o) => reorder.mutate(o)}
-          order={order}
-          onChange={onChange}
-        />
-      ))}
-      {draft && (
-        <button type="button" className="w-full rounded-2xl border border-dashed border-line bg-white py-3 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50" disabled={add.isPending || paper.sections.length >= 26} onClick={() => add.mutate()}>
+      {view === 'outline' ? <Outline paper={paper} draft={draft} onGo={go} /> : tops.map((s) => <SectionCard key={s.id} board={board} section={s} />)}
+      {draft && view !== 'outline' && (
+        <button type="button" className="w-full rounded-2xl border border-dashed border-line bg-white py-3 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50" disabled={add.isPending || tops.length >= 26} onClick={() => add.mutate()}>
           Add a {PAPER.section}
         </button>
       )}
@@ -89,25 +141,17 @@ export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; 
   )
 }
 
-function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft, drag, setDrag, busy, onOrder, order, onChange }: {
-  orgId: string
-  paper: Paper
-  section: PaperSection
-  index: number
-  open: boolean
-  onToggle: () => void
-  bank: Question[]
-  draft: boolean
-  drag: Drag
-  setDrag: (d: Drag) => void
-  busy: boolean
-  onOrder: (o: Order) => void
-  order: Order
-  onChange: (p: Paper) => void
-}) {
+function SectionCard({ board, section }: { board: Board; section: PaperSection }) {
+  const { orgId, paper, bank, draft, drag, setDrag, busy, order, parents, onOrder, onChange, editing, setEditing } = board
   const settings = usePaperSettings(orgId)
   const tax = paper.taxonomy as Taxonomy
+  const sub = !!section.parentId
+  const word = sub ? `sub-${PAPER.section}` : PAPER.section
   const items = paper.items.filter((i) => i.sectionId === section.id)
+  const subs = paper.sections.filter((s) => s.parentId === section.id)
+  const siblings = paper.sections.filter((s) => (s.parentId ?? '') === (section.parentId ?? ''))
+  const place = siblings.findIndex((s) => s.id === section.id)
+  const open = board.all || board.open.has(section.id)
   const [title, setTitle] = useState(section.title)
   const [note, setNote] = useState(section.instructions)
   const [adding, setAdding] = useState<'' | 'type' | 'bank'>('')
@@ -115,11 +159,12 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
   const [over, setOver] = useState(false)
   const change = useMutation({ mutationFn: (b: Parameters<typeof putPaperSection>[3]) => putPaperSection(orgId, paper.id, section.id, b), onSuccess: onChange })
   const remove = useMutation({ mutationFn: () => deletePaperSection(orgId, paper.id, section.id), onSuccess: onChange })
+  const addSub = useMutation({ mutationFn: () => addPaperSection(orgId, paper.id, section.id), onSuccess: (p) => (onChange(p), board.toggle(p.sections.filter((s) => s.parentId === section.id).at(-1)?.id ?? '')) })
   const drop = useMutation({ mutationFn: (item: string) => deletePaperItem(orgId, paper.id, item), onSuccess: onChange })
   const put = useMutation({ mutationFn: (v: { item: string; questionId: string }) => putPaperItem(orgId, paper.id, v.item, { questionId: v.questionId }), onSuccess: (p) => (setPicking(''), onChange(p)) })
-  const err = (change.error ?? remove.error ?? drop.error ?? put.error) as Error | null
+  const err = (change.error ?? remove.error ?? addSub.error ?? drop.error ?? put.error) as Error | null
   const inPaper = new Set(paper.items.flatMap((i) => (i.question ? [i.question.id] : [])))
-  const last = paper.sections.length - 1
+  const only = !sub && siblings.length <= 1
   const fits = (it: PaperItem) =>
     bank.filter(
       (q) =>
@@ -131,41 +176,44 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
         (!it.level || questionLevel(q, tax) === it.level),
     )
   // A dragged section lands in this card's place; a dragged question at the end of this card.
-  const onDrop = () => {
+  const onDrop = (e: React.DragEvent) => {
+    e.stopPropagation()
     setOver(false)
     if (!drag || !draft) return
-    onOrder(drag.kind === 'section' ? moveSection(order, drag.id, index) : moveItem(order, drag.id, section.id, items.length))
+    onOrder(drag.kind === 'section' ? moveSection(order, parents, drag.id, section.id) : moveItem(order, drag.id, section.id, items.length))
     setDrag(null)
   }
 
   return (
     <section
+      id={`sec-${section.id}`}
       aria-label={section.title}
-      className={`rounded-2xl border bg-white ${over ? 'border-brand ring-2 ring-brand/30' : 'border-line'}`}
-      onDragOver={(e) => (draft && drag ? (e.preventDefault(), setOver(true)) : undefined)}
+      className={`border bg-white ${sub ? 'rounded-xl' : 'rounded-2xl'} ${over ? 'border-brand ring-2 ring-brand/30' : 'border-line'}`}
+      onDragOver={(e) => (draft && drag ? (e.preventDefault(), e.stopPropagation(), setOver(true)) : undefined)}
       onDragLeave={() => setOver(false)}
       onDrop={onDrop}
     >
-      <header className="flex flex-wrap items-center gap-2 px-3 py-2.5" draggable={draft} onDragStart={() => setDrag({ kind: 'section', id: section.id })} onDragEnd={() => setDrag(null)}>
+      <header className={`flex flex-wrap items-center gap-2 px-3 ${sub ? 'py-2' : 'py-2.5'}`} draggable={draft} onDragStart={(e) => (e.stopPropagation(), setDrag({ kind: 'section', id: section.id }))} onDragEnd={() => setDrag(null)}>
         {draft && (
-          <span aria-hidden="true" className="cursor-grab select-none px-1 text-muted" title={`Drag to move this ${PAPER.section}`}>
+          <span aria-hidden="true" className="cursor-grab select-none px-1 text-muted" title={`Drag to move this ${word}`}>
             ⠿
           </span>
         )}
-        <button type="button" aria-expanded={open} onClick={onToggle} className="min-w-0 flex-1 text-left">
-          <span className="block truncate font-bold">{section.title}</span>
+        <button type="button" aria-expanded={open} onClick={() => board.toggle(section.id)} className="min-w-0 flex-1 text-left">
+          <span className={`block truncate font-bold ${sub ? 'text-sm' : ''}`}>{section.title}</span>
           <span className="block text-xs text-muted">
+            {subs.length > 0 && `${subs.length} ${subs.length === 1 ? `sub-${PAPER.section}` : `sub-${PAPER.sections}`} · `}
             {section.questions} {section.questions === 1 ? 'question' : 'questions'} · {section.marks} marks
           </span>
         </button>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${section.kind === 'core' ? 'bg-mist text-brand' : 'bg-amber-50 text-amber-800'}`}>{section.kind === 'core' ? 'Core' : 'Extra, not counted'}</span>
+        {!sub && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${section.kind === 'core' ? 'bg-mist text-brand' : 'bg-amber-50 text-amber-800'}`}>{section.kind === 'core' ? 'Core' : 'Extra, not counted'}</span>}
         {!section.print && <span className="rounded-full bg-canvas px-2 py-0.5 text-xs font-semibold text-muted">Not printed</span>}
         {draft && (
           <>
-            <button type="button" className={icon} aria-label={`Move ${section.title} up`} disabled={busy || index === 0} onClick={() => onOrder(moveSection(order, section.id, index - 1))}>
+            <button type="button" className={icon} aria-label={`Move ${section.title} up`} disabled={busy || place === 0} onClick={() => onOrder(moveSection(order, parents, section.id, siblings[place - 1].id))}>
               ↑
             </button>
-            <button type="button" className={icon} aria-label={`Move ${section.title} down`} disabled={busy || index === last} onClick={() => onOrder(moveSection(order, section.id, index + 1))}>
+            <button type="button" className={icon} aria-label={`Move ${section.title} down`} disabled={busy || place === siblings.length - 1} onClick={() => onOrder(moveSection(order, parents, siblings[place + 1].id, section.id))}>
               ↓
             </button>
           </>
@@ -175,20 +223,22 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
       {open && (
         <div className="space-y-3 border-t border-line px-3 py-3">
           {draft && (
-            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <label className="flex flex-col gap-1 text-xs font-semibold">
-                {PAPER.Section} name
+            <div className="flex flex-wrap gap-2">
+              <label className="flex min-w-36 flex-1 flex-col gap-1 text-xs font-semibold">
+                {sub ? `Sub-${PAPER.section}` : PAPER.Section} name
                 <input className={field} maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== section.title && change.mutate({ title })} />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold">
+              <label className="flex min-w-36 flex-1 flex-col gap-1 text-xs font-semibold">
                 Instructions, printed under the name
                 <input className={field} maxLength={500} placeholder="For example: answer any four" value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => note !== section.instructions && change.mutate({ instructions: note })} />
               </label>
-              <div className="flex flex-wrap items-end gap-3 text-sm">
-                <label className="flex items-center gap-1.5">
-                  <input type="checkbox" checked={section.kind === 'extra'} onChange={(e) => change.mutate({ kind: e.target.checked ? 'extra' : 'core' })} />
-                  Extra
-                </label>
+              <div className="flex flex-wrap items-end gap-3 pb-1.5 text-sm">
+                {!sub && (
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" checked={section.kind === 'extra'} onChange={(e) => change.mutate({ kind: e.target.checked ? 'extra' : 'core' })} />
+                    Extra
+                  </label>
+                )}
                 <label className="flex items-center gap-1.5">
                   <input type="checkbox" checked={section.print} onChange={(e) => change.mutate({ print: e.target.checked })} />
                   Print
@@ -199,14 +249,15 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
           {err && <Problem error={err} />}
 
           {items.length === 0 ? (
-            <p className="rounded-lg bg-canvas px-3 py-2 text-sm text-muted">No questions here yet.</p>
+            subs.length === 0 && <p className="rounded-lg bg-canvas px-3 py-2 text-sm text-muted">No questions here yet.</p>
           ) : (
             <ol className="divide-y divide-line rounded-xl border border-line">
               {items.map((it, k) => (
                 <li
                   key={it.id}
+                  id={`item-${it.id}`}
                   className="px-2.5 py-2"
-                  draggable={draft}
+                  draggable={draft && editing !== it.id}
                   onDragStart={(e) => (e.stopPropagation(), setDrag({ kind: 'item', id: it.id }))}
                   onDragEnd={() => setDrag(null)}
                   onDragOver={(e) => (draft && drag?.kind === 'item' ? (e.preventDefault(), e.stopPropagation()) : undefined)}
@@ -226,15 +277,31 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
                     <span className="w-8 shrink-0 font-bold tabular-nums">Q{it.seq}</span>
                     <div className="min-w-0 flex-1">
                       {it.question ? <p className="whitespace-pre-wrap text-sm">{it.question.text}</p> : <p className="text-sm font-semibold text-amber-700">Still to choose</p>}
+                      {(it.question?.bits ?? []).length > 0 && (
+                        <ul className="mt-1 space-y-0.5 text-sm">
+                          {(it.question?.bits ?? []).map((b, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="w-6 shrink-0 text-muted">({letter(i)})</span>
+                              <span className="min-w-0 flex-1 whitespace-pre-wrap">{b.text}</span>
+                              {!bitsAlike(it.question?.bits ?? []) && <span className="shrink-0 text-xs text-muted">[{b.marks}]</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       <p className="mt-0.5 text-xs text-muted">
-                        {it.question?.qtype ?? it.section} · {it.marks} {it.marks === '1' ? 'mark' : 'marks'}
+                        {it.question?.qtype ?? it.section} · {bitsAlike(it.question?.bits ?? []) && `${it.question?.bits?.length} × ${it.question?.bits?.[0].marks} = `}
+                        {it.marks} {it.marks === '1' ? 'mark' : 'marks'}
                         {it.chapter && ` · ${it.chapter}`}
                         {it.level && ` · ${levelLabel(tax, it.level, settings)}`}
                       </p>
                     </div>
                     {draft && (
                       <span className="flex shrink-0 gap-1">
-                        {!it.question && (
+                        {it.question ? (
+                          <button type="button" className={button} aria-label={`Edit question ${it.seq}`} aria-expanded={editing === it.id} onClick={() => setEditing(editing === it.id ? '' : it.id)}>
+                            Edit
+                          </button>
+                        ) : (
                           <button type="button" className={button} aria-expanded={picking === it.id} onClick={() => setPicking(picking === it.id ? '' : it.id)}>
                             Choose
                           </button>
@@ -251,6 +318,11 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
                       </span>
                     )}
                   </div>
+                  {editing === it.id && it.question && draft && (
+                    <div className="mt-2">
+                      <QuestionForm key={it.question.id} orgId={orgId} paper={paper} sectionId={section.id} editing={it.question} onAdded={onChange} onDone={(p) => (p && onChange(p), setEditing(''))} />
+                    </div>
+                  )}
                   {picking === it.id && (
                     <ul className="mt-2 space-y-1 rounded-xl bg-canvas p-2">
                       {fits(it).length === 0 && <li className="p-1 text-sm text-muted">No approved question in the bank fits this slot. Remove the slot and type a question instead.</li>}
@@ -269,6 +341,10 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
             </ol>
           )}
 
+          {subs.map((s) => (
+            <SectionCard key={s.id} board={board} section={s} />
+          ))}
+
           {draft && adding === '' && (
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={primary} onClick={() => setAdding('type')}>
@@ -277,19 +353,24 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
               <button type="button" className={button} onClick={() => setAdding('bank')}>
                 Add from the bank
               </button>
+              {!sub && (
+                <button type="button" className={button} disabled={addSub.isPending || subs.length >= 26} onClick={() => addSub.mutate()}>
+                  Add a sub-{PAPER.section}
+                </button>
+              )}
               <span className="flex-1" />
               <button
                 type="button"
                 className="text-sm font-semibold text-red-700 disabled:opacity-50"
-                disabled={remove.isPending || paper.sections.length <= 1}
-                title={paper.sections.length <= 1 ? `A paper keeps at least one ${PAPER.section}` : undefined}
-                onClick={() => (items.length === 0 || window.confirm(`Remove ${section.title} and its ${items.length} questions from the paper? The questions stay in the bank.`)) && remove.mutate()}
+                disabled={remove.isPending || only}
+                title={only ? `A paper keeps at least one ${PAPER.section}` : undefined}
+                onClick={() => (section.questions === 0 || window.confirm(`Remove ${section.title} and its ${section.questions} questions from the paper? The questions stay in the bank.`)) && remove.mutate()}
               >
-                Remove {PAPER.section}
+                Remove {word}
               </button>
             </div>
           )}
-          {adding === 'type' && <TypeQuestion orgId={orgId} paper={paper} sectionId={section.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setAdding(''))} />}
+          {adding === 'type' && <QuestionForm orgId={orgId} paper={paper} sectionId={section.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setAdding(''))} />}
           {adding === 'bank' && <FromBank orgId={orgId} paper={paper} sectionId={section.id} bank={bank.filter((q) => q.status === 'approved' && !inPaper.has(q.id))} onChange={onChange} onClose={() => setAdding('')} />}
         </div>
       )}
@@ -297,17 +378,38 @@ function SectionCard({ orgId, paper, section, index, open, onToggle, bank, draft
   )
 }
 
-/** A question typed straight into the paper; it joins the bank as it is added. */
-function TypeQuestion({ orgId, paper, sectionId, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
-  const [q, setQ] = useState<TypedQuestion>({ qtype: 'Short answer', marks: '', text: '', options: [], answer: '' })
+type Bit = NonNullable<Question['bits']>[number]
+
+/**
+ * A question typed straight into the paper, which joins the bank as it is
+ * added; or one already in the paper, changed in place. A question may be
+ * split into lettered bits, each with its own marks; it is then worth what
+ * they add up to.
+ */
+function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; editing?: Question; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
+  const [q, setQ] = useState<TypedQuestion>(
+    editing
+      ? { qtype: editing.qtype, marks: editing.marks, text: editing.text, options: editing.options, answer: editing.answer, spaceKind: editing.spaceKind ?? 'auto', spaceSize: editing.spaceSize ?? 0 }
+      : { qtype: 'Short answer', marks: '', text: '', options: [], answer: '', spaceKind: 'auto', spaceSize: 0 },
+  )
+  const sized = q.spaceKind === 'lines' || q.spaceKind === 'blank' || q.spaceKind === 'box'
+  const [bits, setBits] = useState<Bit[]>(editing?.bits ?? [])
   const [more, setMore] = useState(false)
-  const add = useMutation({
-    mutationFn: (again: boolean) =>
-      addPaperItem(orgId, paper.id, { sectionId, question: { ...q, options: hasOptions(q.qtype) || isMatch(q.qtype) ? (q.options ?? []).filter((o) => o.trim()) : [] } }).then((p) => ({ p, again })),
+  const kept = bits.filter((b) => b.text.trim())
+  const total = kept.length > 0 ? marks(kept.reduce((n, b) => n + hundredths(b.marks), 0)) : q.marks
+  const body = { ...q, marks: total, bits: kept, options: hasOptions(q.qtype) || isMatch(q.qtype) ? (q.options ?? []).filter((o) => o.trim()) : [] }
+  const save = useMutation({
+    mutationFn: async (again: boolean) => {
+      if (!editing) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
+      const e = editing
+      await updateQuestion(orgId, e.id, { ...body, levelId: e.levelId, subjectId: e.subjectId, lessonId: e.lessonId, outcomeId: e.outcomeId, bloom: e.bloom, solo: e.solo, customLevel: e.customLevel, difficulty: e.difficulty, source: e.source, status: e.status })
+      return { p: await getPaper(orgId, paper.id), again: false }
+    },
     onSuccess: ({ p, again }) => {
       if (again) {
         // Keep the type and marks: the next question is usually like the last.
         setQ({ ...q, text: '', options: [], answer: '' })
+        setBits([])
         setMore(true)
         onAdded(p)
       } else onDone(p)
@@ -316,13 +418,14 @@ function TypeQuestion({ orgId, paper, sectionId, onAdded, onDone }: { orgId: str
   const options = q.options ?? []
   const choice = hasOptions(q.qtype)
   const match = isMatch(q.qtype)
+  const setBit = (i: number, b: Partial<Bit>) => setBits(bits.map((x, j) => (j === i ? { ...x, ...b } : x)))
   return (
     <form
-      aria-label="Type a question"
+      aria-label={editing ? 'Edit the question' : 'Type a question'}
       className="space-y-2 rounded-xl border border-brand/30 bg-mist/40 p-3"
       onSubmit={(e) => {
         e.preventDefault()
-        add.mutate(false)
+        save.mutate(false)
       }}
     >
       <div className="grid gap-2 sm:grid-cols-[1fr_6rem]">
@@ -332,7 +435,17 @@ function TypeQuestion({ orgId, paper, sectionId, onAdded, onDone }: { orgId: str
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold">
           Marks
-          <input required aria-label="Marks" inputMode="decimal" pattern="\d{1,4}(\.\d{1,2})?" className={field} value={q.marks} onChange={(e) => setQ({ ...q, marks: e.target.value })} />
+          <input
+            required
+            aria-label="Marks"
+            inputMode="decimal"
+            pattern="\d{1,4}(\.\d{1,2})?"
+            className={`${field} ${kept.length > 0 ? 'bg-canvas' : ''}`}
+            readOnly={kept.length > 0}
+            title={kept.length > 0 ? 'The bits add up to this' : undefined}
+            value={total}
+            onChange={(e) => setQ({ ...q, marks: e.target.value })}
+          />
         </label>
       </div>
       <label className="flex flex-col gap-1 text-xs font-semibold">
@@ -358,19 +471,57 @@ function TypeQuestion({ orgId, paper, sectionId, onAdded, onDone }: { orgId: str
           ))}
         </fieldset>
       )}
+      <fieldset className="space-y-1">
+        <legend className="text-xs font-semibold">Bits, each with its own marks</legend>
+        {bits.map((b, i) => (
+          <div key={i} className="grid grid-cols-[1.5rem_1fr_4.5rem_auto] items-start gap-1.5 sm:grid-cols-[1.5rem_2fr_4.5rem_1fr_auto]">
+            <span className="pt-1.5 text-sm text-muted">({letter(i)})</span>
+            <input required aria-label={`Bit ${letter(i)}`} maxLength={2000} className={field} value={b.text} onChange={(e) => setBit(i, { text: e.target.value })} />
+            <input required aria-label={`Marks for bit ${letter(i)}`} placeholder="Marks" inputMode="decimal" pattern="\d{1,4}(\.\d{1,2})?" className={field} value={b.marks} onChange={(e) => setBit(i, { marks: e.target.value })} />
+            <input aria-label={`Answer for bit ${letter(i)}`} placeholder="Answer, for the key" className={`${field} col-span-3 col-start-2 sm:col-span-1 sm:col-start-auto`} value={b.answer ?? ''} onChange={(e) => setBit(i, { answer: e.target.value })} />
+            <button type="button" className={`${icon} row-start-1 col-start-4 sm:col-start-auto`} aria-label={`Remove bit ${letter(i)}`} onClick={() => setBits(bits.filter((_, j) => j !== i))}>
+              ×
+            </button>
+          </div>
+        ))}
+        <button type="button" className={button} disabled={bits.length >= 12} onClick={() => setBits([...bits, { text: '', marks: '', answer: '' }])}>
+          Add a bit
+        </button>
+      </fieldset>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1 text-xs font-semibold">
+          Room to answer, when printed with space
+          <select aria-label="Room to answer" className={field} value={q.spaceKind ?? 'auto'} onChange={(e) => setQ({ ...q, spaceKind: e.target.value as TypedQuestion['spaceKind'], spaceSize: e.target.value === 'auto' || e.target.value === 'none' ? 0 : q.spaceSize || 4 })}>
+            <option value="auto">Automatic, by the marks</option>
+            <option value="lines">Ruled lines</option>
+            <option value="blank">Blank space</option>
+            <option value="box">A box to draw in</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+        {sized && (
+          <label className="flex flex-col gap-1 text-xs font-semibold">
+            {q.spaceKind === 'lines' ? 'Lines' : 'Height, in lines'}
+            <input required aria-label="Size of the room to answer" type="number" min={1} max={60} className={`${field} w-24`} value={q.spaceSize || ''} onChange={(e) => setQ({ ...q, spaceSize: Number(e.target.value) })} />
+          </label>
+        )}
+        {bits.length > 0 && q.spaceKind !== 'auto' && q.spaceKind !== 'none' && <span className="pb-2 text-xs text-muted">Each bit gets this much.</span>}
+      </div>
       <label className="flex flex-col gap-1 text-xs font-semibold">
         Answer or marking guide, for the answer key
         <input aria-label="Answer" className={field} value={q.answer ?? ''} onChange={(e) => setQ({ ...q, answer: e.target.value })} />
       </label>
-      {add.error && <Problem error={add.error} />}
-      {more && !add.error && <p className="text-xs font-semibold text-emerald-700">Added. Type the next one.</p>}
+      {save.error && <Problem error={save.error} />}
+      {more && !save.error && <p className="text-xs font-semibold text-emerald-700">Added. Type the next one.</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" className={primary} disabled={add.isPending}>
-          Add question
+        <button type="submit" className={primary} disabled={save.isPending}>
+          {editing ? 'Save question' : 'Add question'}
         </button>
-        <button type="button" className={button} disabled={add.isPending || !q.text.trim() || !q.marks.trim()} onClick={() => add.mutate(true)}>
-          Add and type another
-        </button>
+        {!editing && (
+          <button type="button" className={button} disabled={save.isPending || !q.text.trim() || !total.trim()} onClick={() => save.mutate(true)}>
+            Add and type another
+          </button>
+        )}
         <button type="button" className={button} onClick={() => onDone()}>
           Close
         </button>

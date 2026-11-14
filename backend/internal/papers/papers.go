@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -104,14 +105,20 @@ func loadItems(ctx context.Context, tx pgx.Tx, p *Paper) error {
 			var qid, qlevel, qsubject, qlesson, qoutcome, qbloom, qsolo, qcustom, qtype, qmarks, qdiff, qtext, qanswer, qsource, qstatus *string
 			var qopts []byte
 			var qused *int
+			var qbits []byte
+			var qspace *string
+			var qsize *int
 			if err := rows.Scan(&it.ID, &it.Seq, &it.Section, &it.Chapter, &it.LessonID, &it.Level, &it.Marks, &it.Locked, &it.SectionID, &has,
-				&qid, &qlevel, &qsubject, &qlesson, &qoutcome, &qbloom, &qsolo, &qcustom, &qtype, &qmarks, &qdiff, &qtext, &qopts, &qanswer, &qsource, &qstatus, &qused); err != nil {
+				&qid, &qlevel, &qsubject, &qlesson, &qoutcome, &qbloom, &qsolo, &qcustom, &qtype, &qmarks, &qdiff, &qtext, &qopts, &qanswer, &qsource, &qstatus, &qbits, &qspace, &qsize, &qused); err != nil {
 				return err
 			}
 			it.Marks = trim(it.Marks)
 			if has {
 				q = Question{ID: *qid, LevelID: *qlevel, SubjectID: *qsubject, LessonID: *qlesson, OutcomeID: *qoutcome, Bloom: *qbloom, Solo: *qsolo, Custom: *qcustom, QType: *qtype, Marks: trim(*qmarks),
-					Difficulty: *qdiff, Text: *qtext, Answer: *qanswer, Source: *qsource, Status: *qstatus, Used: *qused, Options: []string{}}
+					Difficulty: *qdiff, Text: *qtext, Answer: *qanswer, Source: *qsource, Status: *qstatus, Used: *qused, Options: []string{}, Bits: []Bit{}, SpaceKind: *qspace, SpaceSize: *qsize}
+				if len(qbits) > 0 {
+					_ = jsonUnmarshal(qbits, &q.Bits)
+				}
 				if len(qopts) > 0 {
 					_ = jsonUnmarshal(qopts, &q.Options)
 				}
@@ -498,6 +505,12 @@ func duplicatePaper(c fiber.Ctx) error {
 		  FROM paper_items i JOIN paper_sections o ON o.id = i.section_id JOIN s ON s.seq = o.seq WHERE i.paper_id = $1::uuid`, p.ID, id); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE paper_sections n SET parent_id = np.id
+		  FROM paper_sections o JOIN paper_sections op ON op.id = o.parent_id JOIN paper_sections np ON np.paper_id = $2::uuid AND np.seq = op.seq
+		 WHERE o.paper_id = $1::uuid AND n.paper_id = $2::uuid AND n.seq = o.seq`, p.ID, id); err != nil {
+		return err
+	}
 	if err := audit.Record(c, audit.Entry{Action: "create", Entity: "papers", EntityID: id, After: map[string]any{"set": set, "from": p.Set}}); err != nil {
 		return err
 	}
@@ -509,11 +522,12 @@ func duplicatePaper(c fiber.Ctx) error {
 }
 
 // finalisePaper fixes a set once every slot has a question. The first set
-// finalised also sets how the assessment's marks are entered: one part per
-// question, worth its marks and tagged with its learning outcome (per set,
-// since another set may ask another question), so marks feed the holistic
-// report question by question. That happens only
-// while no mark has been entered.
+// finalised also sets the parts the assessment's marks are entered in: one
+// per question, worth its marks and tagged with its learning outcome (per
+// set, since another set may ask another question), so marks feed the
+// holistic report question by question. That happens only while no mark has
+// been entered. An administrator may then choose, on Evaluate exam, to have
+// marks entered by section or as one total instead.
 func finalisePaper(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {
@@ -530,16 +544,6 @@ func finalisePaper(c fiber.Ctx) error {
 	if p.Filled < len(p.Items) || len(p.Items) == 0 {
 		return problem.New(http.StatusConflict, "paper.incomplete", "Add at least one question, and put a question in every empty slot, first.")
 	}
-	var in struct {
-		MarksBy string `json:"marksBy"` // questions (default), sections or total
-	}
-	_ = httpx.Decode(c, &in)
-	if in.MarksBy == "" {
-		in.MarksBy = "questions"
-	}
-	if !slices.Contains([]string{"questions", "sections", "total"}, in.MarksBy) {
-		return problem.Invalid(api.FieldError{Field: "marksBy", Code: "unknown", Message: "Marks are entered by question, by section, or as one total."})
-	}
 	m, _ := tenant.MemberFrom(c)
 	var marked, partsSet bool
 	var marksBy string
@@ -549,52 +553,13 @@ func finalisePaper(c fiber.Ctx) error {
 		return err
 	}
 	if !marked && !partsSet {
-		marksBy = in.MarksBy
-		if _, err := tx.Exec(ctx, `UPDATE assessment_parts SET deleted_at = now() WHERE assessment_id = $1::uuid AND deleted_at IS NULL`, a.id); err != nil {
-			return err
-		}
-		mode := "sections"
-		if marksBy == "total" {
-			mode = "total"
-		}
-		if _, err := tx.Exec(ctx, `UPDATE assessments SET entry_mode = $2, marks_by = $3, updated_at = now() WHERE id = $1::uuid`, a.id, mode, marksBy); err != nil {
-			return err
-		}
-		// The parts marks are entered in: one a question, one a section, or
-		// one total; only core sections count.
-		parts := `SELECT $1, $3::uuid, i.seq, 'Q' || i.seq, i.marks FROM paper_items i JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
-			 WHERE i.paper_id = $2::uuid ORDER BY i.seq`
-		switch marksBy {
-		case "sections":
-			parts = `SELECT $1, $3::uuid, s.seq, s.title, sum(i.marks) FROM paper_items i JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
-			 WHERE i.paper_id = $2::uuid GROUP BY s.id, s.seq, s.title ORDER BY s.seq`
-		case "total":
-			parts = `SELECT $1, $3::uuid, 1, 'Total', sum(i.marks) FROM paper_items i JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
-			 WHERE i.paper_id = $2::uuid HAVING sum(i.marks) > 0`
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) `+parts, m.OrgID, p.ID, a.id); err != nil {
+		marksBy = "questions"
+		if err := layParts(ctx, tx, m.OrgID, a.id, p.ID, marksBy); err != nil {
 			return err
 		}
 	}
-	// Each question's outcome tags the part its marks are entered in, for
-	// those who sit this set: its own part, its section's, or the total.
-	match := map[string]string{
-		"questions": `ap.seq = i.seq AND ap.max_marks = i.marks AND ap.name = 'Q' || i.seq`,
-		"sections":  `ap.seq = s.seq AND ap.name = s.title`,
-		"total":     `ap.name = 'Total'`,
-	}[marksBy]
-	if match != "" {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO part_tags (org_id, part_id, outcome_id, paper_id)
-			SELECT DISTINCT $1::uuid, ap.id, q.outcome_id, $2::uuid
-			  FROM paper_items i
-			  JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
-			  JOIN questions q ON q.id = i.question_id AND q.outcome_id IS NOT NULL
-			  JOIN assessment_parts ap ON ap.assessment_id = $3::uuid AND ap.deleted_at IS NULL AND `+match+`
-			 WHERE i.paper_id = $2::uuid
-			ON CONFLICT DO NOTHING`, m.OrgID, p.ID, a.id); err != nil {
-			return err
-		}
+	if err := tagParts(ctx, tx, m.OrgID, a.id, p.ID, marksBy); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE papers SET status = 'final', finalised_by = $2, finalised_at = now() WHERE id = $1::uuid`, p.ID, m.UserID); err != nil {
 		return err
@@ -684,10 +649,13 @@ var paperPage = template.Must(template.New("paper").Parse(`<!doctype html><html 
 body{font-family:system-ui,sans-serif;color:#13111e;margin:0;padding:24px;max-width:780px;margin:auto;font-size:14px;line-height:1.5}
 header{text-align:center;border-bottom:2px solid #13111e;padding-bottom:8px;margin-bottom:12px}
 h1{font-size:18px;margin:0}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #ccc}
+h3{font-size:14px;margin:12px 0 4px}
 .meta{display:flex;justify-content:space-between;font-size:13px;margin-top:6px}
 ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-style:lower-alpha;margin:4px 0 0}
+.bits{list-style:none;padding-left:0;margin:4px 0 0}.bits li{margin:6px 0}.bits .l{display:inline-block;width:26px}
 .key{background:#f6f5fb;border:1px solid #ddd;padding:4px 8px;margin-top:4px;font-size:13px}
 .space{margin-top:6px}.space div{border-bottom:1px solid #bbb;height:26px}
+.blank{margin-top:6px}.draw{margin-top:6px;border:1px solid #888;border-radius:4px}
 .box{display:inline-block;width:18px;height:14px;border:1px solid #888;margin-left:8px;vertical-align:middle}
 .pending{color:#a16207;font-style:italic}
 .note{font-style:italic;margin:2px 0 6px}.extra{font-size:12px;font-weight:400;color:#555}
@@ -697,16 +665,18 @@ ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-s
 <header><h1>{{.School}}</h1><div>{{.Title}}{{if .Key}} : answer key{{end}}</div>
 <div class="meta"><span>{{.Class}} · {{.Subject}}</span><span>{{.Set}}</span><span>Maximum marks: {{.Max}}</span></div></header>
 {{if .Instructions}}<p>{{.Instructions}}</p>{{end}}
-{{range .Sections}}<h2>{{.Name}}{{if .Extra}} <span class="extra">(not counted)</span>{{end}} <span class="m">{{.Marks}} marks</span></h2>{{if .Note}}<p class="note">{{.Note}}</p>{{end}}<ol>
-{{range .Items}}<li value="{{.No}}"><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Left}}<table class="match">{{range $i, $l := .Left}}<tr><td>{{$l}}</td><td>{{index $.Letters $i}}. {{index $.Rights $i}}</td></tr>{{end}}</table>{{end}}{{if .Options}}<ol class="opts">{{range .Options}}<li>{{.}}{{if $.Space}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
-{{if $.Key}}<div class="key">{{.Answer}}</div>{{else if and $.Space .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}</li>{{end}}</ol>{{end}}
+{{range .Sections}}{{if .Sub}}<h3>{{.Name}} <span class="m">{{.Marks}} marks</span></h3>{{else}}<h2>{{.Name}}{{if .Extra}} <span class="extra">(not counted)</span>{{end}} <span class="m">{{.Marks}} marks</span></h2>{{end}}{{if .Note}}<p class="note">{{.Note}}</p>{{end}}{{if .Items}}<ol>
+{{range .Items}}<li value="{{.No}}"><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}<ol class="opts">{{range .Options}}<li>{{.}}{{if $.Space}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
+{{if .Bits}}<ul class="bits">{{range .Bits}}<li>{{if .Marks}}<span class="m">[{{.Marks}}]</span>{{end}}<span class="l">({{.Letter}})</span>{{.Text}}{{if $.Key}}<div class="key">{{.Answer}}</div>{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ul>{{end}}
+{{if $.Key}}{{if .Answer}}<div class="key">{{.Answer}}</div>{{end}}{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ol>{{end}}{{end}}
 </body></html>`))
 
-// paperHTML is the printable paper, section by section: for students
-// without answers; with ?key=true the answer key for staff; with
-// ?space=true room to answer (lines by marks, boxes for choices). A section
-// switched off for print is left out unless ?all=true; question numbers
-// stay as in the whole paper, so they match the marks sheet.
+// paperHTML is the printable paper, section by section and sub-section by
+// sub-section: for students without answers; with ?key=true the answer key
+// for staff; with ?space=true room to answer (lines by marks, boxes for
+// choices, each bit of a question its own). A section switched off for
+// print is left out, with its sub-sections, unless ?all=true; question
+// numbers stay as in the whole paper, so they match the marks sheet.
 func paperHTML(c fiber.Ctx) error {
 	tx, err := tenant.Tx(c)
 	if err != nil {
@@ -718,23 +688,31 @@ func paperHTML(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	type pair struct{ Left, Letter, Right string }
+	type bit struct {
+		Letter, Text, Marks, Answer, Room string
+		Lines                             []int
+		Height                            int
+	}
 	type pi struct {
-		No                  int
-		Text, Marks, Answer string
-		Options, Left       []string
-		Lines               []int
-		Pending             bool
+		No                        int
+		Height                    int
+		Text, Marks, Answer, Room string
+		Options                   []string
+		Pairs                     []pair
+		Bits                      []bit
+		Lines                     []int
+		Pending                   bool
 	}
 	type sec struct {
 		Name, Marks, Note string
-		Extra             bool
+		Extra, Sub        bool
 		Items             []pi
 	}
 	var view struct {
 		School, Title, Class, Subject, Set, Max, Instructions string
 		Key, Space                                            bool
 		Sections                                              []*sec
-		Letters, Rights                                       []string
 	}
 	view.Set, view.Key, view.Space, view.Instructions, view.Title = p.Set, key, space, p.Instructions, a.title
 	if err := tx.QueryRow(ctx, `
@@ -744,41 +722,57 @@ func paperHTML(c fiber.Ctx) error {
 		return err
 	}
 	view.Max = p.Total
+	hidden := map[string]bool{}
 	for _, sc := range p.Sections {
-		if !sc.Print && !all {
+		if (!sc.Print || hidden[sc.ParentID]) && !all {
+			hidden[sc.ID] = true
 			continue
 		}
-		out := &sec{Name: sc.Title, Marks: sc.Marks, Note: sc.Instructions, Extra: sc.Kind == "extra"}
+		out := &sec{Name: sc.Title, Marks: sc.Marks, Note: sc.Instructions, Extra: sc.Kind == "extra", Sub: sc.ParentID != ""}
 		for _, it := range p.Items {
 			if it.SectionID != sc.ID {
 				continue
 			}
 			x := pi{No: it.Seq, Marks: it.Marks, Text: "Question still to choose", Pending: true}
 			qtype := it.Section
+			kind, size := "auto", 0
 			if it.Question != nil {
+				kind, size = it.Question.SpaceKind, it.Question.SpaceSize
 				x.Text, x.Options, x.Answer, x.Pending = it.Question.Text, it.Question.Options, it.Question.Answer, false
 				qtype = it.Question.QType
+				for i, b := range it.Question.Bits {
+					x.Bits = append(x.Bits, bit{Letter: string(rune('a' + i)), Text: b.Text, Marks: b.Marks, Answer: b.Answer})
+					y := &x.Bits[i]
+					y.Lines, y.Height, y.Room = room(kind, size, b.Marks)
+				}
 			}
 			switch {
 			case matching(qtype) && len(x.Options) > 0:
 				// "left = right" pairs: the right column is shown out of step.
-				var rights []string
-				for _, o := range x.Options {
-					l, r, _ := strings.Cut(o, "=")
-					x.Left = append(x.Left, strings.TrimSpace(l))
-					rights = append(rights, strings.TrimSpace(r))
-				}
-				n := len(rights)
-				view.Rights, view.Letters = nil, nil
-				for i := range rights {
-					view.Rights = append(view.Rights, rights[(i+1)%n])
-					view.Letters = append(view.Letters, string(rune('a'+i)))
+				n := len(x.Options)
+				for i, o := range x.Options {
+					l, _, _ := strings.Cut(o, "=")
+					_, r, _ := strings.Cut(x.Options[(i+1)%n], "=")
+					x.Pairs = append(x.Pairs, pair{Left: strings.TrimSpace(l), Letter: string(rune('a' + i)), Right: strings.TrimSpace(r)})
 				}
 				x.Options = nil
 			case len(x.Options) == 0 && strings.Contains(strings.ToLower(qtype), "true or false"):
 				x.Options = []string{"True", "False"}
-			case len(x.Options) == 0 && !choice(qtype):
+			case len(x.Options) == 0 && !choice(qtype) && len(x.Bits) == 0 && kind == "auto":
 				x.Lines = make([]int, answerLines(it.Marks))
+			}
+			// Bits all worth the same show no marks of their own: the
+			// question says it once, as 3 x 2 = 6.
+			if each, same := sameMarks(it.Question); same {
+				x.Marks = strconv.Itoa(len(x.Bits)) + " × " + each + " = " + it.Marks
+				for i := range x.Bits {
+					x.Bits[i].Marks = ""
+				}
+			}
+			// Room set for this question is given whatever its type; with
+			// bits, each bit gets it.
+			if kind != "auto" && len(x.Bits) == 0 {
+				x.Lines, x.Height, x.Room = room(kind, size, it.Marks)
 			}
 			out.Items = append(out.Items, x)
 		}
@@ -790,6 +784,38 @@ func paperHTML(c fiber.Ctx) error {
 	}
 	c.Set(fiber.HeaderContentType, "text/html; charset=utf-8")
 	return c.Send(buf.Bytes())
+}
+
+// room is where an answer goes: ruled lines, or blank space or a box to
+// draw in of a height, as set for the question; left to the marks when
+// automatic.
+func room(kind string, size int, marks string) (lines []int, height int, class string) {
+	switch kind {
+	case "none":
+	case "lines":
+		lines = make([]int, size)
+	case "blank":
+		height, class = size*26, "blank"
+	case "box":
+		height, class = size*26, "draw"
+	default:
+		lines = make([]int, answerLines(marks))
+	}
+	return lines, height, class
+}
+
+// sameMarks says whether a question's bits, two or more, all carry the same
+// marks, and what each carries.
+func sameMarks(q *Question) (string, bool) {
+	if q == nil || len(q.Bits) < 2 {
+		return "", false
+	}
+	for _, b := range q.Bits {
+		if hundredths(b.Marks) != hundredths(q.Bits[0].Marks) {
+			return "", false
+		}
+	}
+	return trim(q.Bits[0].Marks), true
 }
 
 func matching(qtype string) bool { return strings.Contains(strings.ToLower(qtype), "match") }
