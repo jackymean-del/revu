@@ -161,7 +161,7 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
     { path: 'order', body: { sections: [{ id: 'secB', itemIds: ['i3'] }, { id: 'secA', itemIds: ['i1', 'i2'] }] } },
     { path: 'section', body: { kind: 'extra' } },
     { path: 'section', body: { print: false } },
-    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '', spaceKind: 'auto', spaceSize: 0, bits: [] } } },
+    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true, bits: [] } } },
   ])
   // The paper as it prints, beside the slots: with space to answer, then as the key.
   const preview = page.getByRole('complementary', { name: 'Print preview' })

@@ -270,7 +270,9 @@ export const addGroupAdmin = (groupId: string, email: string) => call<OwnerGroup
 export const removeGroupAdmin = (groupId: string, email: string) =>
   call<OwnerGroup>(`/v1/owner/groups/${groupId}/admins?${new URLSearchParams({ email })}`, { method: 'DELETE' })
 
-export const createOwnerDemo = () => call<OwnerGroup>('/v1/owner/demo', { method: 'POST' })
+export type DemoStatus = components['schemas']['DemoStatus']
+export const createOwnerDemo = () => call<DemoStatus>('/v1/owner/demo', { method: 'POST' })
+export const getOwnerDemo = (signal?: AbortSignal) => call<DemoStatus>('/v1/owner/demo', { signal })
 
 export const listMyGroups = (signal?: AbortSignal) => call<MyGroup[]>('/v1/groups', { signal })
 

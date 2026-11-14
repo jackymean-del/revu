@@ -25,26 +25,28 @@ func newID() string { return uuid.Must(uuid.NewV7()).String() }
 
 // Question is one question of the bank (B3.4).
 type Question struct {
-	ID         string   `json:"id"`
-	LevelID    string   `json:"levelId"`
-	SubjectID  string   `json:"subjectId"`
-	LessonID   string   `json:"lessonId,omitempty"`
-	OutcomeID  string   `json:"outcomeId,omitempty"`
-	Bloom      string   `json:"bloom"`
-	QType      string   `json:"qtype"`
-	Marks      string   `json:"marks"`
-	Difficulty string   `json:"difficulty"`
-	Text       string   `json:"text"`
-	Options    []string `json:"options"`
-	Bits       []Bit    `json:"bits"`
-	SpaceKind  string   `json:"spaceKind"` // room to answer on the printed paper: auto, lines, blank, box or none
-	SpaceSize  int      `json:"spaceSize"` // lines, or the height in lines of blank space or a box
-	Answer     string   `json:"answer"`
-	Source     string   `json:"source"`
-	Status     string   `json:"status"`
-	Solo       string   `json:"solo,omitempty"`
-	Custom     string   `json:"customLevel,omitempty"`
-	Used       int      `json:"used"` // papers it is in
+	ID          string   `json:"id"`
+	LevelID     string   `json:"levelId"`
+	SubjectID   string   `json:"subjectId"`
+	LessonID    string   `json:"lessonId,omitempty"`
+	OutcomeID   string   `json:"outcomeId,omitempty"`
+	Bloom       string   `json:"bloom"`
+	QType       string   `json:"qtype"`
+	Marks       string   `json:"marks"`
+	Difficulty  string   `json:"difficulty"`
+	Text        string   `json:"text"`
+	Options     []string `json:"options"`
+	Bits        []Bit    `json:"bits"`
+	SpaceKind   string   `json:"spaceKind"`   // room to answer on the printed paper: auto, lines, blank, box or none
+	SpaceSize   int      `json:"spaceSize"`   // lines, or the height in lines of blank space or a box
+	OptionCols  int      `json:"optionCols"`  // columns the options print in; 0 fits them by their length
+	OptionBoxes bool     `json:"optionBoxes"` // a box to tick beside each option
+	Answer      string   `json:"answer"`
+	Source      string   `json:"source"`
+	Status      string   `json:"status"`
+	Solo        string   `json:"solo,omitempty"`
+	Custom      string   `json:"customLevel,omitempty"`
+	Used        int      `json:"used"` // papers it is in
 }
 
 // Bit is one lettered part of a question, (a), (b), with its own marks.
@@ -55,13 +57,13 @@ type Bit struct {
 }
 
 const questionCols = `q.id::text, q.level_id::text, q.subject_id::text, coalesce(q.lesson_id::text, ''), coalesce(q.outcome_id::text, ''), q.bloom, coalesce(q.solo, ''), coalesce(q.custom_level, ''), q.qtype,
-	q.marks::text, q.difficulty, q.text, q.options, q.answer, q.source, q.status, q.bits, q.space_kind, q.space_size,
+	q.marks::text, q.difficulty, q.text, q.options, q.answer, q.source, q.status, q.bits, q.space_kind, q.space_size, q.option_cols, q.option_boxes,
 	(SELECT count(DISTINCT i.paper_id) FROM paper_items i WHERE i.question_id = q.id)::int`
 
 func scanQuestion(r pgx.Row) (Question, error) {
 	var q Question
 	var opts, bits []byte
-	err := r.Scan(&q.ID, &q.LevelID, &q.SubjectID, &q.LessonID, &q.OutcomeID, &q.Bloom, &q.Solo, &q.Custom, &q.QType, &q.Marks, &q.Difficulty, &q.Text, &opts, &q.Answer, &q.Source, &q.Status, &bits, &q.SpaceKind, &q.SpaceSize, &q.Used)
+	err := r.Scan(&q.ID, &q.LevelID, &q.SubjectID, &q.LessonID, &q.OutcomeID, &q.Bloom, &q.Solo, &q.Custom, &q.QType, &q.Marks, &q.Difficulty, &q.Text, &opts, &q.Answer, &q.Source, &q.Status, &bits, &q.SpaceKind, &q.SpaceSize, &q.OptionCols, &q.OptionBoxes, &q.Used)
 	q.Marks = trim(q.Marks)
 	q.Options, q.Bits = []string{}, []Bit{}
 	if len(opts) > 0 {
@@ -132,24 +134,26 @@ func listQuestions(c fiber.Ctx) error {
 }
 
 type questionIn struct {
-	LevelID    string   `json:"levelId"`
-	SubjectID  string   `json:"subjectId"`
-	LessonID   string   `json:"lessonId"`
-	OutcomeID  string   `json:"outcomeId"`
-	Bloom      string   `json:"bloom"`
-	Solo       string   `json:"solo"`
-	Custom     string   `json:"customLevel"`
-	QType      string   `json:"qtype"`
-	Marks      string   `json:"marks"`
-	Difficulty string   `json:"difficulty"`
-	Text       string   `json:"text"`
-	Options    []string `json:"options"`
-	Bits       []Bit    `json:"bits"`
-	SpaceKind  string   `json:"spaceKind"`
-	SpaceSize  int      `json:"spaceSize"`
-	Answer     string   `json:"answer"`
-	Source     string   `json:"source"`
-	Status     string   `json:"status"`
+	LevelID     string   `json:"levelId"`
+	SubjectID   string   `json:"subjectId"`
+	LessonID    string   `json:"lessonId"`
+	OutcomeID   string   `json:"outcomeId"`
+	Bloom       string   `json:"bloom"`
+	Solo        string   `json:"solo"`
+	Custom      string   `json:"customLevel"`
+	QType       string   `json:"qtype"`
+	Marks       string   `json:"marks"`
+	Difficulty  string   `json:"difficulty"`
+	Text        string   `json:"text"`
+	Options     []string `json:"options"`
+	Bits        []Bit    `json:"bits"`
+	SpaceKind   string   `json:"spaceKind"`
+	SpaceSize   int      `json:"spaceSize"`
+	OptionCols  int      `json:"optionCols"`
+	OptionBoxes *bool    `json:"optionBoxes"` // on when left out
+	Answer      string   `json:"answer"`
+	Source      string   `json:"source"`
+	Status      string   `json:"status"`
 }
 
 func (in *questionIn) valid() error {
@@ -224,8 +228,15 @@ func (in *questionIn) valid() error {
 	if strings.TrimSpace(in.Text) == "" || len(in.Text) > 5000 {
 		f.Add("text", "required", "Write the question, up to 5000 characters.")
 	}
-	if len(in.Options) > 8 {
-		f.Add("options", "too_many", "Up to 8 options.")
+	if in.OptionCols < 0 || in.OptionCols > 6 {
+		f.Add("optionCols", "range", "Options print in up to 6 columns, or fitted by their length.")
+	}
+	if in.OptionBoxes == nil {
+		yes := true
+		in.OptionBoxes = &yes
+	}
+	if len(in.Options) > 12 {
+		f.Add("options", "too_many", "Up to 12 options.")
 	}
 	if in.Source == "" {
 		in.Source = "typed"
@@ -281,13 +292,17 @@ func insertQuestion(c fiber.Ctx, in questionIn, orgID, userID string) (Question,
 	}
 	opts, _ := json.Marshal(in.Options)
 	bits, _ := json.Marshal(in.Bits)
+	if in.OptionBoxes == nil {
+		yes := true
+		in.OptionBoxes = &yes
+	}
 	return scanQuestion(tx.QueryRow(c.Context(), `
 		WITH n AS (
-			INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, difficulty, text, options, answer, source, status, created_by, solo, custom_level, bits, space_kind, space_size)
-			VALUES ($1, $2::uuid, $3::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8::numeric, $9, $10, $11::jsonb, $12, $13, $14, $15, nullif($16, ''), nullif($17, ''), $18::jsonb, $19, $20) RETURNING *)
+			INSERT INTO questions (org_id, level_id, subject_id, lesson_id, outcome_id, bloom, qtype, marks, difficulty, text, options, answer, source, status, created_by, solo, custom_level, bits, space_kind, space_size, option_cols, option_boxes)
+			VALUES ($1, $2::uuid, $3::uuid, nullif($4, '')::uuid, nullif($5, '')::uuid, $6, $7, $8::numeric, $9, $10, $11::jsonb, $12, $13, $14, $15, nullif($16, ''), nullif($17, ''), $18::jsonb, $19, $20, $21, $22) RETURNING *)
 		SELECT `+questionCols+` FROM n q`,
 		orgID, in.LevelID, in.SubjectID, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts),
-		strings.TrimSpace(in.Answer), in.Source, in.Status, userID, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize))
+		strings.TrimSpace(in.Answer), in.Source, in.Status, userID, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize, in.OptionCols, *in.OptionBoxes))
 }
 
 // updateQuestion changes a question. A question already in a final paper
@@ -332,10 +347,10 @@ func updateQuestion(c fiber.Ctx) error {
 	q, err := scanQuestion(tx.QueryRow(ctx, `
 		WITH u AS (
 			UPDATE questions SET lesson_id = nullif($2, '')::uuid, outcome_id = nullif($3, '')::uuid, bloom = $4, qtype = $5, marks = $6::numeric, difficulty = $7,
-			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), bits = $14::jsonb, space_kind = $15, space_size = $16, updated_at = now()
+			       text = $8, options = $9::jsonb, answer = $10, status = $11, solo = nullif($12, ''), custom_level = nullif($13, ''), bits = $14::jsonb, space_kind = $15, space_size = $16, option_cols = $17, option_boxes = $18, updated_at = now()
 			 WHERE id = $1::uuid RETURNING *)
 		SELECT `+questionCols+` FROM u q`,
-		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize))
+		id, in.LessonID, in.OutcomeID, in.Bloom, strings.TrimSpace(in.QType), in.Marks, in.Difficulty, strings.TrimSpace(in.Text), string(opts), strings.TrimSpace(in.Answer), in.Status, in.Solo, in.Custom, string(bits), in.SpaceKind, in.SpaceSize, in.OptionCols, *in.OptionBoxes))
 	if err != nil {
 		return err
 	}

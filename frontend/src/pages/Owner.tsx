@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  addGroupAdmin, createOwnerDemo, createOwnerGroup, createOwnerOrg, listOwnerGroups, listOwnerOrgs, removeGroupAdmin, setGroupMember, type OwnerGroup,
+  addGroupAdmin, createOwnerDemo, createOwnerGroup, getOwnerDemo, createOwnerOrg, listOwnerGroups, listOwnerOrgs, removeGroupAdmin, setGroupMember, type OwnerGroup,
 } from '../api/client'
 import { ApiError } from '../api/problem'
 import { useOrg } from '../lib/org-context'
@@ -79,9 +79,7 @@ export function Owner() {
             Every institution on revU, by name and counts. What is inside an institution belongs to it: you see no one's records, marks or remarks here.
           </p>
         </div>
-        <button type="button" className={button} disabled={busy} onClick={() => void run(async () => (await createOwnerDemo(), 'Your demo group is ready. Open an institution from the institution menu, then use Switch to preview each role.'))}>
-          Create my demo group
-        </button>
+        <DemoLoader />
       </div>
 
       {note && (
@@ -239,6 +237,49 @@ export function Owner() {
           ))}
         </ul>
       </section>
+    </div>
+  )
+}
+
+/**
+ * Loads the sample institutions into a demo group the owner administers.
+ * One is a whole school with a term's work done, so it takes some minutes
+ * and runs on the server; this shows how it stands and says when it is done.
+ */
+function DemoLoader() {
+  const qc = useQueryClient()
+  const demo = useQuery({
+    queryKey: ['owner-demo'],
+    queryFn: ({ signal }) => getOwnerDemo(signal),
+    refetchInterval: (q) => (q.state.data?.status === 'loading' ? 5000 : false),
+  })
+  const start = useMutation({ mutationFn: createOwnerDemo, onSuccess: (d) => qc.setQueryData(['owner-demo'], d) })
+  const status = demo.data?.status ?? 'idle'
+  const [seen, setSeen] = useState(status)
+  if (seen !== status) {
+    setSeen(status)
+    // The institutions appear in the lists and in the institution menu as they are ready.
+    if (status === 'done' || status === 'failed') {
+      void qc.invalidateQueries({ queryKey: ['owner'] })
+      void qc.invalidateQueries({ queryKey: ['me'] })
+    }
+  }
+  return (
+    <div className="flex max-w-md flex-col items-end gap-1 text-right">
+      <button type="button" className={button} disabled={start.isPending || status === 'loading'} onClick={() => start.mutate()}>
+        {status === 'loading' ? 'Loading the sample institutions' : status === 'done' ? 'Load the sample institutions again' : 'Load the sample institutions'}
+      </button>
+      <p role={start.error || status === 'failed' ? 'alert' : status === 'idle' ? undefined : 'status'} className={`text-xs ${status === 'failed' || start.error ? 'font-semibold text-red-700' : 'text-muted'}`}>
+        {start.error
+          ? message(start.error)
+          : status === 'loading'
+            ? 'This takes some minutes. You can leave this page; it carries on.'
+            : status === 'done'
+              ? 'Ready. Open one from the institution menu, then use Switch to preview each role.'
+              : status === 'failed'
+                ? demo.data?.detail
+                : 'Three sample institutions, one with all its work done: syllabus, papers, marks and reports.'}
+      </p>
     </div>
   )
 }

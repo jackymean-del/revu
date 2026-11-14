@@ -55,6 +55,8 @@ type Deps struct {
 	// and group pages only, which read across institutions by counts. nil
 	// when no MIGRATE_DATABASE_URL is set; those pages then answer 503.
 	Owner *pgxpool.Pool
+	// DemoSuffix names the sample institutions apart, for tests only.
+	DemoSuffix string
 	// AI drafts questions and report comments for people to check; nil
 	// when no ANTHROPIC_API_KEY is set, and drafting then answers 503.
 	AI ai.Drafter
@@ -96,7 +98,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	}
 	// Routes outside any one organisation come first: the tenant middleware
 	// below applies to every /v1 route registered after it.
-	owner := platform.Options{Owner: d.Owner, Auth: d.Auth, Directory: d.Directory, Owners: cfg.PlatformOwners, AppURL: cfg.AppURL}
+	owner := platform.Options{Owner: d.Owner, Auth: d.Auth, Directory: d.Directory, Owners: cfg.PlatformOwners, AppURL: cfg.AppURL, DemoSuffix: d.DemoSuffix}
 	v1.Get("/me", org.Me(d.DB, owner))
 	platform.Routes(v1, owner)
 	v1.Post("/webhooks/clerk", clerksync.Handler(d.DB, cfg.ClerkWebhook, d.Now))

@@ -2562,17 +2562,30 @@ paths:
         default:
           $ref: "#/components/responses/Problem"
   /v1/owner/demo:
-    post:
-      operationId: createOwnerDemo
-      summary: Give the owner a demo group of sample institutions, where they hold every role and can preview each one.
+    get:
+      operationId: getOwnerDemo
+      summary: Whether the sample institutions are loading, loaded, or failed to load.
       tags: [platform]
       responses:
         "200":
-          description: The demo group.
+          description: The state of the load.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OwnerGroup"
+                $ref: "#/components/schemas/DemoStatus"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createOwnerDemo
+      summary: Give the owner a demo group of sample institutions, one a whole school with a term's work done; they load in the background.
+      tags: [platform]
+      responses:
+        "202":
+          description: The load has started, or was already running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoStatus"
         default:
           $ref: "#/components/responses/Problem"
   /v1/groups:
@@ -6097,6 +6110,16 @@ components:
         emailed:
           type: boolean
           description: Whether the sign-in service emailed the invitation; they can sign in with the address either way.
+    DemoStatus:
+      type: object
+      required: [status, detail]
+      properties:
+        status:
+          type: string
+          enum: [idle, loading, done, failed]
+        detail:
+          type: string
+          description: What went wrong, when it failed.
     OwnerGroup:
       type: object
       required: [id, name, admins, orgIds]
@@ -7759,6 +7782,14 @@ components:
           minimum: 0
           maximum: 60
           description: Lines, or the height in lines of blank space or a box.
+        optionCols:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: Columns a choice question's options print in; 0 fits them by their length.
+        optionBoxes:
+          type: boolean
+          description: A box to tick beside each option; on when left out.
         used:
           type: integer
           description: How many papers it is in.
@@ -7805,7 +7836,7 @@ components:
           maxLength: 5000
         options:
           type: array
-          maxItems: 8
+          maxItems: 12
           items:
             type: string
         answer:
@@ -7831,6 +7862,14 @@ components:
           minimum: 0
           maximum: 60
           description: Lines, or the height in lines of blank space or a box.
+        optionCols:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: Columns a choice question's options print in; 0 fits them by their length.
+        optionBoxes:
+          type: boolean
+          description: A box to tick beside each option; on when left out.
     PaperItem:
       type: object
       required: [id, seq, section, sectionId, chapter, marks, locked]
@@ -8033,6 +8072,14 @@ components:
           minimum: 0
           maximum: 60
           description: Lines, or the height in lines of blank space or a box.
+        optionCols:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: Columns a choice question's options print in; 0 fits them by their length.
+        optionBoxes:
+          type: boolean
+          description: A box to tick beside each option; on when left out.
         bloom:
           type: string
         difficulty:

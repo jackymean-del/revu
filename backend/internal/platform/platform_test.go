@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackymean-del/revu/internal/api"
@@ -237,4 +238,56 @@ func TestPlatform(t *testing.T) {
 			t.Fatalf("a view-only member previewing: %q", c)
 		}
 	})
+}
+
+// The owner loads the sample institutions: it answers at once, loads in the
+// background, and ends with a whole school that has papers, marks and reports.
+func TestDemoLoad(t *testing.T) {
+	owner, appPool := dbtest.Open(t)
+	ctx := context.Background()
+	r := make([]byte, 4)
+	_, _ = rand.Read(r)
+	tag := hex.EncodeToString(r)
+	boss, user := "owner-"+tag+"@bhusku.test", "user_demo_"+tag
+	app := server.New(config.Config{Version: "test", PlatformOwners: []string{boss}},
+		server.Deps{DB: appPool, Owner: owner, Auth: headerAuth{}, Directory: &directory{verified: map[string][]string{user: {boss}}}, DemoSuffix: " demo " + tag})
+	c := caller{t: t, app: app, user: user}
+	t.Cleanup(func() {
+		rows, _ := owner.Query(ctx, `SELECT id::text FROM orgs WHERE name LIKE '% demo ' || $1`, tag)
+		var ids []string
+		for rows.Next() {
+			var id string
+			_ = rows.Scan(&id)
+			ids = append(ids, id)
+		}
+		for _, id := range ids {
+			for _, table := range []string{"report_run_items", "report_runs", "report_templates", "computed_results", "result_stale_intents", "evidence", "group_members", "memberships"} {
+				_, _ = owner.Exec(ctx, `DELETE FROM `+table+` WHERE org_id = $1`, id)
+			}
+			_, _ = owner.Exec(ctx, `DELETE FROM orgs WHERE id = $1`, id)
+		}
+		_, _ = owner.Exec(ctx, `DELETE FROM groups WHERE name = 'Demo group demo ' || $1`, tag)
+		_, _ = owner.Exec(ctx, `DELETE FROM platform_audit WHERE actor = $1`, user)
+	})
+
+	if st := into[api.DemoStatus](c.do(202, "POST", "/v1/owner/demo", nil)); st.Status != "loading" {
+		t.Fatalf("on starting: %+v", st)
+	}
+	c.do(202, "POST", "/v1/owner/demo", nil) // a second press joins the load already running
+	deadline := time.Now().Add(3 * time.Minute)
+	var st api.DemoStatus
+	for st = into[api.DemoStatus](c.do(200, "GET", "/v1/owner/demo", nil)); st.Status == "loading" && time.Now().Before(deadline); st = into[api.DemoStatus](c.do(200, "GET", "/v1/owner/demo", nil)) {
+		time.Sleep(time.Second)
+	}
+	if st.Status != "done" {
+		t.Fatalf("the load ended %+v", st)
+	}
+	var got string
+	if err := owner.QueryRow(ctx, `SELECT concat_ws(' ',
+		(SELECT count(*) FROM group_members m JOIN groups g ON g.id = m.group_id WHERE g.name = 'Demo group demo ' || $1),
+		(SELECT count(DISTINCT m.org_id) FROM memberships m JOIN orgs o ON o.id = m.org_id WHERE m.clerk_user_id = $2 AND o.name LIKE '% demo ' || $1),
+		(SELECT count(*) FROM papers p JOIN orgs o ON o.id = p.org_id WHERE o.name = 'iKids demo ' || $1 AND p.status = 'final'),
+		(SELECT count(*) FROM report_runs r JOIN orgs o ON o.id = r.org_id WHERE o.name = 'iKids demo ' || $1))`, tag, user).Scan(&got); err != nil || got != "3 3 130 20" {
+		t.Fatalf("after the load: %q %v (institutions in the group, the owner's memberships, final papers, report runs)", got, err)
+	}
 }

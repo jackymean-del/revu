@@ -37,6 +37,14 @@ function fakeApi(page: Page) {
       : [{ key: 'no_contact', count: 2, status: 'attention', listable: true }]
     return r.fulfill({ json: { tiles } })
   })
+  // The sample institutions load in the background: loading on the press, done on the next look.
+  let demo = 'idle'
+  void page.route('**/v1/owner/demo', (r) => {
+    const now = demo
+    if (r.request().method() === 'POST') demo = 'loading'
+    else if (demo === 'loading') demo = 'done'
+    return r.fulfill({ status: r.request().method() === 'POST' ? 202 : 200, json: { status: r.request().method() === 'POST' ? 'loading' : now, detail: '' } })
+  })
   void page.route('**/v1/owner/orgs', (r) => {
     if (r.request().method() === 'POST') {
       seen.created.push(r.request().postDataJSON())
@@ -133,4 +141,13 @@ test('from the owner console, one click opens an institution as a role', async (
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText(/Previewing as View only/)).toBeVisible()
   expect(seen.viewAs.at(-1)).toBe('viewer')
+})
+
+test('the owner loads the sample institutions, which carries on in the background', async ({ page }) => {
+  fakeApi(page)
+  await page.goto('/owner')
+  await page.getByRole('button', { name: 'Load the sample institutions' }).click()
+  await expect(page.getByRole('button', { name: 'Loading the sample institutions' })).toBeDisabled()
+  await expect(page.getByText('You can leave this page; it carries on.')).toBeVisible()
+  await expect(page.getByText('Ready. Open one from the institution menu')).toBeVisible({ timeout: 15000 })
 })

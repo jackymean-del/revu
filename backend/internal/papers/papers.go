@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
@@ -107,15 +108,16 @@ func loadItems(ctx context.Context, tx pgx.Tx, p *Paper) error {
 			var qused *int
 			var qbits []byte
 			var qspace *string
-			var qsize *int
+			var qsize, qcols *int
+			var qboxes *bool
 			if err := rows.Scan(&it.ID, &it.Seq, &it.Section, &it.Chapter, &it.LessonID, &it.Level, &it.Marks, &it.Locked, &it.SectionID, &has,
-				&qid, &qlevel, &qsubject, &qlesson, &qoutcome, &qbloom, &qsolo, &qcustom, &qtype, &qmarks, &qdiff, &qtext, &qopts, &qanswer, &qsource, &qstatus, &qbits, &qspace, &qsize, &qused); err != nil {
+				&qid, &qlevel, &qsubject, &qlesson, &qoutcome, &qbloom, &qsolo, &qcustom, &qtype, &qmarks, &qdiff, &qtext, &qopts, &qanswer, &qsource, &qstatus, &qbits, &qspace, &qsize, &qcols, &qboxes, &qused); err != nil {
 				return err
 			}
 			it.Marks = trim(it.Marks)
 			if has {
 				q = Question{ID: *qid, LevelID: *qlevel, SubjectID: *qsubject, LessonID: *qlesson, OutcomeID: *qoutcome, Bloom: *qbloom, Solo: *qsolo, Custom: *qcustom, QType: *qtype, Marks: trim(*qmarks),
-					Difficulty: *qdiff, Text: *qtext, Answer: *qanswer, Source: *qsource, Status: *qstatus, Used: *qused, Options: []string{}, Bits: []Bit{}, SpaceKind: *qspace, SpaceSize: *qsize}
+					Difficulty: *qdiff, Text: *qtext, Answer: *qanswer, Source: *qsource, Status: *qstatus, Used: *qused, Options: []string{}, Bits: []Bit{}, SpaceKind: *qspace, SpaceSize: *qsize, OptionCols: *qcols, OptionBoxes: *qboxes}
 				if len(qbits) > 0 {
 					_ = jsonUnmarshal(qbits, &q.Bits)
 				}
@@ -651,7 +653,7 @@ header{text-align:center;border-bottom:2px solid #13111e;padding-bottom:8px;marg
 h1{font-size:18px;margin:0}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #ccc}
 h3{font-size:14px;margin:12px 0 4px}
 .meta{display:flex;justify-content:space-between;font-size:13px;margin-top:6px}
-ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-style:lower-alpha;margin:4px 0 0}
+ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-style:lower-alpha;margin:4px 0 0;display:grid;column-gap:36px}.opts li{margin:3px 0}
 .bits{list-style:none;padding-left:0;margin:4px 0 0}.bits li{margin:6px 0}.bits .l{display:inline-block;width:26px}
 .key{background:#f6f5fb;border:1px solid #ddd;padding:4px 8px;margin-top:4px;font-size:13px}
 .space{margin-top:6px}.space div{border-bottom:1px solid #bbb;height:26px}
@@ -666,7 +668,7 @@ ol{padding-left:22px}li{margin:8px 0}.m{float:right;font-weight:600}.opts{list-s
 <div class="meta"><span>{{.Class}} · {{.Subject}}</span><span>{{.Set}}</span><span>Maximum marks: {{.Max}}</span></div></header>
 {{if .Instructions}}<p>{{.Instructions}}</p>{{end}}
 {{range .Sections}}{{if .Sub}}<h3>{{.Name}} <span class="m">{{.Marks}} marks</span></h3>{{else}}<h2>{{.Name}}{{if .Extra}} <span class="extra">(not counted)</span>{{end}} <span class="m">{{.Marks}} marks</span></h2>{{end}}{{if .Note}}<p class="note">{{.Note}}</p>{{end}}{{if .Items}}<ol>
-{{range .Items}}<li value="{{.No}}"><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}<ol class="opts">{{range .Options}}<li>{{.}}{{if $.Space}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
+{{range .Items}}<li value="{{.No}}"><span class="m">[{{.Marks}}]</span>{{if .Pending}}<span class="pending">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{if .Pairs}}<table class="match">{{range .Pairs}}<tr><td>{{.Left}}</td><td>{{.Letter}}. {{.Right}}</td></tr>{{end}}</table>{{end}}{{if .Options}}{{$q := .}}<ol class="opts" style="grid-template-columns:repeat({{.Cols}},1fr)">{{range .Options}}<li>{{.}}{{if and $q.Boxes (not $.Key)}}<span class="box"></span>{{end}}</li>{{end}}</ol>{{end}}
 {{if .Bits}}<ul class="bits">{{range .Bits}}<li>{{if .Marks}}<span class="m">[{{.Marks}}]</span>{{end}}<span class="l">({{.Letter}})</span>{{.Text}}{{if $.Key}}<div class="key">{{.Answer}}</div>{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ul>{{end}}
 {{if $.Key}}{{if .Answer}}<div class="key">{{.Answer}}</div>{{end}}{{else if $.Space}}{{if .Lines}}<div class="space">{{range .Lines}}<div></div>{{end}}</div>{{end}}{{if .Height}}<div class="{{.Room}}" style="height:{{.Height}}px"></div>{{end}}{{end}}</li>{{end}}</ol>{{end}}{{end}}
 </body></html>`))
@@ -696,7 +698,8 @@ func paperHTML(c fiber.Ctx) error {
 	}
 	type pi struct {
 		No                        int
-		Height                    int
+		Height, Cols              int
+		Boxes                     bool
 		Text, Marks, Answer, Room string
 		Options                   []string
 		Pairs                     []pair
@@ -736,7 +739,10 @@ func paperHTML(c fiber.Ctx) error {
 			x := pi{No: it.Seq, Marks: it.Marks, Text: "Question still to choose", Pending: true}
 			qtype := it.Section
 			kind, size := "auto", 0
+			cols := 0
+			x.Boxes = true
 			if it.Question != nil {
+				cols, x.Boxes = it.Question.OptionCols, it.Question.OptionBoxes
 				kind, size = it.Question.SpaceKind, it.Question.SpaceSize
 				x.Text, x.Options, x.Answer, x.Pending = it.Question.Text, it.Question.Options, it.Question.Answer, false
 				qtype = it.Question.QType
@@ -761,6 +767,7 @@ func paperHTML(c fiber.Ctx) error {
 			case len(x.Options) == 0 && !choice(qtype) && len(x.Bits) == 0 && kind == "auto":
 				x.Lines = make([]int, answerLines(it.Marks))
 			}
+			x.Cols = optionCols(cols, x.Options)
 			// Bits all worth the same show no marks of their own: the
 			// question says it once, as 3 x 2 = 6.
 			if each, same := sameMarks(it.Question); same {
@@ -802,6 +809,29 @@ func room(kind string, size int, marks string) (lines []int, height int, class s
 		lines = make([]int, answerLines(marks))
 	}
 	return lines, height, class
+}
+
+// optionCols is how many columns a question's options print in: as set for
+// the question, or else as many as fit their length, up to four; short
+// options sit side by side and long ones go one under another.
+func optionCols(set int, options []string) int {
+	n := len(options)
+	if n == 0 {
+		return 1
+	}
+	if set > 0 {
+		return min(set, n)
+	}
+	longest := 0
+	for _, o := range options {
+		longest = max(longest, utf8.RuneCountInString(o))
+	}
+	fit := max(1, min(4, 84/(longest+10)))
+	// Four options that cannot sit in one row sit two by two, not three and one.
+	if n == 4 && fit == 3 {
+		fit = 2
+	}
+	return min(fit, n)
 }
 
 // sameMarks says whether a question's bits, two or more, all carry the same

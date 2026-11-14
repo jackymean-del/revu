@@ -483,6 +483,30 @@ func (e ComponentCellState) Valid() bool {
 	}
 }
 
+// Defines values for DemoStatusStatus.
+const (
+	DemoStatusStatusDone    DemoStatusStatus = "done"
+	DemoStatusStatusFailed  DemoStatusStatus = "failed"
+	DemoStatusStatusIdle    DemoStatusStatus = "idle"
+	DemoStatusStatusLoading DemoStatusStatus = "loading"
+)
+
+// Valid indicates whether the value is a known member of the DemoStatusStatus enum.
+func (e DemoStatusStatus) Valid() bool {
+	switch e {
+	case DemoStatusStatusDone:
+		return true
+	case DemoStatusStatusFailed:
+		return true
+	case DemoStatusStatusIdle:
+		return true
+	case DemoStatusStatusLoading:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GridStudentStatus.
 const (
 	GridStudentStatusAbsent        GridStudentStatus = "absent"
@@ -2892,6 +2916,16 @@ type DashboardRow struct {
 // Decimal An exact decimal with up to 2 places, sent as text so it is never a float.
 type Decimal = string
 
+// DemoStatus defines model for DemoStatus.
+type DemoStatus struct {
+	// Detail What went wrong, when it failed.
+	Detail string           `json:"detail"`
+	Status DemoStatusStatus `json:"status"`
+}
+
+// DemoStatusStatus defines model for DemoStatus.Status.
+type DemoStatusStatus string
+
 // DryRun defines model for DryRun.
 type DryRun struct {
 	Changed int       `json:"changed"`
@@ -3977,11 +4011,17 @@ type Question struct {
 	LessonId    string             `json:"lessonId,omitempty"`
 	LevelId     string             `json:"levelId"`
 	Marks       string             `json:"marks"`
-	Options     []string           `json:"options"`
-	OutcomeId   string             `json:"outcomeId,omitempty"`
-	Qtype       string             `json:"qtype"`
-	Solo        string             `json:"solo,omitempty"`
-	Source      QuestionSource     `json:"source"`
+
+	// OptionBoxes A box to tick beside each option; on when left out.
+	OptionBoxes bool `json:"optionBoxes,omitempty"`
+
+	// OptionCols Columns a choice question's options print in; 0 fits them by their length.
+	OptionCols int            `json:"optionCols,omitempty"`
+	Options    []string       `json:"options"`
+	OutcomeId  string         `json:"outcomeId,omitempty"`
+	Qtype      string         `json:"qtype"`
+	Solo       string         `json:"solo,omitempty"`
+	Source     QuestionSource `json:"source"`
 
 	// SpaceKind Room to answer on the printed paper; auto goes by the marks.
 	SpaceKind QuestionSpaceKind `json:"spaceKind,omitempty"`
@@ -4046,14 +4086,20 @@ type QuestionInput struct {
 	Bloom string `json:"bloom,omitempty"`
 
 	// CustomLevel A level of the institution's own taxonomy.
-	CustomLevel string   `json:"customLevel,omitempty"`
-	Difficulty  string   `json:"difficulty,omitempty"`
-	LessonId    string   `json:"lessonId,omitempty"`
-	LevelId     string   `json:"levelId"`
-	Marks       string   `json:"marks"`
-	Options     []string `json:"options,omitempty"`
-	OutcomeId   string   `json:"outcomeId,omitempty"`
-	Qtype       string   `json:"qtype"`
+	CustomLevel string `json:"customLevel,omitempty"`
+	Difficulty  string `json:"difficulty,omitempty"`
+	LessonId    string `json:"lessonId,omitempty"`
+	LevelId     string `json:"levelId"`
+	Marks       string `json:"marks"`
+
+	// OptionBoxes A box to tick beside each option; on when left out.
+	OptionBoxes bool `json:"optionBoxes,omitempty"`
+
+	// OptionCols Columns a choice question's options print in; 0 fits them by their length.
+	OptionCols int      `json:"optionCols,omitempty"`
+	Options    []string `json:"options,omitempty"`
+	OutcomeId  string   `json:"outcomeId,omitempty"`
+	Qtype      string   `json:"qtype"`
 
 	// Solo prestructural, unistructural, multistructural, relational or extended.
 	Solo   string              `json:"solo,omitempty"`
@@ -5127,9 +5173,15 @@ type TypedQuestion struct {
 	Difficulty string        `json:"difficulty,omitempty"`
 	LessonId   string        `json:"lessonId,omitempty"`
 	Marks      string        `json:"marks"`
-	Options    []string      `json:"options,omitempty"`
-	OutcomeId  string        `json:"outcomeId,omitempty"`
-	Qtype      string        `json:"qtype"`
+
+	// OptionBoxes A box to tick beside each option; on when left out.
+	OptionBoxes bool `json:"optionBoxes,omitempty"`
+
+	// OptionCols Columns a choice question's options print in; 0 fits them by their length.
+	OptionCols int      `json:"optionCols,omitempty"`
+	Options    []string `json:"options,omitempty"`
+	OutcomeId  string   `json:"outcomeId,omitempty"`
+	Qtype      string   `json:"qtype"`
 
 	// SpaceKind Room to answer on the printed paper; auto goes by the marks.
 	SpaceKind TypedQuestionSpaceKind `json:"spaceKind,omitempty"`

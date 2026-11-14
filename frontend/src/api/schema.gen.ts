@@ -1481,9 +1481,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Whether the sample institutions are loading, loaded, or failed to load. */
+        get: operations["getOwnerDemo"];
         put?: never;
-        /** Give the owner a demo group of sample institutions, where they hold every role and can preview each one. */
+        /** Give the owner a demo group of sample institutions, one a whole school with a term's work done; they load in the background. */
         post: operations["createOwnerDemo"];
         delete?: never;
         options?: never;
@@ -3475,6 +3476,12 @@ export interface components {
             /** @description Whether the sign-in service emailed the invitation; they can sign in with the address either way. */
             emailed: boolean;
         };
+        DemoStatus: {
+            /** @enum {string} */
+            status: "idle" | "loading" | "done" | "failed";
+            /** @description What went wrong, when it failed. */
+            detail: string;
+        };
         OwnerGroup: {
             /** Format: uuid */
             id: string;
@@ -4338,6 +4345,10 @@ export interface components {
             spaceKind?: "auto" | "lines" | "blank" | "box" | "none";
             /** @description Lines, or the height in lines of blank space or a box. */
             spaceSize?: number;
+            /** @description Columns a choice question's options print in; 0 fits them by their length. */
+            optionCols?: number;
+            /** @description A box to tick beside each option; on when left out. */
+            optionBoxes?: boolean;
             /** @description How many papers it is in. */
             used: number;
         };
@@ -4376,6 +4387,10 @@ export interface components {
             spaceKind?: "auto" | "lines" | "blank" | "box" | "none";
             /** @description Lines, or the height in lines of blank space or a box. */
             spaceSize?: number;
+            /** @description Columns a choice question's options print in; 0 fits them by their length. */
+            optionCols?: number;
+            /** @description A box to tick beside each option; on when left out. */
+            optionBoxes?: boolean;
         };
         PaperItem: {
             id: string;
@@ -4478,6 +4493,10 @@ export interface components {
             spaceKind?: "auto" | "lines" | "blank" | "box" | "none";
             /** @description Lines, or the height in lines of blank space or a box. */
             spaceSize?: number;
+            /** @description Columns a choice question's options print in; 0 fits them by their length. */
+            optionCols?: number;
+            /** @description A box to tick beside each option; on when left out. */
+            optionBoxes?: boolean;
             bloom?: string;
             difficulty?: string;
             lessonId?: string;
@@ -8168,6 +8187,27 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getOwnerDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state of the load. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     createOwnerDemo: {
         parameters: {
             query?: never;
@@ -8177,13 +8217,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The demo group. */
-            200: {
+            /** @description The load has started, or was already running. */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OwnerGroup"];
+                    "application/json": components["schemas"]["DemoStatus"];
                 };
             };
             default: components["responses"]["Problem"];

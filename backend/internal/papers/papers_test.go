@@ -574,6 +574,17 @@ func TestPaperHierarchy(t *testing.T) {
 			t.Fatalf("print lacks %q in %s", want, page)
 		}
 	}
+	// Options print in columns that fit their length, or as set; a box to tick unless switched off.
+	add(secB, map[string]any{"qtype": "Multiple choice", "marks": "1", "text": "Short options.", "options": []string{"3", "4", "5", "6"}})
+	add(secB, map[string]any{"qtype": "Multiple choice", "marks": "1", "text": "Long options.", "options": []string{"A river that flows through three states before it reaches the sea", "A lake", "A pond"}})
+	add(secB, map[string]any{"qtype": "Multiple choice", "marks": "1", "text": "Set by hand.", "options": []string{"one", "two", "three", "four", "five"}, "optionCols": 2, "optionBoxes": false})
+	_, body = admin.raw("GET", base+"/html", nil)
+	page = string(body)
+	for _, want := range []string{`repeat(4,1fr)"><li>3<span class="box">`, `repeat(1,1fr)"><li>A river`, `repeat(2,1fr)"><li>one</li>`} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("print lacks %q in %s", want, page)
+		}
+	}
 	for _, id := range ids(secB)[1:] {
 		admin.json(200, "DELETE", base+"/items/"+id, nil, &p)
 	}

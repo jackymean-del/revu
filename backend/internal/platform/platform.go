@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5"
@@ -42,6 +43,9 @@ type Options struct {
 	Directory auth.Directory
 	Owners    []string
 	AppURL    string
+	// DemoSuffix is added to the names of the sample institutions and their
+	// group; empty outside tests, which get their own copies with it.
+	DemoSuffix string
 }
 
 // Person is who is asking: their sign-in id and verified addresses.
@@ -129,6 +133,7 @@ func Routes(g fiber.Router, o Options) {
 	owner.Post("/groups/:id/admins", o.addAdmin)
 	owner.Delete("/groups/:id/admins", o.removeAdmin)
 	owner.Post("/demo", o.demo)
+	owner.Get("/demo", o.getDemo)
 	owner.Get("/access", access)
 	g.Get("/groups", o.myGroups)
 }
@@ -373,44 +378,107 @@ func access(c fiber.Ctx) error {
 	return c.JSON(out)
 }
 
+// demoLoad is the one load of the sample institutions that may run at a
+// time, and how the last one ended. It lives with the server process: a
+// restart forgets it, and the next load picks up where the data stands.
+var demoLoad struct {
+	sync.Mutex
+	status string // "", loading, done or failed
+	detail string
+}
+
+func demoStatus() api.DemoStatus {
+	demoLoad.Lock()
+	defer demoLoad.Unlock()
+	st := demoLoad.status
+	if st == "" {
+		st = "idle"
+	}
+	return api.DemoStatus{Status: api.DemoStatusStatus(st), Detail: demoLoad.detail}
+}
+
+func (o Options) getDemo(c fiber.Ctx) error { return c.JSON(demoStatus()) }
+
 // demo gives the owner the sample institutions, with every role there, in a
-// demo group they administer, so each view can be previewed honestly.
+// demo group they administer, so each view can be previewed honestly. One
+// of them is a whole school with a term's work done: every subject with its
+// chapters, learning outcomes, competencies and question bank, papers made
+// and given out, marks entered, results worked out and reports made.
+//
+// That is thousands of rows, so it loads in the background and this answers
+// at once; the status says when it is done. Loading again adds only what is
+// missing.
 func (o Options) demo(c fiber.Ctx) error {
 	ctx := c.Context()
 	p := person(c)
-	results, err := seed.RunWith(ctx, o.Owner, p.User, "")
-	if err != nil {
-		return err
-	}
 	var id string
-	err = pgx.BeginFunc(ctx, o.Owner, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, o.Owner, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(ctx, `
-			INSERT INTO groups (name, created_by) VALUES ('Demo group', $1)
-			ON CONFLICT (lower(name)) DO UPDATE SET name = groups.name RETURNING id::text`, p.User).Scan(&id); err != nil {
+			INSERT INTO groups (name, created_by) VALUES ($2, $1)
+			ON CONFLICT (lower(name)) DO UPDATE SET name = groups.name RETURNING id::text`, p.User, "Demo group"+o.DemoSuffix).Scan(&id); err != nil {
 			return err
-		}
-		for _, r := range results {
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO group_members (org_id, group_id, added_by) VALUES ($1::uuid, $2::uuid, $3)
-				ON CONFLICT (org_id) DO UPDATE SET group_id = EXCLUDED.group_id`, r.OrgID, id, p.User); err != nil {
-				return err
-			}
 		}
 		for _, e := range p.Emails {
 			if _, err := tx.Exec(ctx, `INSERT INTO group_admins (group_id, email, added_by) VALUES ($1::uuid, $2, $3) ON CONFLICT DO NOTHING`, id, e, p.User); err != nil {
 				return err
 			}
 		}
-		return record(ctx, tx, p.User, "demo", "groups", id, map[string]any{"institutions": len(results)})
+		return record(ctx, tx, p.User, "demo", "groups", id, map[string]any{"institutions": len(seed.Demos)})
 	})
 	if err != nil {
 		return err
 	}
-	g, err := loadGroup(ctx, o.Owner, id)
-	if err != nil {
-		return err
+	demoLoad.Lock()
+	start := demoLoad.status != "loading"
+	if start {
+		demoLoad.status, demoLoad.detail = "loading", ""
 	}
-	return c.JSON(g)
+	demoLoad.Unlock()
+	if start {
+		go o.loadDemo(p.User, id)
+	}
+	return c.Status(http.StatusAccepted).JSON(demoStatus())
+}
+
+// loadDemo seeds the sample institutions, puts each in the demo group as it
+// is ready, and makes the reports of those with a term's work.
+func (o Options) loadDemo(user, group string) {
+	ctx := context.Background()
+	err := func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = errors.New("the load stopped unexpectedly")
+				slog.Error("demo load panicked", "panic", r)
+			}
+		}()
+		results, err := seed.RunWith(ctx, o.Owner, user, o.DemoSuffix)
+		for _, r := range results {
+			if _, e := o.Owner.Exec(ctx, `
+				INSERT INTO group_members (org_id, group_id, added_by) VALUES ($1::uuid, $2::uuid, $3)
+				ON CONFLICT (org_id) DO UPDATE SET group_id = EXCLUDED.group_id`, r.OrgID, group, user); e != nil && err == nil {
+				err = e
+			}
+		}
+		if err != nil {
+			return err
+		}
+		for i, d := range seed.Demos {
+			if d.Exams && i < len(results) {
+				if err := seed.GenerateReports(ctx, o.Owner, results[i].OrgID); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}()
+	demoLoad.Lock()
+	defer demoLoad.Unlock()
+	if err != nil {
+		slog.Error("demo load failed", "err", err)
+		demoLoad.status, demoLoad.detail = "failed", "The sample institutions did not finish loading. Load them again to carry on from where it stopped."
+		return
+	}
+	demoLoad.status = "done"
 }
 
 // myGroups answers a group administrator with status counts per institution.

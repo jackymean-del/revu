@@ -389,8 +389,8 @@ type Bit = NonNullable<Question['bits']>[number]
 function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; editing?: Question; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
   const [q, setQ] = useState<TypedQuestion>(
     editing
-      ? { qtype: editing.qtype, marks: editing.marks, text: editing.text, options: editing.options, answer: editing.answer, spaceKind: editing.spaceKind ?? 'auto', spaceSize: editing.spaceSize ?? 0 }
-      : { qtype: 'Short answer', marks: '', text: '', options: [], answer: '', spaceKind: 'auto', spaceSize: 0 },
+      ? { qtype: editing.qtype, marks: editing.marks, text: editing.text, options: editing.options, answer: editing.answer, spaceKind: editing.spaceKind ?? 'auto', spaceSize: editing.spaceSize ?? 0, optionCols: editing.optionCols ?? 0, optionBoxes: editing.optionBoxes ?? true }
+      : { qtype: 'Short answer', marks: '', text: '', options: [], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true },
   )
   const sized = q.spaceKind === 'lines' || q.spaceKind === 'blank' || q.spaceKind === 'box'
   const [bits, setBits] = useState<Bit[]>(editing?.bits ?? [])
@@ -449,13 +449,13 @@ function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { o
         </label>
       </div>
       <label className="flex flex-col gap-1 text-xs font-semibold">
-        Question
+        {bits.length > 0 ? 'Common instruction, printed above the bits' : 'Question'}
         <textarea required aria-label="Question" rows={3} maxLength={5000} className={field} value={q.text} onChange={(e) => setQ({ ...q, text: e.target.value })} placeholder={/blank/i.test(q.qtype) ? 'Use ____ for each blank' : undefined} />
       </label>
       {(choice || match) && (
         <fieldset className="space-y-1">
           <legend className="text-xs font-semibold">{match ? 'Pairs, written as left = right' : 'Options, in order'}</legend>
-          {[...options, ''].slice(0, 8).map((o, i) => (
+          {[...options, ''].slice(0, 12).map((o, i) => (
             <input
               key={i}
               aria-label={`${match ? 'Pair' : 'Option'} ${i + 1}`}
@@ -469,10 +469,28 @@ function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { o
               }}
             />
           ))}
+          {choice && (
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-sm">
+              <label className="flex items-center gap-1.5 text-xs font-semibold">
+                Options print
+                <select aria-label="Options print" className={field} value={q.optionCols ?? 0} onChange={(e) => setQ({ ...q, optionCols: Number(e.target.value) })}>
+                  <option value={0}>fitted by their length</option>
+                  <option value={1}>one under another</option>
+                  <option value={2}>in 2 columns</option>
+                  <option value={3}>in 3 columns</option>
+                  <option value={4}>in 4 columns</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="checkbox" checked={q.optionBoxes ?? true} onChange={(e) => setQ({ ...q, optionBoxes: e.target.checked })} />
+                A box to tick beside each
+              </label>
+            </div>
+          )}
         </fieldset>
       )}
       <fieldset className="space-y-1">
-        <legend className="text-xs font-semibold">Bits, each with its own marks</legend>
+        <legend className="text-xs font-semibold">Bits, each with its own marks and answer</legend>
         {bits.map((b, i) => (
           <div key={i} className="grid grid-cols-[1.5rem_1fr_4.5rem_auto] items-start gap-1.5 sm:grid-cols-[1.5rem_2fr_4.5rem_1fr_auto]">
             <span className="pt-1.5 text-sm text-muted">({letter(i)})</span>
