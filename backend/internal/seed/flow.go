@@ -179,7 +179,11 @@ func seedPaper(ctx context.Context, tx pgx.Tx, org, year, level, subject, exam s
 		  JOIN enrolments e ON e.section_id = sc.section_id AND e.year_id = $3::uuid AND e.deleted_at IS NULL
 		  CROSS JOIN LATERAL (SELECT abs(hashtext(e.student_id::text || $2::uuid::text)) % 20 = 0 AS absent) x
 		 WHERE p.assessment_id = $2::uuid AND p.deleted_at IS NULL
-		ON CONFLICT (student_id, part_id) DO NOTHING`, org, exam, year)
+		   -- Only those who take the subject: a language is taken by those who chose it.
+		   AND (NOT EXISTS (SELECT 1 FROM subject_group_options o JOIN subject_groups g ON g.id = o.group_id AND g.deleted_at IS NULL
+		                     WHERE o.subject_id = $5::uuid AND g.level_id = $4::uuid AND o.deleted_at IS NULL)
+		        OR EXISTS (SELECT 1 FROM student_subject_choices c WHERE c.student_id = e.student_id AND c.subject_id = $5::uuid AND c.effective_to IS NULL))
+		ON CONFLICT (student_id, part_id) DO NOTHING`, org, exam, year, level, subject)
 	return err
 }
 

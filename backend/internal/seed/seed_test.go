@@ -26,7 +26,7 @@ func TestDemoSeed(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, r := range first {
-			for _, table := range []string{"computed_results", "result_stale_intents", "evidence", "scheme_assignments", "schemes", "branding_versions", "assessment_parts", "assessment_scopes", "assessments", "student_subject_choices", "subject_group_options", "subject_groups", "audit_log", "guardians", "enrolments", "teaching_assignments", "students", "memberships", "staff",
+			for _, table := range []string{"report_run_items", "report_runs", "report_templates", "computed_results", "result_stale_intents", "evidence", "scheme_assignments", "schemes", "branding_versions", "assessment_parts", "assessment_scopes", "assessments", "student_subject_choices", "subject_group_options", "subject_groups", "audit_log", "guardians", "enrolments", "teaching_assignments", "students", "memberships", "staff",
 				"level_subjects", "subjects", "sections", "levels", "periods", "academic_years", "branches", "terminology"} {
 				_, _ = owner.Exec(ctx, `DELETE FROM `+table+` WHERE org_id = $1`, r.OrgID)
 			}
@@ -41,7 +41,7 @@ func TestDemoSeed(t *testing.T) {
 		// iKids: Classes 1 to 5 take 4 subjects and 6 to 10 take 5, each with
 		// Hindi or Odia; a class teacher and a teacher per subject in each of
 		// 20 sections; three exams in every subject of every class.
-		{Sections: 20, Staff: 30, Students: 400, TeachingAssignments: 10*(1+4+2) + 10*(1+5+2), Guards: 400, Choices: 400 - 400/11, Assessments: 5*6*3 + 5*7*3 + 3}, // and Unit tests 3 and 4, and a re-exam
+		{Sections: 20, Staff: 30, Students: 400, TeachingAssignments: 10*(1+4+2) + 10*(1+5+2), Guards: 400, Choices: 400 - 400/11, Assessments: 5*6*3 + 5*7*3 + 3 + 64}, // and Class 6 Mathematics' Unit tests 3 and 4 and re-exam, and a Unit test 3 in each of the other 64 classes and subjects
 	}
 	for i, r := range first {
 		w := want[i]
@@ -93,10 +93,13 @@ func TestDemoSeed(t *testing.T) {
 	}
 	// 200 students take 4 subjects and a language, 200 take 5 and a language.
 	// And Class 6 Mathematics in the second term, for Unit test 3.
-	if queued != 200*(4+2)+200*(5+2)+40 {
+	// And the second term's Unit test 3, for those who sat it: every subject
+	// of the class, and the language each of 364 chose.
+	if queued != 200*(4+2)+200*(5+2)+200*4+200*5+364 {
 		t.Fatalf("%d results queued", queued)
 	}
-	// Class 6 Mathematics is carried through every step.
+	// Every class and subject is carried through every step: two final sets
+	// of 13 questions, each given to a section, marked question by question.
 	var flow string
 	if err := owner.QueryRow(ctx, `SELECT concat_ws(' ',
 		(SELECT count(*) FROM papers WHERE org_id = $1 AND status = 'final'),
@@ -106,12 +109,38 @@ func TestDemoSeed(t *testing.T) {
 		(SELECT count(*) FROM paper_assignments WHERE org_id = $1),
 		(SELECT status FROM reexams WHERE org_id = $1),
 		(SELECT count(*) > 0 FROM reexam_candidates WHERE org_id = $1),
-		(SELECT count(*) FROM holistic_notes WHERE org_id = $1 AND status = 'approved'))`, ik).Scan(&flow); err != nil || flow != "2 0 13 2 2 applied t 3" {
+		(SELECT count(*) FROM holistic_notes WHERE org_id = $1 AND status = 'approved'))`, ik).Scan(&flow); err != nil || flow != "130 0 845 130 130 applied t 3" {
 		t.Fatalf("flow: %q %v (final sets, empty slots, question parts, tagged sets, assignments, re-exam, candidates, notes)", flow, err)
 	}
 	var outOfRange int
 	if err := owner.QueryRow(ctx, `SELECT count(*) FROM evidence e JOIN assessment_parts p ON p.id = e.part_id WHERE e.org_id = $1 AND (e.value < 0 OR e.value > p.max_marks)`, ik).Scan(&outOfRange); err != nil || outOfRange != 0 {
 		t.Fatalf("%d marks outside 0 to the maximum: %v", outOfRange, err)
+	}
+
+	// The whole syllabus: every class and subject has its chapters, outcomes
+	// tied to competencies, and a bank; a language's marks only for those who chose it.
+	var school string
+	if err := owner.QueryRow(ctx, `SELECT concat_ws(' ',
+		(SELECT count(DISTINCT (level_id, subject_id)) FROM lessons WHERE org_id = $1),
+		(SELECT count(*) FROM learning_outcomes WHERE org_id = $1 AND competency_id IS NOT NULL) >= 64 * 12,
+		(SELECT count(*) FROM questions WHERE org_id = $1) >= 64 * 24,
+		(SELECT count(*) FROM evidence e JOIN assessments a ON a.id = e.assessment_id AND a.title = 'Unit test 3'
+		  WHERE e.org_id = $1 AND EXISTS (SELECT 1 FROM subject_group_options o WHERE o.subject_id = a.subject_id AND o.deleted_at IS NULL)
+		    AND NOT EXISTS (SELECT 1 FROM student_subject_choices c WHERE c.student_id = e.student_id AND c.subject_id = a.subject_id AND c.effective_to IS NULL)))`, ik).Scan(&school); err != nil || school != "65 t t 0" {
+		t.Fatalf("school: %q %v (classes and subjects with chapters, outcomes, bank, marks in a language not chosen)", school, err)
+	}
+
+	// Results worked out and a first-term report run for each section; a
+	// second time makes no more.
+	for range 2 {
+		if err := seed.GenerateReports(ctx, owner, ik); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var reportsMade string
+	if err := owner.QueryRow(ctx, `SELECT concat_ws(' ', (SELECT count(*) FROM report_runs WHERE org_id = $1), (SELECT count(*) FROM report_run_items WHERE org_id = $1),
+		(SELECT count(*) > 4000 FROM computed_results WHERE org_id = $1))`, ik).Scan(&reportsMade); err != nil || reportsMade != "20 400 t" {
+		t.Fatalf("reports: %q %v (runs, students, results worked out)", reportsMade, err)
 	}
 
 	again, err := seed.RunWith(ctx, owner, user, suffix)

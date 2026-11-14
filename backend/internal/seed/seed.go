@@ -119,7 +119,19 @@ func Run(ctx context.Context, owner *pgxpool.Pool, userID string) ([]string, err
 	for i, r := range results {
 		ids[i] = r.OrgID
 	}
-	return ids, err
+	if err != nil {
+		return ids, err
+	}
+	// A school with a term's work also gets its results worked out and its
+	// first-term reports made.
+	for i, d := range Demos {
+		if d.Exams && i < len(ids) {
+			if err := GenerateReports(ctx, owner, ids[i]); err != nil {
+				return ids, fmt.Errorf("reports for %s: %w", d.Name, err)
+			}
+		}
+	}
+	return ids, nil
 }
 
 // RunWith seeds with suffix added to each organisation's name and external
@@ -358,6 +370,9 @@ func seedOne(ctx context.Context, tx pgx.Tx, d Demo, userID, suffix string) (Res
 		}
 		if err := seedSyllabus(ctx, tx, org, year); err != nil {
 			return r, err
+		}
+		if err := seedSchool(ctx, tx, org, year); err != nil {
+			return r, fmt.Errorf("school: %w", err)
 		}
 	}
 
