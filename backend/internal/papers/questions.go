@@ -51,9 +51,11 @@ type Question struct {
 
 // Bit is one lettered part of a question, (a), (b), with its own marks.
 type Bit struct {
-	Text   string `json:"text"`
-	Marks  string `json:"marks"`
-	Answer string `json:"answer"`
+	Text    string   `json:"text"`
+	Marks   string   `json:"marks"`
+	Answer  string   `json:"answer"`
+	QType   string   `json:"qtype"`   // its own type; empty when it is the question's
+	Options []string `json:"options"` // a choice bit's options, or a matching bit's pairs
 }
 
 const questionCols = `q.id::text, q.level_id::text, q.subject_id::text, coalesce(q.lesson_id::text, ''), coalesce(q.outcome_id::text, ''), q.bloom, coalesce(q.solo, ''), coalesce(q.custom_level, ''), q.qtype,
@@ -71,6 +73,11 @@ func scanQuestion(r pgx.Row) (Question, error) {
 	}
 	if len(bits) > 0 {
 		_ = json.Unmarshal(bits, &q.Bits)
+		for i := range q.Bits {
+			if q.Bits[i].Options == nil {
+				q.Bits[i].Options = []string{}
+			}
+		}
 	}
 	return q, err
 }
@@ -190,6 +197,20 @@ func (in *questionIn) valid() error {
 			b.Text, b.Marks, b.Answer = strings.TrimSpace(b.Text), strings.TrimSpace(b.Marks), strings.TrimSpace(b.Answer)
 			if b.Text == "" || len(b.Text) > 2000 || !marksShape.MatchString(b.Marks) || strings.Trim(b.Marks, "0.") == "" {
 				f.Add("bits", "invalid", "Each bit needs its text and marks above zero.")
+				break
+			}
+			// A bit is of the question's type unless it says otherwise.
+			if b.QType = strings.TrimSpace(b.QType); strings.EqualFold(b.QType, strings.TrimSpace(in.QType)) {
+				b.QType = ""
+			}
+			opts := []string{}
+			for _, o := range b.Options {
+				if o = strings.TrimSpace(o); o != "" {
+					opts = append(opts, o)
+				}
+			}
+			if b.Options = opts; len(b.QType) > 40 || len(opts) > 12 {
+				f.Add("bits", "invalid", "A bit has a type of up to 40 characters and up to 12 options.")
 				break
 			}
 			sum += hundredths(b.Marks)

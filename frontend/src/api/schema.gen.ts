@@ -4356,6 +4356,10 @@ export interface components {
             text: string;
             marks: string;
             answer?: string;
+            /** @description The bit's own type; empty when it is the question's. */
+            qtype?: string;
+            /** @description A choice bit's options, or a matching bit's pairs. */
+            options?: string[];
         };
         QuestionInput: {
             levelId: string;

@@ -585,6 +585,34 @@ func TestPaperHierarchy(t *testing.T) {
 			t.Fatalf("print lacks %q in %s", want, page)
 		}
 	}
+	// A bit is of the question's type unless it has its own: a choice bit
+	// prints its options to tick, a written one gets lines, side by side
+	// under one instruction.
+	add(secB, map[string]any{"qtype": "Multiple choice", "marks": "0", "text": "Answer each.", "bits": []map[string]any{
+		{"text": "Pick the prime.", "marks": "1", "qtype": "multiple choice", "options": []string{"4", " 7 ", "", "9"}},
+		{"text": "Say why.", "marks": "2", "qtype": "Short answer"},
+		{"text": "The sun is a star.", "marks": "1", "qtype": "True or false"},
+	}})
+	var mixed *papers.Question
+	for _, it := range p.Items {
+		if it.Question != nil && it.Question.Text == "Answer each." {
+			mixed = it.Question
+		}
+	}
+	if mixed.Marks != "4" || mixed.Bits[0].QType != "" || len(mixed.Bits[0].Options) != 3 || mixed.Bits[1].QType != "Short answer" || len(mixed.Bits[1].Options) != 0 {
+		t.Fatalf("mixed bits %+v", mixed.Bits)
+	}
+	_, body = admin.raw("GET", base+"/html?space=true", nil)
+	page = string(body)
+	for _, want := range []string{
+		`Pick the prime.<ol class="opts" style="grid-template-columns:repeat(3,1fr)"><li>4<span class="box"></span></li><li>7<span class="box">`,
+		`</ol></li><li><span class="m">[2]</span><span class="l">(b)</span>Say why.<div class="space">` + strings.Repeat("<div></div>", 4) + `</div></li>`,
+		`The sun is a star.<ol class="opts" style="grid-template-columns:repeat(2,1fr)"><li>True<span class="box">`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("print lacks %q in %s", want, page)
+		}
+	}
 	for _, id := range ids(secB)[1:] {
 		admin.json(200, "DELETE", base+"/items/"+id, nil, &p)
 	}

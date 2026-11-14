@@ -22,7 +22,7 @@ import { levelLabel, questionLevel, type Taxonomy } from '../../lib/taxonomy'
 import { Outline, type Place } from './Outline'
 import { usePaperSettings } from './settings'
 import { TypeSelect } from './TypeSelect'
-import { PAPER, hasOptions } from './types'
+import { PAPER, QUESTION_TYPES, hasOptions } from './types'
 
 const primary = 'rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50'
 const button = 'rounded-lg border border-line bg-white px-2.5 py-1 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
@@ -283,14 +283,17 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                           {(it.question?.bits ?? []).map((b, i) => (
                             <li key={i} className="flex gap-2">
                               <span className="w-6 shrink-0 text-muted">({letter(i)})</span>
-                              <span className="min-w-0 flex-1 whitespace-pre-wrap">{b.text}</span>
+                              <span className="min-w-0 flex-1 whitespace-pre-wrap">
+                                {b.text}
+                                {b.qtype && <span className="ml-2 text-xs text-muted">{b.qtype}</span>}
+                              </span>
                               {!bitsAlike(it.question?.bits ?? []) && <span className="shrink-0 text-xs text-muted">[{b.marks}]</span>}
                             </li>
                           ))}
                         </ul>
                       )}
                       <p className="mt-0.5 text-xs text-muted">
-                        {it.question?.qtype ?? it.section} · {bitsAlike(it.question?.bits ?? []) && `${it.question?.bits?.length} × ${it.question?.bits?.[0].marks} = `}
+                        {(it.question?.bits ?? []).some((b) => b.qtype) ? 'Mixed types' : (it.question?.qtype ?? it.section)} · {bitsAlike(it.question?.bits ?? []) && `${it.question?.bits?.length} × ${it.question?.bits?.[0].marks} = `}
                         {it.marks} {it.marks === '1' ? 'mark' : 'marks'}
                         {it.chapter && ` · ${it.chapter}`}
                         {it.level && ` · ${levelLabel(tax, it.level, settings)}`}
@@ -398,7 +401,17 @@ function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { o
   const [more, setMore] = useState(false)
   const kept = bits.filter((b) => b.text.trim())
   const total = kept.length > 0 ? marks(kept.reduce((n, b) => n + hundredths(b.marks), 0)) : q.marks
-  const body = { ...q, marks: total, bits: kept, options: hasOptions(q.qtype) || isMatch(q.qtype) ? (q.options ?? []).filter((o) => o.trim()) : [] }
+  // A bit is of the question's type unless it has its own.
+  const typeOf = (b: Bit) => b.qtype || q.qtype
+  const lists = (qtype: string) => (hasOptions(qtype) && !/true or false/i.test(qtype)) || isMatch(qtype)
+  const filled = (o?: string[]) => (o ?? []).filter((x) => x.trim())
+  const body = {
+    ...q,
+    marks: total,
+    // With bits, what there is to choose from belongs to each bit.
+    bits: kept.map((b) => ({ ...b, qtype: typeOf(b) === q.qtype ? '' : b.qtype, options: lists(typeOf(b)) ? filled(b.options) : [] })),
+    options: kept.length === 0 && (hasOptions(q.qtype) || isMatch(q.qtype)) ? filled(q.options) : [],
+  }
   const save = useMutation({
     mutationFn: async (again: boolean) => {
       if (!editing) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
@@ -419,6 +432,14 @@ function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { o
   const options = q.options ?? []
   const choice = hasOptions(q.qtype)
   const match = isMatch(q.qtype)
+  const split = bits.length > 0
+  const ticks = split ? bits.some((b) => hasOptions(typeOf(b))) : choice
+  const types = [...new Set([...QUESTION_TYPES, q.qtype].filter(Boolean))]
+  // The first bit takes over the options typed for the question so far.
+  const addBit = () => {
+    setBits([...bits, { text: '', marks: '', answer: '', qtype: '', options: split ? [] : filled(q.options) }])
+    if (!split) setQ({ ...q, options: [] })
+  }
   const setBit = (i: number, b: Partial<Bit>) => setBits(bits.map((x, j) => (j === i ? { ...x, ...b } : x)))
   return (
     <form
@@ -453,7 +474,7 @@ function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { o
         {bits.length > 0 ? 'Common instruction, printed above the bits' : 'Question'}
         <textarea required aria-label="Question" rows={3} maxLength={5000} className={field} value={q.text} onChange={(e) => setQ({ ...q, text: e.target.value })} placeholder={/blank/i.test(q.qtype) ? 'Use ____ for each blank' : undefined} />
       </label>
-      {(choice || match) && (
+      {!split && (choice || match) && (
         <fieldset className="space-y-1">
           <legend className="text-xs font-semibold">{match ? 'Pairs, written as left = right' : 'Options, in order'}</legend>
           {[...options, ''].slice(0, 12).map((o, i) => (
@@ -470,43 +491,74 @@ function QuestionForm({ orgId, paper, sectionId, editing, onAdded, onDone }: { o
               }}
             />
           ))}
-          {choice && (
-            <div className="flex flex-wrap items-center gap-3 pt-1 text-sm">
-              <label className="flex items-center gap-1.5 text-xs font-semibold">
-                Options print
-                <select aria-label="Options print" className={field} value={q.optionCols ?? 0} onChange={(e) => setQ({ ...q, optionCols: Number(e.target.value) })}>
-                  <option value={0}>fitted by their length</option>
-                  <option value={1}>one under another</option>
-                  <option value={2}>in 2 columns</option>
-                  <option value={3}>in 3 columns</option>
-                  <option value={4}>in 4 columns</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input type="checkbox" checked={q.optionBoxes ?? true} onChange={(e) => setQ({ ...q, optionBoxes: e.target.checked })} />
-                A box to tick beside each
-              </label>
-            </div>
-          )}
         </fieldset>
       )}
-      <fieldset className="space-y-1">
-        <legend className="text-xs font-semibold">Bits, each with its own marks and answer</legend>
-        {bits.map((b, i) => (
-          <div key={i} className="grid grid-cols-[1.5rem_1fr_4.5rem_auto] items-start gap-1.5 sm:grid-cols-[1.5rem_2fr_4.5rem_1fr_auto]">
-            <span className="pt-1.5 text-sm text-muted">({letter(i)})</span>
-            <input required aria-label={`Bit ${letter(i)}`} maxLength={2000} className={field} value={b.text} onChange={(e) => setBit(i, { text: e.target.value })} />
-            <input required aria-label={`Marks for bit ${letter(i)}`} placeholder="Marks" inputMode="decimal" pattern="\d{1,4}(\.\d{1,2})?" className={field} value={b.marks} onChange={(e) => setBit(i, { marks: e.target.value })} />
-            <input aria-label={`Answer for bit ${letter(i)}`} placeholder="Answer, for the key" className={`${field} col-span-3 col-start-2 sm:col-span-1 sm:col-start-auto`} value={b.answer ?? ''} onChange={(e) => setBit(i, { answer: e.target.value })} />
-            <button type="button" className={`${icon} row-start-1 col-start-4 sm:col-start-auto`} aria-label={`Remove bit ${letter(i)}`} onClick={() => setBits(bits.filter((_, j) => j !== i))}>
-              ×
-            </button>
-          </div>
-        ))}
-        <button type="button" className={button} disabled={bits.length >= 12} onClick={() => setBits([...bits, { text: '', marks: '', answer: '' }])}>
+      <fieldset className="space-y-1.5">
+        <legend className="text-xs font-semibold">{split ? 'Bits. Each is the same type as the question unless you change it.' : 'Bits, when the question has parts (a), (b), (c)'}</legend>
+        {bits.map((b, i) => {
+          const kind = typeOf(b)
+          const opts = b.options ?? []
+          return (
+            <div key={i} className="space-y-1.5 rounded-lg border border-line bg-white p-2">
+              <div className="grid grid-cols-[1.5rem_1fr_4.5rem_auto] items-start gap-1.5">
+                <span className="pt-1.5 text-sm font-semibold text-muted">({letter(i)})</span>
+                <input required aria-label={`Bit ${letter(i)}`} placeholder="The question" maxLength={2000} className={field} value={b.text} onChange={(e) => setBit(i, { text: e.target.value })} />
+                <input required aria-label={`Marks for bit ${letter(i)}`} placeholder="Marks" inputMode="decimal" pattern="\d{1,4}(\.\d{1,2})?" className={field} value={b.marks} onChange={(e) => setBit(i, { marks: e.target.value })} />
+                <button type="button" className={icon} aria-label={`Remove bit ${letter(i)}`} onClick={() => setBits(bits.filter((_, j) => j !== i))}>
+                  ×
+                </button>
+              </div>
+              {lists(kind) && (
+                <div className="flex flex-wrap gap-1.5 pl-[1.875rem]">
+                  {[...opts, ''].slice(0, 12).map((o, k) => (
+                    <input
+                      key={k}
+                      aria-label={`${isMatch(kind) ? 'Pair' : 'Option'} ${k + 1} of bit ${letter(i)}`}
+                      placeholder={isMatch(kind) ? 'Delhi = India' : `Option ${k + 1}`}
+                      className={`${field} min-w-28 flex-1 sm:max-w-56`}
+                      value={o}
+                      onChange={(e) => {
+                        const next = [...opts]
+                        next[k] = e.target.value
+                        setBit(i, { options: next.filter((x, j) => x.trim() || j < next.length - 1) })
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1.5 pl-[1.875rem]">
+                <select aria-label={`Type of bit ${letter(i)}`} className={`${field} ${kind !== q.qtype ? 'font-semibold text-brand' : 'text-muted'}`} value={kind} onChange={(e) => setBit(i, { qtype: e.target.value === q.qtype ? '' : e.target.value })}>
+                  {[...new Set([...types, kind])].map((x) => (
+                    <option key={x}>{x}</option>
+                  ))}
+                </select>
+                <input aria-label={`Answer for bit ${letter(i)}`} placeholder="Answer, for the key" className={`${field} min-w-28 flex-1`} value={b.answer ?? ''} onChange={(e) => setBit(i, { answer: e.target.value })} />
+              </div>
+            </div>
+          )
+        })}
+        <button type="button" className={button} disabled={bits.length >= 12} onClick={addBit}>
           Add a bit
         </button>
       </fieldset>
+      {ticks && (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-1.5 text-xs font-semibold">
+            Options print
+            <select aria-label="Options print" className={field} value={q.optionCols ?? 0} onChange={(e) => setQ({ ...q, optionCols: Number(e.target.value) })}>
+              <option value={0}>fitted by their length</option>
+              <option value={1}>one under another</option>
+              <option value={2}>in 2 columns</option>
+              <option value={3}>in 3 columns</option>
+              <option value={4}>in 4 columns</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <input type="checkbox" checked={q.optionBoxes ?? true} onChange={(e) => setQ({ ...q, optionBoxes: e.target.checked })} />
+            A box to tick beside each
+          </label>
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-xs font-semibold">
           Room to answer, when printed with space

@@ -4055,7 +4055,13 @@ type QuestionStatus string
 type QuestionBit struct {
 	Answer string `json:"answer,omitempty"`
 	Marks  string `json:"marks"`
-	Text   string `json:"text"`
+
+	// Options A choice bit's options, or a matching bit's pairs.
+	Options []string `json:"options,omitempty"`
+
+	// Qtype The bit's own type; empty when it is the question's.
+	Qtype string `json:"qtype,omitempty"`
+	Text  string `json:"text"`
 }
 
 // QuestionDraftRequest defines model for QuestionDraftRequest.
