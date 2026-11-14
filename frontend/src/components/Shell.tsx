@@ -13,6 +13,8 @@ import { PreviewBanner, Switcher } from './Switcher'
 
 const AUTH_PAGES = ['/sign-in', '/sign-up', '/sso-callback']
 const COLLAPSE_KEY = 'revu-sidebar-collapsed'
+/** Tailwind's page-wide container sizes (max-w-5xl, 6xl, 7xl), uncapped. Narrower ones, for reading, stay. */
+const FULL_WIDTH = { '--container-5xl': '100%', '--container-6xl': '100%', '--container-7xl': '100%' } as React.CSSProperties
 /** Below this the menu is an overlay with a slim top bar, as in schedU. */
 const OVERLAY_BELOW = 900
 
@@ -291,7 +293,8 @@ export function Shell() {
             <BrandLockup />
           </div>
         )}
-        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto outline-none">
+        {/* With the menu collapsed, a page takes the room it gave up: the page-wide containers lose their cap. */}
+        <main id="main" tabIndex={-1} className="flex-1 overflow-y-auto outline-none" style={wide ? undefined : FULL_WIDTH}>
           <PreviewBanner />
           <StepBar ms={ms} path={path} />
           <Outlet />
