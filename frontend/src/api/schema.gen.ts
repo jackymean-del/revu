@@ -4509,7 +4509,7 @@ export interface components {
             }[];
         };
         MarksBy: {
-            /** @description questions, sections or total; empty while no set is final. */
+            /** @description questions, bits, sections or total; empty while no set is final. */
             marksBy: string;
             /** @description A mark has been entered, so this is fixed. */
             marked: boolean;
@@ -4518,7 +4518,7 @@ export interface components {
         };
         MarksByChange: {
             /** @enum {string} */
-            marksBy: "questions" | "sections" | "total";
+            marksBy: "questions" | "bits" | "sections" | "total";
         };
         PaperCreate: {
             /** @description Start with one empty section and no blueprint. */

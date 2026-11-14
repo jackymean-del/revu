@@ -99,19 +99,22 @@ export function Marks() {
   )
 }
 
-const BY: Record<string, string> = { questions: 'question by question', sections: `${PAPER.section} by ${PAPER.section}`, total: 'as one total' }
+const BY: Record<string, string> = { questions: 'question by question', bits: 'bit by bit, where a question has bits', sections: `${PAPER.section} by ${PAPER.section}`, total: 'as one total' }
 
 /**
  * How marks are entered for an assessment with a final paper: a mark for
- * each question, for each section of the paper, or the total only. An
+ * each question, for each bit of a question, for each section of the
+ * paper, or the total only. An
  * administrator chooses, and only until the first mark is entered; the
  * holistic report is as detailed as this.
  */
+type By = Parameters<typeof putMarksBy>[2]
+
 function MarksByChoice({ orgId, assessmentId, onChange }: { orgId: string; assessmentId: string; onChange: (marksBy: string) => void }) {
   const qc = useQueryClient()
   const by = useQuery({ queryKey: ['marks-by', orgId, assessmentId], queryFn: ({ signal }) => getMarksBy(orgId, assessmentId, signal), retry: false })
   const change = useMutation({
-    mutationFn: (v: 'questions' | 'sections' | 'total') => putMarksBy(orgId, assessmentId, v),
+    mutationFn: (v: By) => putMarksBy(orgId, assessmentId, v),
     onSuccess: (v) => {
       qc.setQueryData(['marks-by', orgId, assessmentId], v)
       void qc.invalidateQueries({ queryKey: ['assessments', orgId] })
@@ -127,7 +130,7 @@ function MarksByChoice({ orgId, assessmentId, onChange }: { orgId: string; asses
       {v.mayChange ? (
         <label className="flex items-center gap-2 font-semibold">
           Marks are entered
-          <select className="rounded-md border border-line bg-white px-2 py-1 font-normal" value={v.marksBy} disabled={change.isPending} onChange={(e) => change.mutate(e.target.value as 'questions' | 'sections' | 'total')}>
+          <select className="rounded-md border border-line bg-white px-2 py-1 font-normal" value={v.marksBy} disabled={change.isPending} onChange={(e) => change.mutate(e.target.value as By)}>
             {Object.entries(BY).map(([k, label]) => (
               <option key={k} value={k}>
                 {label}

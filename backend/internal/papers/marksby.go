@@ -16,8 +16,8 @@ import (
 )
 
 // A paper always gives each question its marks. How those marks are then
-// entered for an assessment (one a question, one a section, or the total
-// only) is the administrator's choice on Evaluate exam, made before any
+// entered for an assessment (one a question, one a bit, one a section, or
+// the total only) is the administrator's choice on Evaluate exam, made before any
 // mark is entered; until they choose, it is one a question.
 
 // partName names the part marks are entered in for a section: its title,
@@ -25,8 +25,9 @@ import (
 const partName = `CASE WHEN ps.id IS NULL THEN s.title ELSE left(ps.title || ': ' || s.title, 80) END`
 
 // layParts sets the parts an assessment's marks are entered in from a final
-// paper: one a question, one a section (a sub-section holding questions is
-// a part of its own), or one total. Only core sections count.
+// paper: one a question, one a bit (a question with no bits is still one
+// part), one a section (a sub-section holding questions is a part of its
+// own), or one total. Only core sections count.
 func layParts(ctx context.Context, tx pgx.Tx, orgID, assessmentID, paperID, marksBy string) error {
 	if _, err := tx.Exec(ctx, `DELETE FROM part_tags WHERE part_id IN (SELECT id FROM assessment_parts WHERE assessment_id = $1::uuid) AND paper_id IS NOT NULL`, assessmentID); err != nil {
 		return err
@@ -44,6 +45,14 @@ func layParts(ctx context.Context, tx pgx.Tx, orgID, assessmentID, paperID, mark
 	parts := `SELECT $1, $3::uuid, i.seq, 'Q' || i.seq, i.marks FROM paper_items i JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
 		 WHERE i.paper_id = $2::uuid ORDER BY i.seq`
 	switch marksBy {
+	case "bits":
+		parts = `SELECT $1, $3::uuid, (row_number() OVER (ORDER BY x.seq, x.ord))::int, x.name, x.marks FROM (
+			SELECT i.seq, coalesce(b.ord, 0) AS ord, 'Q' || i.seq || CASE WHEN b.ord IS NULL THEN '' ELSE '(' || chr(96 + b.ord::int) || ')' END AS name,
+			       CASE WHEN b.ord IS NULL THEN i.marks ELSE (b.bit->>'marks')::numeric END AS marks
+			  FROM paper_items i JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
+			  LEFT JOIN questions q ON q.id = i.question_id
+			  LEFT JOIN LATERAL jsonb_array_elements(coalesce(q.bits, '[]'::jsonb)) WITH ORDINALITY AS b(bit, ord) ON true
+			 WHERE i.paper_id = $2::uuid) x WHERE x.marks > 0`
 	case "sections":
 		parts = `SELECT $1, $3::uuid, s.seq, ` + partName + `, sum(i.marks) FROM paper_items i JOIN paper_sections s ON s.id = i.section_id AND s.kind = 'core'
 		 LEFT JOIN paper_sections ps ON ps.id = s.parent_id
@@ -57,11 +66,12 @@ func layParts(ctx context.Context, tx pgx.Tx, orgID, assessmentID, paperID, mark
 }
 
 // tagParts gives each question's learning outcome to the part its marks are
-// entered in, for those who sit this set: its own part, its section's, or
-// the total.
+// entered in, for those who sit this set: its own part, each of its bits',
+// its section's, or the total.
 func tagParts(ctx context.Context, tx pgx.Tx, orgID, assessmentID, paperID, marksBy string) error {
 	match := map[string]string{
 		"questions": `ap.seq = i.seq AND ap.max_marks = i.marks AND ap.name = 'Q' || i.seq`,
+		"bits":      `(ap.name = 'Q' || i.seq OR ap.name LIKE 'Q' || i.seq || '(%')`,
 		"sections":  `ap.seq = s.seq AND ap.name = ` + partName,
 		"total":     `ap.name = 'Total'`,
 	}[marksBy]
@@ -84,7 +94,7 @@ func tagParts(ctx context.Context, tx pgx.Tx, orgID, assessmentID, paperID, mark
 // MarksBy is how an assessment's marks are entered, and whether that can
 // still be changed, and by this person.
 type MarksBy struct {
-	MarksBy   string `json:"marksBy"`   // questions, sections or total; empty with no final paper
+	MarksBy   string `json:"marksBy"`   // questions, bits, sections or total; empty with no final paper
 	Marked    bool   `json:"marked"`    // a mark has been entered: it is fixed
 	MayChange bool   `json:"mayChange"` // an administrator, with a final paper and no mark yet
 }
@@ -148,8 +158,8 @@ func putMarksBy(c fiber.Ctx) error {
 	if err := httpx.Decode(c, &in); err != nil {
 		return err
 	}
-	if !slices.Contains([]string{"questions", "sections", "total"}, in.MarksBy) {
-		return problem.Invalid(api.FieldError{Field: "marksBy", Code: "unknown", Message: "Marks are entered by question, by section, or as one total."})
+	if !slices.Contains([]string{"questions", "bits", "sections", "total"}, in.MarksBy) {
+		return problem.Invalid(api.FieldError{Field: "marksBy", Code: "unknown", Message: "Marks are entered by question, by bit, by section, or as one total."})
 	}
 	was, finals, err := loadMarksBy(c, tx, a.id)
 	if err != nil {

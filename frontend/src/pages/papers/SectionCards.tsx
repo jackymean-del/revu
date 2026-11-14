@@ -57,7 +57,8 @@ interface Board {
 /**
  * The paper at every level: sections, the sub-sections in them, questions,
  * and a question's bits. As cards, a section shows its name, whether it is
- * core or extra and whether it prints; opened, it is where it is named and
+ * core or extra and whether it prints, with its sub-sections as cards inside
+ * it; a card's questions show only once it is opened, where it is named and
  * its questions are typed, picked from the bank, changed, ordered and
  * removed. Everything moves by drag and drop, or by the up and down
  * buttons. The outline shows the whole paper as a tree and goes straight to
@@ -65,7 +66,7 @@ interface Board {
  */
 export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; paper: Paper; bank: Question[]; onChange: (p: Paper) => void }) {
   const draft = paper.status === 'draft'
-  const [open, setOpen] = useState<Set<string>>(() => new Set(paper.sections.slice(0, 1).map((s) => s.id)))
+  const [open, setOpen] = useState<Set<string>>(() => new Set(paper.sections.slice(0, 1).flatMap((s) => (paper.sections.some((x) => x.parentId === s.id) ? [] : [s.id]))))
   const [view, setView] = useState<View>('cards')
   const [editing, setEditing] = useState('')
   const [drag, setDrag] = useState<Drag>(null)
@@ -220,9 +221,9 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
         )}
       </header>
 
-      {open && (
+      {(open || subs.length > 0) && (
         <div className="space-y-3 border-t border-line px-3 py-3">
-          {draft && (
+          {open && draft && (
             <div className="flex flex-wrap gap-2">
               <label className="flex min-w-36 flex-1 flex-col gap-1 text-xs font-semibold">
                 {sub ? `Sub-${PAPER.section}` : PAPER.Section} name
@@ -248,7 +249,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
           )}
           {err && <Problem error={err} />}
 
-          {items.length === 0 ? (
+          {!open ? null : items.length === 0 ? (
             subs.length === 0 && <p className="rounded-lg bg-canvas px-3 py-2 text-sm text-muted">No questions here yet.</p>
           ) : (
             <ol className="divide-y divide-line rounded-xl border border-line">
@@ -345,7 +346,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
             <SectionCard key={s.id} board={board} section={s} />
           ))}
 
-          {draft && adding === '' && (
+          {open && draft && adding === '' && (
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className={primary} onClick={() => setAdding('type')}>
                 Type a question
@@ -370,8 +371,8 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
               </button>
             </div>
           )}
-          {adding === 'type' && <QuestionForm orgId={orgId} paper={paper} sectionId={section.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setAdding(''))} />}
-          {adding === 'bank' && <FromBank orgId={orgId} paper={paper} sectionId={section.id} bank={bank.filter((q) => q.status === 'approved' && !inPaper.has(q.id))} onChange={onChange} onClose={() => setAdding('')} />}
+          {open && adding === 'type' && <QuestionForm orgId={orgId} paper={paper} sectionId={section.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setAdding(''))} />}
+          {open && adding === 'bank' && <FromBank orgId={orgId} paper={paper} sectionId={section.id} bank={bank.filter((q) => q.status === 'approved' && !inPaper.has(q.id))} onChange={onChange} onClose={() => setAdding('')} />}
         </div>
       )}
     </section>

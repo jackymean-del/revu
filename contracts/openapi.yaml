@@ -8110,7 +8110,7 @@ components:
       properties:
         marksBy:
           type: string
-          description: questions, sections or total; empty while no set is final.
+          description: questions, bits, sections or total; empty while no set is final.
         marked:
           type: boolean
           description: A mark has been entered, so this is fixed.
@@ -8123,7 +8123,7 @@ components:
       properties:
         marksBy:
           type: string
-          enum: [questions, sections, total]
+          enum: [questions, bits, sections, total]
     PaperCreate:
       type: object
       properties:

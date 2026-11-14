@@ -598,6 +598,12 @@ func TestPaperHierarchy(t *testing.T) {
 
 	// Marks by section: a sub-section holding questions is a part of its own.
 	admin.json(200, "POST", base+"/finalise", nil, &p)
+	// Marks by bit: a part for each bit, and one for a question with none.
+	admin.json(200, "PUT", "/v1/assessments/"+exam+"/marks-by", map[string]string{"marksBy": "bits"}, nil)
+	if got := one(`SELECT string_agg(name || '=' || max_marks::text, ', ' ORDER BY seq) || ' tags ' || (SELECT count(*) FROM part_tags WHERE paper_id = $2)
+		FROM assessment_parts WHERE assessment_id = $1 AND deleted_at IS NULL`, exam, p.ID); got != "Q1=4.00, Q2=1.00, Q3=2.00, Q4(a)=2.00, Q4(b)=3.00 tags 5" {
+		t.Fatalf("parts by bit: %s", got)
+	}
 	admin.json(200, "PUT", "/v1/assessments/"+exam+"/marks-by", map[string]string{"marksBy": "sections"}, nil)
 	rows, err := owner.Query(ctx, `SELECT name || '=' || max_marks::text FROM assessment_parts WHERE assessment_id = $1 AND deleted_at IS NULL ORDER BY seq`, exam)
 	if err != nil {

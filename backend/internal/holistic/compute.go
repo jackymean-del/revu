@@ -118,7 +118,7 @@ func read(ctx context.Context, tx pgx.Tx, cl *Class) (facts, error) {
 	// How fine the tagged marks are: by question only when every tagged
 	// assessment is; total when none is finer.
 	b.Queue(`
-		SELECT coalesce(bool_and(coalesce(a.marks_by, 'sections') = 'questions'), false), coalesce(bool_and(a.marks_by = 'total'), false)
+		SELECT coalesce(bool_and(coalesce(a.marks_by, 'sections') IN ('questions', 'bits')), false), coalesce(bool_and(a.marks_by = 'total'), false)
 		  FROM assessments a
 		 WHERE a.period_id = $2::uuid AND a.deleted_at IS NULL AND a.level_id = (SELECT level_id FROM sections WHERE id = $1::uuid)
 		   AND EXISTS (SELECT 1 FROM assessment_parts p JOIN part_tags t ON t.part_id = p.id WHERE p.assessment_id = a.id AND p.deleted_at IS NULL)`, sid, pid).

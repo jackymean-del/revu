@@ -740,6 +740,7 @@ func (e LevelSubjectApplicability) Valid() bool {
 
 // Defines values for MarksByChangeMarksBy.
 const (
+	MarksByChangeMarksByBits      MarksByChangeMarksBy = "bits"
 	MarksByChangeMarksByQuestions MarksByChangeMarksBy = "questions"
 	MarksByChangeMarksBySections  MarksByChangeMarksBy = "sections"
 	MarksByChangeMarksByTotal     MarksByChangeMarksBy = "total"
@@ -748,6 +749,8 @@ const (
 // Valid indicates whether the value is a known member of the MarksByChangeMarksBy enum.
 func (e MarksByChangeMarksBy) Valid() bool {
 	switch e {
+	case MarksByChangeMarksByBits:
+		return true
 	case MarksByChangeMarksByQuestions:
 		return true
 	case MarksByChangeMarksBySections:
@@ -3536,7 +3539,7 @@ type MarksBy struct {
 	// Marked A mark has been entered, so this is fixed.
 	Marked bool `json:"marked"`
 
-	// MarksBy questions, sections or total; empty while no set is final.
+	// MarksBy questions, bits, sections or total; empty while no set is final.
 	MarksBy string `json:"marksBy"`
 
 	// MayChange An administrator, with a final set and no mark yet.
