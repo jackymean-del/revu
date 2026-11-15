@@ -48,6 +48,8 @@ const setup = createRoute({
 const people = createRoute({
   getParentRoute: () => root,
   path: '/people',
+  // ?q= opens the list narrowed to a name or admission number.
+  validateSearch: (s: Record<string, unknown>): { q?: string } => (typeof s.q === 'string' ? { q: s.q } : {}),
   component: lazyRouteComponent(() => import('./pages/People'), 'People'),
 })
 const choices = createRoute({

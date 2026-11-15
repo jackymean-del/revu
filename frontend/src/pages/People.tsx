@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { listStructure, type Branch, type Staff } from '../api/client'
 import { EditableList } from '../components/EditableList'
@@ -18,6 +19,8 @@ export function People() {
   const orgId = current?.id
   const canEdit = !!current?.roles.includes('admin')
   const [tab, setTab] = useState<Tab>('students')
+  // ?q= comes from the search box: the student chosen there.
+  const find = useSearch({ strict: false, select: (s: { q?: unknown }) => (typeof s.q === 'string' ? s.q : '') })
   const staff = useQuery({ queryKey: ['structure', orgId, 'staff', {}], queryFn: ({ signal }) => listStructure<Staff>(orgId!, 'staff', {}, signal), enabled: !!orgId && tab === 'members' }).data ?? []
   const branches = useQuery({ queryKey: ['structure', orgId, 'branches', {}], queryFn: ({ signal }) => listStructure<Branch>(orgId!, 'branches', {}, signal), enabled: !!orgId && tab === 'members' }).data ?? []
 
@@ -58,7 +61,7 @@ export function People() {
         ))}
       </div>
       <div role="tabpanel" className="mt-6">
-        {tab === 'students' && <Students orgId={orgId} canEdit={canEdit} />}
+        {tab === 'students' && <Students key={find} orgId={orgId} canEdit={canEdit} find={find} />}
         {tab === 'staff' && (
           <EditableList
             orgId={orgId}

@@ -100,3 +100,26 @@ test('on a phone the menu is a drawer behind a button', async ({ page }) => {
   await expect(page).toHaveURL(/\/results$/)
   await expect(menu).not.toBeInViewport()
 })
+
+test('Ctrl+K finds a page, an assessment or a name, and goes there', async ({ page }) => {
+  fakeApi(page, ['admin'])
+  void page.route(/\/v1\/students\?/, (r) =>
+    r.fulfill({ json: { items: [{ id: 'st1', admissionNo: 'HV-0007', name: 'Asha Rao', status: 'active' }], nextCursor: '' } }),
+  )
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible()
+  await page.keyboard.press('Control+k')
+  const box = page.getByRole('dialog', { name: 'Search' })
+  await box.getByRole('combobox').fill('marks')
+  await expect(box.getByRole('option').first()).toContainText('Evaluate exam')
+  await box.getByRole('combobox').fill('math unit')
+  await expect(box.getByRole('option').first()).toContainText('Mathematics, Unit test 1')
+  await box.getByRole('combobox').press('Enter')
+  await expect(page).toHaveURL(/\/marks\?a=ut1%2Fsec-6a/)
+  await expect(box).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Search' }).click()
+  await box.getByRole('combobox').fill('asha')
+  await box.getByRole('option', { name: /Asha Rao/ }).click()
+  await expect(page).toHaveURL(/\/people\?q=HV-0007/)
+})

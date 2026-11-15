@@ -65,10 +65,10 @@ export function Papers() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-8">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight">Create question paper</h1>
-        <p className="mt-1 max-w-3xl text-muted">
+        <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Create question paper</h1>
+        <p className="mt-1 hidden max-w-3xl text-muted sm:block">
           Build the paper freely, or plan the marks in a blueprint first and lay the paper out from it. Every question can carry its lesson, learning outcome and Bloom level, so
           marks entered for it feed the holistic report.
         </p>
@@ -85,19 +85,19 @@ export function Papers() {
         <>
           <AssessmentSelect choices={choices} value={id} onChange={(id) => void navigate({ search: { a: id, tab } })} />
 
-          <nav aria-label="Paper steps" className="grid gap-2 sm:grid-cols-3">
+          <nav aria-label="Paper steps" className="grid grid-cols-3 gap-2">
             {steps.map((s, i) => (
               <button
                 key={s.key}
                 type="button"
                 aria-current={tab === s.key ? 'step' : undefined}
                 onClick={() => open(s.key)}
-                className={`flex items-start gap-3 rounded-xl border p-3 text-left ${tab === s.key ? 'border-brand bg-mist' : 'border-line bg-white hover:bg-canvas'}`}
+                className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center sm:flex-row sm:items-start sm:gap-3 sm:p-3 sm:text-left ${tab === s.key ? 'border-brand bg-mist' : 'border-line bg-white hover:bg-canvas'}`}
               >
                 <span className={`grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold ${tab === s.key ? 'bg-brand text-white' : 'bg-canvas text-muted'}`}>{i + 1}</span>
                 <span className="min-w-0">
-                  <span className="block font-bold">{s.label}</span>
-                  <span className="block truncate text-xs text-muted">{s.fact}</span>
+                  <span className="block text-sm font-bold sm:text-base">{s.label}</span>
+                  <span className="hidden truncate text-xs text-muted sm:block">{s.fact}</span>
                 </span>
               </button>
             ))}

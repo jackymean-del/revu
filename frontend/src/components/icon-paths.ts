@@ -22,6 +22,7 @@ export const PATHS = {
   up: 'M12 20V5M6 11l6-6 6 6',
   check: 'M5 12.5l4.5 4.5L19 7.5',
   lock: 'M6 11h12v10H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3',
+  search: 'M11 4a7 7 0 1 0 0 14a7 7 0 0 0 0-14zM20 20l-3.9-3.9',
 } as const
 
 export type IconName = keyof typeof PATHS

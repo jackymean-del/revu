@@ -9,6 +9,7 @@ import { Account } from './Account'
 import { BrandLockup } from './BrandLockup'
 import { Icon } from './Icon'
 import type { IconName } from './icon-paths'
+import { Search, type Place } from './Search'
 import { PreviewBanner, Switcher } from './Switcher'
 
 const AUTH_PAGES = ['/sign-in', '/sign-up', '/sso-callback']
@@ -148,6 +149,16 @@ export function Shell() {
   const t = useT()
   const ms = modules(t)
   const sections = useSections(ms)
+  // Everything the search box can jump to: the menu, and each step's pages.
+  const roles = useOrg().current?.roles ?? []
+  const places: Place[] = []
+  for (const x of [...sections.flatMap((s) => s.items.filter((i) => i.to && !i.soon).map((i) => ({ to: i.to, label: i.label }))), ...ms.flatMap((m) => visiblePages(m, roles).map((pg) => ({ to: pg.to, label: pg.label, hint: m.title })))])
+  {
+    // A page the menu names one way and its step another is found by both.
+    const same = places.find((y) => y.to === x.to)
+    if (!same) places.push(x)
+    else if (same.label !== x.label) same.hint = [same.hint, x.label].filter(Boolean).join(' · ')
+  }
   const path = useRouterState({ select: (s) => s.location.pathname })
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < OVERLAY_BELOW)
   const [open, setOpen] = useState(() => {
@@ -223,6 +234,12 @@ export function Shell() {
             <Switcher align="left" />
           </div>
         )}
+        {/* On a phone the search sits in the top bar instead, in reach without opening the menu. */}
+        {!narrow && (
+          <div className={`shrink-0 pt-2 ${wide ? 'px-2' : 'flex justify-center'}`}>
+            <Search pages={places} compact={!wide} />
+          </div>
+        )}
 
         <nav aria-label="Main" className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-2">
           {sections.map((s, si) => (
@@ -291,6 +308,8 @@ export function Shell() {
               <Icon name="menu" size={19} />
             </button>
             <BrandLockup />
+            <span className="flex-1" />
+            <Search pages={places} compact />
           </div>
         )}
         {/* With the menu collapsed, a page takes the room it gave up: the page-wide containers lose their cap. */}

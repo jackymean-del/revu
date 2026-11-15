@@ -160,10 +160,11 @@ function StudentPanel({ orgId, student, canEdit, onClose }: { orgId: string; stu
 }
 
 /** Students: search, filter by section, page through, add, and open one to edit. */
-export function Students({ orgId, canEdit }: { orgId: string; canEdit: boolean }) {
+export function Students({ orgId, canEdit, find = '' }: { orgId: string; canEdit: boolean; find?: string }) {
   const t = useT()
   const names = useSectionNames(orgId)
-  const [q, setQ] = useState('')
+  // Arriving from the search box, the list starts narrowed to who was chosen.
+  const [q, setQ] = useState(find)
   const [sectionId, setSection] = useState('')
   const [showRemoved, setShowRemoved] = useState(false)
   const [open, setOpen] = useState<Student | null>(null)

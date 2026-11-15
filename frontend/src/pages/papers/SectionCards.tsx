@@ -265,7 +265,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                     setDrag(null)
                   }}
                 >
-                  <div className="flex items-start gap-2">
+                  <div className="flex flex-wrap items-start gap-2">
                     {draft && (
                       <span aria-hidden="true" className="cursor-grab select-none pt-0.5 text-muted" title="Drag to move this question">
                         ⠿
@@ -299,7 +299,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                       </p>
                     </div>
                     {draft && (
-                      <span className="flex shrink-0 gap-1">
+                      <span className="flex shrink-0 gap-1 max-sm:w-full max-sm:justify-end">
                         {it.question ? (
                           <button type="button" className={button} aria-label={`Edit question ${it.seq}`} aria-expanded={editing === it.id} onClick={() => setEditing(editing === it.id ? '' : it.id)}>
                             Edit
