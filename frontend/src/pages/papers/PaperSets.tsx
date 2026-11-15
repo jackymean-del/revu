@@ -21,7 +21,7 @@ const stage = (s: PaperSummary) => (s.status === 'final' ? 'final' : s.status ==
  * copy it as the next set and rewrite that. Only an administrator prints,
  * and only a final set. What each person may do comes with the set.
  */
-export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus, place }: {
+export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus, place, first = '' }: {
   orgId: string
   assessmentId: string
   blueprint: Blueprint
@@ -29,10 +29,11 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus
   bank: Question[]
   syllabus: Syllabus
   place: { levelId: string; subjectId: string }
+  first?: string // the set to open, as a link from Home names it
 }) {
   const qc = useQueryClient()
   const settings = usePaperSettings(orgId)
-  const [pick, setPick] = useState('')
+  const [pick, setPick] = useState(first)
   const [fill, setFill] = useState(true)
   const [name, setName] = useState('')
   const [note, setNote] = useState<string | null>(null)
@@ -47,6 +48,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus
     void qc.invalidateQueries({ queryKey: ['papers', orgId, assessmentId] })
     void qc.invalidateQueries({ queryKey: ['questions', orgId] })
     void qc.invalidateQueries({ queryKey: ['setup', orgId] })
+    void qc.invalidateQueries({ queryKey: ['waiting', orgId] })
     void qc.invalidateQueries({ queryKey: ['paper-html', orgId, p.id] })
     setPick(p.id)
     setName('')

@@ -69,7 +69,8 @@ const papersPage = createRoute({
   getParentRoute: () => root,
   path: '/papers',
   // ?a=assessment&tab=blueprint|questions|sets opens that step.
-  validateSearch: (s: Record<string, unknown>): { a?: string; tab?: PaperTab } => ({
+  validateSearch: (s: Record<string, unknown>): { a?: string; tab?: PaperTab; set?: string } => ({
+    ...(typeof s.set === 'string' ? { set: s.set } : {}),
     ...(typeof s.a === 'string' ? { a: s.a } : {}),
     // questions was a step of its own; it now opens the paper.
     ...(s.tab === 'blueprint' ? { tab: 'blueprint' as const } : s.tab === 'sets' || s.tab === 'questions' ? { tab: 'sets' as const } : {}),

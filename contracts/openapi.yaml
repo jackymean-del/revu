@@ -4054,6 +4054,24 @@ paths:
                 type: string
         default:
           $ref: "#/components/responses/Problem"
+  /v1/waiting:
+    get:
+      operationId: listWaiting
+      summary: What waits on the person asking, newest first. Blueprints and sets to approve for those who approve them, and what was sent back to a teacher.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: Up to 50 things, each with where to go.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Waiting"
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/paper-settings:
     get:
       operationId: getPaperSettings
@@ -8250,6 +8268,24 @@ components:
           type: string
           maxLength: 30
           description: The set's name; the next of the institution's set names when empty.
+    Waiting:
+      type: object
+      required: [kind, title, detail, href, since]
+      properties:
+        kind:
+          type: string
+          enum: [blueprint_to_approve, blueprint_returned, set_to_approve, set_returned]
+        title:
+          type: string
+        detail:
+          type: string
+          description: The assessment, and any note left with it.
+        href:
+          type: string
+          description: Where in the app to deal with it.
+        since:
+          type: string
+          description: When it started waiting, RFC 3339; empty when unknown.
     PaperSettings:
       type: object
       required: [setNames, custom]

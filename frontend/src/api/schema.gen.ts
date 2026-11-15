@@ -2374,6 +2374,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/waiting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What waits on the person asking, newest first. Blueprints and sets to approve for those who approve them, and what was sent back to a teacher. */
+        get: operations["listWaiting"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/paper-settings": {
         parameters: {
             query?: never;
@@ -4601,6 +4618,17 @@ export interface components {
             fill?: boolean;
             /** @description The set's name; the next of the institution's set names when empty. */
             name?: string;
+        };
+        Waiting: {
+            /** @enum {string} */
+            kind: "blueprint_to_approve" | "blueprint_returned" | "set_to_approve" | "set_returned";
+            title: string;
+            /** @description The assessment, and any note left with it. */
+            detail: string;
+            /** @description Where in the app to deal with it. */
+            href: string;
+            /** @description When it started waiting, RFC 3339; empty when unknown. */
+            since: string;
         };
         PaperSettings: {
             /** @description The roles that, with administrators, see a submitted set, change it and approve it. Left out, it stays as it is. */
@@ -10131,6 +10159,30 @@ export interface operations {
                 };
                 content: {
                     "text/html": string;
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listWaiting: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 50 things, each with where to go. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Waiting"][];
                 };
             };
             default: components["responses"]["Problem"];

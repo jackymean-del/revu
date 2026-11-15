@@ -2346,6 +2346,30 @@ func (e ValueState) Valid() bool {
 	}
 }
 
+// Defines values for WaitingKind.
+const (
+	BlueprintReturned  WaitingKind = "blueprint_returned"
+	BlueprintToApprove WaitingKind = "blueprint_to_approve"
+	SetReturned        WaitingKind = "set_returned"
+	SetToApprove       WaitingKind = "set_to_approve"
+)
+
+// Valid indicates whether the value is a known member of the WaitingKind enum.
+func (e WaitingKind) Valid() bool {
+	switch e {
+	case BlueprintReturned:
+		return true
+	case BlueprintToApprove:
+		return true
+	case SetReturned:
+		return true
+	case SetToApprove:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ImportSubjectChoicesMultipartBodyApply.
 const (
 	ImportSubjectChoicesMultipartBodyApplyFalse ImportSubjectChoicesMultipartBodyApply = "false"
@@ -5270,6 +5294,23 @@ type UndoResult struct {
 // ValueState A blank is pending and never zero. Only scored carries a value (decision D16).
 type ValueState string
 
+// Waiting defines model for Waiting.
+type Waiting struct {
+	// Detail The assessment, and any note left with it.
+	Detail string `json:"detail"`
+
+	// Href Where in the app to deal with it.
+	Href string      `json:"href"`
+	Kind WaitingKind `json:"kind"`
+
+	// Since When it started waiting, RFC 3339; empty when unknown.
+	Since string `json:"since"`
+	Title string `json:"title"`
+}
+
+// WaitingKind defines model for Waiting.Kind.
+type WaitingKind string
+
 // Year defines model for Year.
 type Year struct {
 	EndsOn string `json:"endsOn"`
@@ -6716,6 +6757,12 @@ type GetTerminologyParams struct {
 
 // PutTerminologyParams defines parameters for PutTerminology.
 type PutTerminologyParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListWaitingParams defines parameters for ListWaiting.
+type ListWaitingParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }

@@ -494,6 +494,8 @@ export async function getPaperHtml(orgId: string, id: string, key: boolean, spac
 export const draftQuestions = (orgId: string, body: components['schemas']['QuestionDraftRequest']) =>
   call<Question[]>('/v1/questions/draft', { orgId, method: 'POST', body })
 export type PaperSettings = components['schemas']['PaperSettings']
+export type Waiting = components['schemas']['Waiting']
+export const listWaiting = (orgId: string, signal?: AbortSignal) => call<Waiting[]>('/v1/waiting', { orgId, signal })
 export const getPaperSettings = (orgId: string, signal?: AbortSignal) => call<PaperSettings>('/v1/paper-settings', { orgId, signal })
 export const putPaperSettings = (orgId: string, body: PaperSettings) => call<PaperSettings>('/v1/paper-settings', { orgId, method: 'PUT', body })
 export type Enrolment = components['schemas']['Enrolment']

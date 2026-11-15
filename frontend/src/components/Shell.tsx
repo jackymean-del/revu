@@ -10,6 +10,7 @@ import { BrandLockup } from './BrandLockup'
 import { Icon } from './Icon'
 import type { IconName } from './icon-paths'
 import { Search, type Place } from './Search'
+import { useWaiting } from '../lib/waiting'
 import { PreviewBanner, Switcher } from './Switcher'
 
 const AUTH_PAGES = ['/sign-in', '/sign-up', '/sso-callback']
@@ -149,6 +150,7 @@ export function Shell() {
   const t = useT()
   const ms = modules(t)
   const sections = useSections(ms)
+  const waits = useWaiting().length
   // Everything the search box can jump to: the menu, and each step's pages.
   const roles = useOrg().current?.roles ?? []
   const places: Place[] = []
@@ -183,6 +185,7 @@ export function Shell() {
   const qc = useQueryClient()
   useEffect(() => {
     void qc.invalidateQueries({ queryKey: ['setup'] })
+    void qc.invalidateQueries({ queryKey: ['waiting'] })
   }, [path, qc])
 
   // Sign-in and sign-up draw their own page, with no menu around them.
@@ -283,6 +286,11 @@ export function Shell() {
                   >
                     <Icon name={item.icon} className="shrink-0" />
                     {wide && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+                    {item.to === '/' && waits > 0 && (
+                      <span className={`grid min-w-5 place-items-center rounded-full bg-amber-500 px-1 text-[11px] font-bold text-white ${wide ? '' : 'absolute -mt-6 ml-6'}`} aria-label={`${waits} waiting for you`}>
+                        {waits}
+                      </span>
+                    )}
                     {wide && item.n !== undefined && (
                       <span aria-hidden="true" className="text-[11px] font-bold tabular-nums text-subtle">
                         {item.n}

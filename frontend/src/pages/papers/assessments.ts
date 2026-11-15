@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { listAssessments, listStructure, type Assessment, type Subject, type TeachingAssignment } from '../../api/client'
+import { listAssessments, listStructure, type Assessment, type Period, type Subject, type TeachingAssignment, type Year } from '../../api/client'
 import { useOrg } from '../../lib/org-context'
 import { useSectionNames } from '../people/sections'
 
@@ -10,12 +10,16 @@ export interface Choice {
   sections: string
   level: string
   seq: number
+  year: string // the academic year's label
+  yearStart: string
+  term: string // the term or semester's name
+  termSeq: number
 }
 
 /**
  * The assessments this person works on papers for: all of them for those
- * who lead, otherwise those of the subjects they teach. Named as a person
- * reads them, the subject first.
+ * who lead, otherwise those of the subjects they teach, in the classes they
+ * teach them. Each carries its year, term, class and subject by name.
  */
 export function usePaperAssessments() {
   const { current, loading } = useOrg()
@@ -25,6 +29,8 @@ export function usePaperAssessments() {
   const approves = leads
   const names = useSectionNames(orgId)
   const assessments = useQuery({ queryKey: ['assessments', orgId], queryFn: ({ signal }) => listAssessments(orgId, {}, signal), enabled: !!orgId })
+  const years = useQuery({ queryKey: ['structure', orgId, 'years', {}], queryFn: ({ signal }) => listStructure<Year>(orgId, 'years', {}, signal), enabled: !!orgId }).data ?? []
+  const periods = useQuery({ queryKey: ['structure', orgId, 'periods', {}], queryFn: ({ signal }) => listStructure<Period>(orgId, 'periods', {}, signal), enabled: !!orgId }).data ?? []
   const subjects = useQuery({ queryKey: ['structure', orgId, 'subjects', {}], queryFn: ({ signal }) => listStructure<Subject>(orgId, 'subjects', {}, signal), enabled: !!orgId }).data ?? []
   const mine = useQuery({
     queryKey: ['structure', orgId, 'teaching-assignments', { staffId: current?.staffId }],
@@ -43,9 +49,22 @@ export function usePaperAssessments() {
       const subject = subjectName(a.subjectId)
       const sections = a.sectionIds.map(sectionName).join(', ')
       const lv = names.levels.find((l) => l.id === a.levelId)
-      return { a, subject, sections, label: `${subject}, ${a.title} · ${sections}`, level: lv?.name ?? '', seq: lv?.seq ?? 0 }
+      const yr = years.find((y) => y.id === a.yearId)
+      const pd = periods.find((x) => x.id === a.periodId)
+      return {
+        a,
+        subject,
+        sections,
+        label: `${subject}, ${a.title} · ${sections}`,
+        level: lv?.name ?? '',
+        seq: lv?.seq ?? 0,
+        year: yr?.label ?? '',
+        yearStart: yr?.startsOn ?? '',
+        term: pd?.name ?? '',
+        termSeq: pd?.seq ?? 0,
+      }
     })
-    // By class in its order, then subject and title, so a long list reads in groups.
-    .sort((x, y) => x.seq - y.seq || x.subject.localeCompare(y.subject) || x.a.title.localeCompare(y.a.title))
+    // Newest year first, then term, class, subject and title, so a long list reads in groups.
+    .sort((x, y) => y.yearStart.localeCompare(x.yearStart) || x.termSeq - y.termSeq || x.seq - y.seq || x.subject.localeCompare(y.subject) || x.a.title.localeCompare(y.a.title))
   return { orgId, loading, pending: assessments.isPending, choices, approves, sectionName, levelName: (id: string) => names.levels.find((l) => l.id === id)?.name ?? '' }
 }

@@ -730,8 +730,27 @@ func TestPaperReview(t *testing.T) {
 	if p.Status != "draft" || p.ReviewNote != "Add a map question." || len(p.Items) != 1 {
 		t.Fatalf("sent back: %s %q", p.Status, p.ReviewNote)
 	}
+	// What was sent back waits on the teacher, with its note; nothing waits on the moderator.
+	var waits []papers.Waiting
+	teacher.json(200, "GET", "/v1/waiting", nil, &waits)
+	if len(waits) != 1 || waits[0].Kind != "set_returned" || !strings.HasSuffix(waits[0].Detail, "Add a map question.") || waits[0].Href != "/papers?a="+exam+"&tab=sets&set="+p.ID {
+		t.Fatalf("waiting on the teacher: %+v", waits)
+	}
+	head.json(200, "GET", "/v1/waiting", nil, &waits)
+	if len(waits) != 0 {
+		t.Fatalf("waiting on the moderator after sending it back: %+v", waits)
+	}
 	teacher.json(409, "POST", base+"/return", nil, nil)
 	teacher.json(200, "POST", base+"/submit", nil, &p)
+	// Submitted again, it waits on the moderators, and no longer on the teacher.
+	head.json(200, "GET", "/v1/waiting", nil, &waits)
+	if len(waits) != 1 || waits[0].Kind != "set_to_approve" || waits[0].Title != "Approve Set A" || waits[0].Since == "" {
+		t.Fatalf("waiting on the moderator: %+v", waits)
+	}
+	teacher.json(200, "GET", "/v1/waiting", nil, &waits)
+	if len(waits) != 0 {
+		t.Fatalf("waiting on the teacher after submitting: %+v", waits)
+	}
 
 	// The teacher's only way on is a copy, which is theirs to rewrite.
 	var b papers.Paper

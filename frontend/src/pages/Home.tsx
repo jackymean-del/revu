@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Loading } from '../components/Loading'
 import { SignInPrompt } from '../components/Account'
 import { Dashboard } from '../components/Dashboard'
+import { WaitingForYou } from '../components/Waiting'
 import { Icon } from '../components/Icon'
 import { useSetup } from '../lib/progress'
 import { cardFact, modules, nextStep, statuses, visiblePages } from '../lib/journey'
@@ -89,6 +90,8 @@ export function Home() {
         <p className="text-xs font-bold uppercase tracking-[0.08em] text-subtle">{current.name}</p>
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Home</h1>
       </div>
+
+      <WaitingForYou />
 
       {next && (
         <section aria-labelledby="next-heading" className="flex flex-wrap items-center gap-4 rounded-2xl bg-brand p-5 text-white shadow-[0_8px_30px_rgba(104,93,188,0.25)] print:hidden">

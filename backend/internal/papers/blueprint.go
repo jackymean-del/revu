@@ -59,6 +59,7 @@ func Routes(g fiber.Router, o Options) {
 	g.Get("/papers/:id/html", paperHTML)
 	g.Put("/papers/:id/assignments", putAssignments)
 	g.Get("/paper-settings", getSettings)
+	g.Get("/waiting", waiting)
 	g.Put("/paper-settings", putSettings)
 }
 

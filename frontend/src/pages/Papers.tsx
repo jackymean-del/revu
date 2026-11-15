@@ -77,8 +77,12 @@ export function Papers() {
         <Loading />
       ) : !a ? (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
-          <p className="font-bold">No assessments to make a paper for</p>
-          <p className="mt-1 text-sm text-muted">An administrator creates each exam in Master, step 3. Then its paper is made here.</p>
+          <p className="font-bold">No exams to make a paper for</p>
+          <p className="mt-1 text-sm text-muted">
+            {approves
+              ? 'Create each exam in Master, step 3. Then its paper is made here.'
+              : `You see the exams of the ${t('group.level', { count: 2, lower: true })} and ${t('course.subject', { count: 2, lower: true })} you teach. None has an exam yet, or you have not been given one to teach: ask your administrator.`}
+          </p>
         </div>
       ) : (
         <>
@@ -120,7 +124,7 @@ export function Papers() {
           ) : tab === 'blueprint' ? (
             <BlueprintEditor key={`${id}-${bp.version}-${bp.status}`} orgId={orgId} assessmentId={id} blueprint={bp} syllabus={syllabus.data} approves={approves} />
           ) : (
-            <PaperSets orgId={orgId} assessmentId={id} blueprint={bp} sets={sets} bank={bank.data} syllabus={syllabus.data} place={place} />
+            <PaperSets key={search.set ?? id} orgId={orgId} assessmentId={id} blueprint={bp} sets={sets} bank={bank.data} syllabus={syllabus.data} place={place} first={search.set} />
           )}
         </>
       )}

@@ -123,3 +123,31 @@ test('Ctrl+K finds a page, an assessment or a name, and goes there', async ({ pa
   await box.getByRole('option', { name: /Asha Rao/ }).click()
   await expect(page).toHaveURL(/\/people\?q=HV-0007/)
 })
+
+test('what waits on a person is on Home, counted beside Home in the menu, a click from where it is dealt with', async ({ page }) => {
+  fakeApi(page, ['coordinator'])
+  void page.route('**/v1/waiting', (r) =>
+    r.fulfill({
+      json: [
+        { kind: 'set_to_approve', title: 'Approve Set A', detail: 'Mathematics, Unit test 1 · Grade 6', href: '/papers?a=ut1&tab=sets&set=pA', since: new Date().toISOString() },
+        { kind: 'blueprint_to_approve', title: 'Approve the blueprint', detail: 'Mathematics, Unit test 2 · Grade 6', href: '/papers?a=ut2&tab=blueprint', since: '' },
+      ],
+    }),
+  )
+  await page.goto('/')
+  const box = page.getByRole('region', { name: /Waiting for you/ })
+  await expect(box.getByRole('link')).toHaveCount(2)
+  await expect(box.getByRole('link').first()).toContainText('Approve Set A')
+  await expect(box.getByRole('link').first()).toContainText('just now')
+  await expect(page.getByLabel('2 waiting for you')).toBeVisible()
+  await box.getByRole('link', { name: /Approve Set A/ }).click()
+  await expect(page).toHaveURL(/\/papers\?a=ut1&tab=sets&set=pA/)
+})
+
+test('nothing waiting shows nothing', async ({ page }) => {
+  fakeApi(page, ['teacher'])
+  void page.route('**/v1/waiting', (r) => r.fulfill({ json: [] }))
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible()
+  await expect(page.getByRole('region', { name: /Waiting for you/ })).toHaveCount(0)
+})
