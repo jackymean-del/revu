@@ -85,7 +85,8 @@ test('from the list of assessments, one click opens its marks', async ({ page })
   // The row's own link, not the bar's next step of the same name.
   await page.getByRole('listitem').filter({ hasText: 'Unit test 1' }).getByRole('link', { name: 'Enter marks' }).click()
   await expect(page).toHaveURL(/\/marks\?a=ut1%2Fsec-6a/)
-  await expect(page.getByLabel('Exam')).toHaveValue('ut1')
+  await expect(page.getByLabel('Exam')).toHaveValue('Unit test 1')
+  await expect(page.getByLabel('Subject', { exact: true })).toHaveValue('ut1')
   await expect(page.getByLabel('Section', { exact: true })).toHaveValue('ut1/sec-6a')
 })
 

@@ -70,8 +70,8 @@ export function usePaperAssessments() {
         hidden: focus.hiddenAssessments.includes(a.id) || focus.hiddenPeriods.includes(a.periodId),
       }
     })
-    // Newest year first, then term, class, subject and title, so a long list reads in groups.
-    .sort((x, y) => y.yearStart.localeCompare(x.yearStart) || x.termSeq - y.termSeq || x.seq - y.seq || x.subject.localeCompare(y.subject) || x.a.title.localeCompare(y.a.title))
+    // Newest year first, then term, class, exam and subject, as the pickers ask.
+    .sort((x, y) => y.yearStart.localeCompare(x.yearStart) || x.termSeq - y.termSeq || x.seq - y.seq || x.a.title.localeCompare(y.a.title) || x.subject.localeCompare(y.subject))
   // Where every picker opens: the administrator's default exam, or else the
   // first in the default term, or else the first.
   const preferred = (choices.find((c) => c.a.id === focus.defaultAssessmentId) ?? choices.find((c) => c.a.periodId === focus.defaultPeriodId) ?? choices[0])?.a.id ?? ''
