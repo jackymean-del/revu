@@ -213,6 +213,9 @@ export const listAssessments = (orgId: string, params: Record<string, string>, s
 
 export const createAssessment = (orgId: string, body: AssessmentInput) => call<Assessment>('/v1/assessments', { orgId, method: 'POST', body })
 
+export type ExamFocus = components['schemas']['ExamFocus']
+export const getExamFocus = (orgId: string, signal?: AbortSignal) => call<ExamFocus>('/v1/exam-focus', { orgId, signal })
+export const putExamFocus = (orgId: string, body: ExamFocus) => call<ExamFocus>('/v1/exam-focus', { orgId, method: 'PUT', body })
 export const lockAssessment = (orgId: string, id: string) => call<Assessment>(`/v1/assessments/${id}/lock`, { orgId, method: 'POST' })
 
 export const unlockAssessment = (orgId: string, id: string, reason: string) =>

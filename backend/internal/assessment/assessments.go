@@ -19,6 +19,7 @@ import (
 	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth/policy"
 	"github.com/jackymean-del/revu/internal/evidence"
+	"github.com/jackymean-del/revu/internal/focus"
 	"github.com/jackymean-del/revu/internal/httpx"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/records"
@@ -170,9 +171,15 @@ func list(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	// What the administrator hides from teachers for now is not listed for them.
+	f, err := focus.Load(ctx, tx)
+	if err != nil {
+		return err
+	}
+	all2 := focus.SeesHidden(a)
 	out := []api.Assessment{}
 	for _, as := range all {
-		if visible(a, as, branch) {
+		if visible(a, as, branch) && (all2 || !f.Hidden(as.Id, as.PeriodId)) {
 			out = append(out, as)
 		}
 	}

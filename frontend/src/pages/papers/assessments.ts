@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { listAssessments, listStructure, type Assessment, type Period, type Subject, type TeachingAssignment, type Year } from '../../api/client'
+import { useExamFocus } from '../../lib/focus'
 import { useOrg } from '../../lib/org-context'
 import { useSectionNames } from '../people/sections'
 
@@ -14,6 +15,7 @@ export interface Choice {
   yearStart: string
   term: string // the term or semester's name
   termSeq: number
+  hidden: boolean // hidden from teachers for now; only those who lead see it
 }
 
 /**
@@ -31,6 +33,7 @@ export function usePaperAssessments() {
   const assessments = useQuery({ queryKey: ['assessments', orgId], queryFn: ({ signal }) => listAssessments(orgId, {}, signal), enabled: !!orgId })
   const years = useQuery({ queryKey: ['structure', orgId, 'years', {}], queryFn: ({ signal }) => listStructure<Year>(orgId, 'years', {}, signal), enabled: !!orgId }).data ?? []
   const periods = useQuery({ queryKey: ['structure', orgId, 'periods', {}], queryFn: ({ signal }) => listStructure<Period>(orgId, 'periods', {}, signal), enabled: !!orgId }).data ?? []
+  const focus = useExamFocus(orgId)
   const subjects = useQuery({ queryKey: ['structure', orgId, 'subjects', {}], queryFn: ({ signal }) => listStructure<Subject>(orgId, 'subjects', {}, signal), enabled: !!orgId }).data ?? []
   const mine = useQuery({
     queryKey: ['structure', orgId, 'teaching-assignments', { staffId: current?.staffId }],
@@ -62,9 +65,13 @@ export function usePaperAssessments() {
         yearStart: yr?.startsOn ?? '',
         term: pd?.name ?? '',
         termSeq: pd?.seq ?? 0,
+        hidden: focus.hiddenAssessments.includes(a.id) || focus.hiddenPeriods.includes(a.periodId),
       }
     })
     // Newest year first, then term, class, subject and title, so a long list reads in groups.
     .sort((x, y) => y.yearStart.localeCompare(x.yearStart) || x.termSeq - y.termSeq || x.seq - y.seq || x.subject.localeCompare(y.subject) || x.a.title.localeCompare(y.a.title))
-  return { orgId, loading, pending: assessments.isPending, choices, approves, sectionName, levelName: (id: string) => names.levels.find((l) => l.id === id)?.name ?? '' }
+  // Where every picker opens: the administrator's default exam, or else the
+  // first in the default term, or else the first.
+  const preferred = (choices.find((c) => c.a.id === focus.defaultAssessmentId) ?? choices.find((c) => c.a.periodId === focus.defaultPeriodId) ?? choices[0])?.a.id ?? ''
+  return { orgId, loading, pending: assessments.isPending, choices, preferred, approves, sectionName, levelName: (id: string) => names.levels.find((l) => l.id === id)?.name ?? '' }
 }

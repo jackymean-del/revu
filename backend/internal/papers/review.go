@@ -59,11 +59,12 @@ func permit(c fiber.Ctx, tx pgx.Tx, p *Paper) error {
 		return err
 	}
 	p.open = p.Status == "draft" || mod
+	live := !p.Locked // a locked exam's papers no longer move
 	p.May = May{
-		Edit:    p.open && p.Status != "final",
-		Submit:  p.Status == "draft" && !mod,
-		Approve: mod && p.Status != "final",
-		Return:  mod && p.Status == "submitted",
+		Edit:    live && p.open && p.Status != "final",
+		Submit:  live && p.Status == "draft" && !mod,
+		Approve: live && mod && p.Status != "final",
+		Return:  live && mod && p.Status == "submitted",
 		Print:   admin && p.Status == "final",
 	}
 	return nil

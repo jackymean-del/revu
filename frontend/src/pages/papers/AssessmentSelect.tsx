@@ -13,9 +13,10 @@ const keyOf = (c: Choice, l: Level) => (l === 'level' ? c.level : c[l])
  * subject, then the exam itself. Each list holds only what the one before
  * leaves, and only what this person may open: everything for those who
  * lead, the classes and subjects they teach for a teacher. A list with one
- * thing in it shows it without asking.
+ * thing in it shows it without asking. A page may add a last step after
+ * the exam, such as the section.
  */
-export function AssessmentSelect({ choices, value, onChange }: { choices: Choice[]; value: string; onChange: (id: string) => void }) {
+export function AssessmentSelect({ choices, value, onChange, children }: { choices: Choice[]; value: string; onChange: (id: string) => void; children?: React.ReactNode }) {
   const t = useT()
   const current = choices.find((c) => c.a.id === value) ?? choices[0]
   const label: Record<Level, string> = { year: t('period.year'), term: t('period.term'), level: t('group.level'), subject: t('course.subject') }
@@ -35,7 +36,7 @@ export function AssessmentSelect({ choices, value, onChange }: { choices: Choice
   }
   if (!current) return null
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+    <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${children ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
       {lists.map(({ l, options }) => (
         <label key={l} className="flex min-w-0 flex-col gap-1 text-xs font-semibold">
           {label[l]}
@@ -52,10 +53,13 @@ export function AssessmentSelect({ choices, value, onChange }: { choices: Choice
           {exams.map((c) => (
             <option key={c.a.id} value={c.a.id}>
               {c.a.title}
+              {c.a.status === 'locked' ? ' (locked)' : ''}
+              {c.hidden ? ` (hidden from ${t('person.teacher', { count: 2, lower: true })})` : ''}
             </option>
           ))}
         </select>
       </label>
+      {children}
     </div>
   )
 }

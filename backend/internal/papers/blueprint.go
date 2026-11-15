@@ -19,6 +19,7 @@ import (
 	"github.com/jackymean-del/revu/internal/api"
 	"github.com/jackymean-del/revu/internal/audit"
 	"github.com/jackymean-del/revu/internal/auth/policy"
+	"github.com/jackymean-del/revu/internal/focus"
 	"github.com/jackymean-del/revu/internal/httpx"
 	"github.com/jackymean-del/revu/internal/problem"
 	"github.com/jackymean-del/revu/internal/records"
@@ -118,20 +119,24 @@ type Blueprint struct {
 	Exists       bool    `json:"exists"`
 }
 
-type assessment struct{ id, levelID, subjectID, title, max string }
+type assessment struct {
+	id, levelID, subjectID, title, max string
+	locked                             bool // marks are in and approved: its papers stay as they are
+}
 
 // loadAssessment checks the assessment exists and that the person may edit
 // it (its subject's teacher, a coordinator or an administrator).
 func loadAssessment(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (assessment, error) {
 	var a assessment
+	var period string
 	notFound := problem.New(http.StatusNotFound, "assessment.not_found", "No assessment has this id.")
 	if !records.UUIDShape.MatchString(id) {
 		return a, notFound
 	}
 	err := tx.QueryRow(c.Context(), `
-		SELECT a.id::text, a.level_id::text, a.subject_id::text, a.title,
+		SELECT a.id::text, a.level_id::text, a.subject_id::text, a.title, a.status = 'locked', a.period_id::text,
 		       coalesce((SELECT sum(max_marks) FROM assessment_parts p WHERE p.assessment_id = a.id AND p.deleted_at IS NULL AND p.kind = 'main' AND p.counts_in_total), 0)::text
-		  FROM assessments a WHERE a.id = $1::uuid AND a.deleted_at IS NULL`, id).Scan(&a.id, &a.levelID, &a.subjectID, &a.title, &a.max)
+		  FROM assessments a WHERE a.id = $1::uuid AND a.deleted_at IS NULL`, id).Scan(&a.id, &a.levelID, &a.subjectID, &a.title, &a.locked, &period, &a.max)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, notFound
 	}
@@ -170,6 +175,16 @@ func loadAssessment(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (assessment, e
 	}
 	if !may {
 		return a, problem.New(http.StatusForbidden, "auth.forbidden", "Only this subject's teachers, coordinators and administrators work on its papers.")
+	}
+	// An exam hidden from teachers for now is not theirs to work on.
+	if !focus.SeesHidden(actor) {
+		f, err := focus.Load(c.Context(), tx)
+		if err != nil {
+			return a, err
+		}
+		if f.Hidden(a.id, period) {
+			return a, problem.New(http.StatusForbidden, "assessment.hidden", "This exam is not open for work now. Your administrator opens it when it is time.")
+		}
 	}
 	return a, nil
 }

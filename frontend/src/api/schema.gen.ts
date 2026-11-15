@@ -2391,6 +2391,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/exam-focus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which terms and exams teachers see now, and which term and exam every picker opens on. */
+        get: operations["getExamFocus"];
+        /** An administrator hides terms and exams from teachers, and sets the term and exam everyone starts on. */
+        put: operations["putExamFocus"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/paper-settings": {
         parameters: {
             query?: never;
@@ -4496,6 +4514,8 @@ export interface components {
             assignments: components["schemas"]["PaperAssignment"][];
         };
         Paper: {
+            /** @description Its exam is locked, so nothing in it changes. */
+            locked: boolean;
             /** @description The set it was copied from, by name. */
             copiedFrom: string;
             /** @description Why it was sent back to its teacher. */
@@ -4629,6 +4649,14 @@ export interface components {
             href: string;
             /** @description When it started waiting, RFC 3339; empty when unknown. */
             since: string;
+        };
+        ExamFocus: {
+            /** @description Terms teachers do not see. */
+            hiddenPeriods: string[];
+            /** @description Exams teachers do not see. */
+            hiddenAssessments: string[];
+            defaultPeriodId: string;
+            defaultAssessmentId: string;
         };
         PaperSettings: {
             /** @description The roles that, with administrators, see a submitted set, change it and approve it. Left out, it stays as it is. */
@@ -10183,6 +10211,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Waiting"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getExamFocus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The focus. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamFocus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putExamFocus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExamFocus"];
+            };
+        };
+        responses: {
+            /** @description The focus as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamFocus"];
                 };
             };
             default: components["responses"]["Problem"];

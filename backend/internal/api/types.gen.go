@@ -3046,6 +3046,18 @@ type EvidenceOp struct {
 	Value Decimal `json:"value,omitempty"`
 }
 
+// ExamFocus defines model for ExamFocus.
+type ExamFocus struct {
+	DefaultAssessmentId string `json:"defaultAssessmentId"`
+	DefaultPeriodId     string `json:"defaultPeriodId"`
+
+	// HiddenAssessments Exams teachers do not see.
+	HiddenAssessments []string `json:"hiddenAssessments"`
+
+	// HiddenPeriods Terms teachers do not see.
+	HiddenPeriods []string `json:"hiddenPeriods"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	// Code Stable code, for example required or too_long.
@@ -3784,6 +3796,9 @@ type Paper struct {
 	Id           string      `json:"id"`
 	Instructions string      `json:"instructions"`
 	Items        []PaperItem `json:"items"`
+
+	// Locked Its exam is locked, so nothing in it changes.
+	Locked bool `json:"locked"`
 
 	// May What this person may do with the set.
 	May struct {
@@ -5712,6 +5727,18 @@ type RestoreEnrolmentParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// GetExamFocusParams defines parameters for GetExamFocus.
+type GetExamFocusParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutExamFocusParams defines parameters for PutExamFocus.
+type PutExamFocusParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListGuardiansParams defines parameters for ListGuardians.
 type ListGuardiansParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -6859,6 +6886,9 @@ type PreviewPromotionJSONRequestBody = PromotionRequest
 
 // UpdateEnrolmentJSONRequestBody defines body for UpdateEnrolment for application/json ContentType.
 type UpdateEnrolmentJSONRequestBody = EnrolmentInput
+
+// PutExamFocusJSONRequestBody defines body for PutExamFocus for application/json ContentType.
+type PutExamFocusJSONRequestBody = ExamFocus
 
 // CreateGuardianJSONRequestBody defines body for CreateGuardian for application/json ContentType.
 type CreateGuardianJSONRequestBody = GuardianInput

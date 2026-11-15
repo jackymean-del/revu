@@ -72,6 +72,7 @@ type Paper struct {
 	ReviewNote       string       `json:"reviewNote"` // why it was sent back
 	Veiled           bool         `json:"veiled"`     // its questions are kept from this person
 	May              May          `json:"may"`
+	Locked           bool         `json:"locked"` // its exam is locked: nothing in it changes
 	copiedFromID     string
 	open             bool
 }
@@ -106,6 +107,7 @@ func paperAny(c fiber.Ctx, tx pgx.Tx, id string, edit bool) (Paper, assessment, 
 	if err != nil {
 		return p, a, err
 	}
+	p.Locked = a.locked
 	if err := permit(c, tx, &p); err != nil {
 		return p, a, err
 	}
@@ -282,6 +284,9 @@ func createPaper(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if a.locked {
+		return problem.New(http.StatusConflict, "paper.locked", "This exam is locked, so no new set is made for it.")
+	}
 	var in createIn
 	_ = httpx.Decode(c, &in)
 	bpID, taxonomy := "", "none"
@@ -428,6 +433,9 @@ func fill(ctx context.Context, tx pgx.Tx, a assessment, paperID, taxonomy string
 }
 
 func draftOnly(p Paper) error {
+	if p.Locked {
+		return problem.New(http.StatusConflict, "paper.locked", "This exam is locked, so its papers stay as they are. An administrator unlocks it, with a reason, to change them.")
+	}
 	if p.Status == "final" {
 		return problem.New(http.StatusConflict, "paper.final", "This set is final; duplicate it to make changes.")
 	}
@@ -598,6 +606,9 @@ func duplicatePaper(c fiber.Ctx) error {
 	p, a, err := paperAny(c, tx, c.Params("id"), true)
 	if err != nil {
 		return err
+	}
+	if a.locked {
+		return problem.New(http.StatusConflict, "paper.locked", "This exam is locked, so no new set is made for it.")
 	}
 	m, _ := tenant.MemberFrom(c)
 	var in createIn

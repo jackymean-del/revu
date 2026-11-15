@@ -795,3 +795,90 @@ func TestPaperReview(t *testing.T) {
 		t.Fatal("a coordinator no longer named to moderate does not see a final set")
 	}
 }
+
+// An administrator hides an exam, or its whole term, from teachers for now:
+// it leaves their lists and its papers are not theirs to work on. Locked,
+// an exam's papers stay as they are for everyone.
+func TestExamFocusAndLock(t *testing.T) {
+	owner, appPool := dbtest.Open(t)
+	a := dbtest.SeedOrg(t, owner, "Org A")
+	app := server.New(config.Config{Version: "test"}, server.Deps{DB: appPool, Auth: headerAuth{}})
+	admin := caller{t, app, a.UserID, a.ID}
+	ctx := context.Background()
+	one := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		if err := owner.QueryRow(ctx, sql, args...).Scan(&v); err != nil {
+			t.Fatalf("%v\n%s", err, sql)
+		}
+		return v
+	}
+	staff := one(`INSERT INTO staff (org_id, name) VALUES ($1, 'Tess') RETURNING id`, a.ID)
+	user := "tess-" + a.UserID
+	one(`INSERT INTO memberships (org_id, clerk_user_id, role, staff_id) VALUES ($1, $2, 'teacher', $3) RETURNING id`, a.ID, user, staff)
+	t.Cleanup(func() { _, _ = owner.Exec(ctx, `DELETE FROM memberships WHERE clerk_user_id = $1`, user) })
+	one(`INSERT INTO teaching_assignments (org_id, staff_id, section_id, subject_id) VALUES ($1, $2, $3, $4) RETURNING id`, a.ID, staff, a.SectionID, a.SubjectID)
+	teacher := caller{t, app, user, a.ID}
+	exam := one(`INSERT INTO assessments (org_id, year_id, period_id, level_id, subject_id, title, entry_mode) VALUES ($1, $2, $3, $4, $5, 'Focus test', 'total') RETURNING id`,
+		a.ID, a.YearID, a.PeriodID, a.LevelID, a.SubjectID)
+	one(`INSERT INTO assessment_scopes (org_id, assessment_id, section_id) VALUES ($1, $2, $3) RETURNING section_id`, a.ID, exam, a.SectionID)
+	one(`INSERT INTO assessment_parts (org_id, assessment_id, seq, name, max_marks) VALUES ($1, $2, 1, 'Total', 10) RETURNING id`, a.ID, exam)
+	listed := func(c caller) bool {
+		var all []struct {
+			ID string `json:"id"`
+		}
+		c.json(200, "GET", "/v1/assessments", nil, &all)
+		for _, x := range all {
+			if x.ID == exam {
+				return true
+			}
+		}
+		return false
+	}
+	if !listed(teacher) || !listed(admin) {
+		t.Fatal("an exam shown to teachers is listed for its teacher")
+	}
+	focus := func(body map[string]any) {
+		base := map[string]any{"hiddenPeriods": []string{}, "hiddenAssessments": []string{}, "defaultPeriodId": "", "defaultAssessmentId": ""}
+		for k, v := range body {
+			base[k] = v
+		}
+		admin.json(200, "PUT", "/v1/exam-focus", base, nil)
+	}
+	teacher.json(403, "PUT", "/v1/exam-focus", map[string]any{"hiddenPeriods": []string{}}, nil)
+
+	// Hidden, the exam leaves the teacher's list and its papers are closed to them.
+	focus(map[string]any{"hiddenAssessments": []string{exam}, "defaultAssessmentId": exam})
+	if listed(teacher) || !listed(admin) {
+		t.Fatal("a hidden exam leaves the teacher's list only")
+	}
+	teacher.json(403, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, nil)
+	var got map[string]any
+	teacher.json(200, "GET", "/v1/exam-focus", nil, &got)
+	if got["defaultAssessmentId"] != exam {
+		t.Fatalf("everyone reads the default: %v", got)
+	}
+	// A hidden term hides every exam in it.
+	focus(map[string]any{"hiddenPeriods": []string{a.PeriodID}})
+	if listed(teacher) {
+		t.Fatal("a hidden term hides its exams")
+	}
+	focus(map[string]any{})
+	if !listed(teacher) {
+		t.Fatal("shown again")
+	}
+
+	// Locked, nothing in its papers changes, and no new set is made.
+	var p papers.Paper
+	teacher.json(201, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, &p)
+	admin.json(200, "POST", "/v1/assessments/"+exam+"/lock", nil, nil)
+	admin.json(200, "GET", "/v1/papers/"+p.ID, nil, &p)
+	if !p.Locked || p.May.Edit || p.May.Approve {
+		t.Fatalf("a locked exam's paper: locked %v, %+v", p.Locked, p.May)
+	}
+	admin.json(409, "POST", "/v1/papers/"+p.ID+"/sections", nil, nil)
+	admin.json(409, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, nil)
+	admin.json(409, "POST", "/v1/papers/"+p.ID+"/duplicate", nil, nil)
+	admin.json(200, "POST", "/v1/assessments/"+exam+"/unlock", map[string]string{"reason": "A typo in Q1"}, nil)
+	admin.json(201, "POST", "/v1/papers/"+p.ID+"/sections", nil, &p)
+}

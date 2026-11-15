@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Loading } from '../components/Loading'
 import { Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { listAssessments, listStructure, type Assessment, type Subject, type TeachingAssignment } from '../api/client'
+import { listAssessments, listStructure, type Assessment, type Period, type Subject, type TeachingAssignment } from '../api/client'
 import { Icon } from '../components/Icon'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
+import { ExamButtons, TermFocus } from './marks/ExamControls'
 import { NewAssessment } from './marks/NewAssessment'
 import { useSectionNames } from './people/sections'
 
@@ -22,6 +23,8 @@ export function Exams() {
   const orgId = current?.id ?? ''
   const roles = current?.roles ?? []
   const leads = roles.some((r) => r === 'admin' || r === 'coordinator' || r === 'principal')
+  const admin = roles.includes('admin')
+  const canLock = admin || roles.includes('coordinator')
   const names = useSectionNames(orgId)
   const assessments = useQuery({ queryKey: ['assessments', orgId], queryFn: ({ signal }) => listAssessments(orgId, {}, signal), enabled: !!orgId })
   const subjects = useQuery({ queryKey: ['structure', orgId, 'subjects', {}], queryFn: ({ signal }) => listStructure<Subject>(orgId, 'subjects', {}, signal), enabled: !!orgId }).data ?? []
@@ -30,6 +33,7 @@ export function Exams() {
     queryFn: ({ signal }) => listStructure<TeachingAssignment>(orgId, 'teaching-assignments', { staffId: current!.staffId! }, signal),
     enabled: !!orgId && !leads && !!current?.staffId,
   }).data
+  const periods = useQuery({ queryKey: ['structure', orgId, 'periods', {}], queryFn: ({ signal }) => listStructure<Period>(orgId, 'periods', {}, signal), enabled: !!orgId }).data ?? []
   const [creating, setCreating] = useState(false)
   const [made, setMade] = useState<Assessment | null>(null)
 
@@ -94,6 +98,8 @@ export function Exams() {
         </div>
       )}
 
+      {admin && latestYear && <TermFocus orgId={orgId} yearId={latestYear} />}
+
       {assessments.isPending ? (
         <Loading />
       ) : list.length === 0 ? (
@@ -116,11 +122,15 @@ export function Exams() {
                   {subjectName(a.subjectId)}, {a.title}
                 </p>
                 <p className="text-sm text-muted">
-                  {a.sectionIds.map(sectionName).join(', ')} &middot; {a.entryMode === 'sections' ? `${a.parts.filter((p) => p.kind === 'main').length} parts` : 'one total'}
+                  {periods.find((p) => p.id === a.periodId)?.name ?? ''} &middot; {a.sectionIds.map(sectionName).join(', ')} &middot; {a.entryMode === 'sections' ? `${a.parts.filter((p) => p.kind === 'main').length} parts` : 'one total'}
                   {a.heldOn ? ` · ${a.heldOn}` : ''}
                 </p>
               </div>
-              {a.status === 'locked' && <span className="rounded-full bg-canvas px-2 py-0.5 text-xs font-semibold text-muted">Locked</span>}
+              {canLock ? (
+                <ExamButtons orgId={orgId} exam={a} admin={admin} canLock={canLock} onChange={() => void qc.invalidateQueries({ queryKey: ['assessments', orgId] })} />
+              ) : (
+                a.status === 'locked' && <span className="rounded-full bg-canvas px-2 py-0.5 text-xs font-semibold text-muted">Locked</span>
+              )}
               <Link
                 to="/marks"
                 search={{ a: `${a.id}/${a.sectionIds[0]}` }}

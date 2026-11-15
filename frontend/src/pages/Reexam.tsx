@@ -36,6 +36,7 @@ export function Reexam() {
       <ReexamPlan
         orgId={orgId}
         sourceId={search.plan}
+        preferred={exams.preferred}
         choices={exams.choices}
         onSource={(id) => void navigate({ search: { plan: id } })}
         onMade={(id) => void navigate({ search: { id } })}

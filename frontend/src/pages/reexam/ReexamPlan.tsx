@@ -18,17 +18,18 @@ const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefin
  * sits it (any one is enough), the students ticked with their reasons, and
  * how the new mark counts.
  */
-export function ReexamPlan({ orgId, sourceId, choices, onSource, onMade, onCancel }: {
+export function ReexamPlan({ orgId, sourceId, choices, preferred = '', onSource, onMade, onCancel }: {
   orgId: string
   sourceId: string
   choices: Choice[]
+  preferred?: string // the exam pickers open on
   onSource: (id: string) => void
   onMade: (id: string) => void
   onCancel: () => void
 }) {
   const t = useT()
   const qc = useQueryClient()
-  const id = choices.some((c) => c.a.id === sourceId) ? sourceId : (choices[0]?.a.id ?? '')
+  const id = choices.some((c) => c.a.id === sourceId) ? sourceId : preferred || (choices[0]?.a.id ?? '')
   const [rule, setRule] = useState({ below: '40', useBelow: true, from: '40', to: '50', useRange: false, absent: true, incomplete: false })
   const criteria: ReexamCriteria = {
     below: rule.useBelow ? num(rule.below) : undefined,

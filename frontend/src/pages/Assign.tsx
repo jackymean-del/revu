@@ -41,8 +41,8 @@ export function Assign() {
   const t = useT()
   const search = useSearch({ from: '/assign' })
   const navigate = useNavigate({ from: '/assign' })
-  const { orgId, loading, pending, choices, sectionName } = usePaperAssessments()
-  const choice = choices.find((c) => c.a.id === search.a) ?? choices[0]
+  const { orgId, loading, pending, choices, sectionName, preferred } = usePaperAssessments()
+  const choice = choices.find((c) => c.a.id === search.a) ?? choices.find((c) => c.a.id === preferred)
   const a = choice?.a
   const id = a?.id ?? ''
   const papers = useQuery({ queryKey: ['papers', orgId, id], queryFn: ({ signal }) => listPapers(orgId, id, signal), enabled: !!(orgId && id) })

@@ -4072,6 +4072,43 @@ paths:
                   $ref: "#/components/schemas/Waiting"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/exam-focus:
+    get:
+      operationId: getExamFocus
+      summary: Which terms and exams teachers see now, and which term and exam every picker opens on.
+      tags: [assessments]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The focus.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExamFocus"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putExamFocus
+      summary: An administrator hides terms and exams from teachers, and sets the term and exam everyone starts on.
+      tags: [assessments]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExamFocus"
+      responses:
+        "200":
+          description: The focus as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExamFocus"
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/paper-settings:
     get:
       operationId: getPaperSettings
@@ -8031,8 +8068,11 @@ components:
             $ref: "#/components/schemas/PaperAssignment"
     Paper:
       type: object
-      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, sections, items, filled, total, bySection, byLevel, assignments, copiedFrom, reviewNote, veiled, may]
+      required: [id, assessmentId, set, status, taxonomy, blueprintVersion, instructions, sections, items, filled, total, bySection, byLevel, assignments, copiedFrom, reviewNote, veiled, may, locked]
       properties:
+        locked:
+          type: boolean
+          description: Its exam is locked, so nothing in it changes.
         copiedFrom:
           type: string
           description: The set it was copied from, by name.
@@ -8286,6 +8326,24 @@ components:
         since:
           type: string
           description: When it started waiting, RFC 3339; empty when unknown.
+    ExamFocus:
+      type: object
+      required: [hiddenPeriods, hiddenAssessments, defaultPeriodId, defaultAssessmentId]
+      properties:
+        hiddenPeriods:
+          type: array
+          items:
+            type: string
+          description: Terms teachers do not see.
+        hiddenAssessments:
+          type: array
+          items:
+            type: string
+          description: Exams teachers do not see.
+        defaultPeriodId:
+          type: string
+        defaultAssessmentId:
+          type: string
     PaperSettings:
       type: object
       required: [setNames, custom]

@@ -23,6 +23,7 @@ import (
 	"github.com/jackymean-del/revu/internal/config"
 	"github.com/jackymean-del/revu/internal/dashboard"
 	"github.com/jackymean-del/revu/internal/evidence"
+	"github.com/jackymean-del/revu/internal/focus"
 	"github.com/jackymean-del/revu/internal/handlers"
 	"github.com/jackymean-del/revu/internal/holistic"
 	"github.com/jackymean-del/revu/internal/layout"
@@ -112,6 +113,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	dashboard.Routes(inOrg)
 	choices.Routes(inOrg)
 	assessment.Routes(inOrg)
+	focus.Routes(inOrg)
 	evidence.Routes(inOrg)
 	layout.Routes(inOrg)
 	schemes.Routes(inOrg)

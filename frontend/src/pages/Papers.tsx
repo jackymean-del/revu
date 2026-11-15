@@ -25,8 +25,8 @@ export function Papers() {
   const t = useT()
   const search = useSearch({ from: '/papers' })
   const navigate = useNavigate({ from: '/papers' })
-  const { orgId, loading, pending, choices, approves } = usePaperAssessments()
-  const choice = choices.find((c) => c.a.id === search.a) ?? choices[0]
+  const { orgId, loading, pending, choices, approves, preferred } = usePaperAssessments()
+  const choice = choices.find((c) => c.a.id === search.a) ?? choices.find((c) => c.a.id === preferred)
   const a = choice?.a
   const id = a?.id ?? ''
   // Old links to the question bank open the paper, where the bank now lives.

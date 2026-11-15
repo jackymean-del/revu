@@ -2,15 +2,21 @@ import { useState } from 'react'
 import { Loading } from '../components/Loading'
 import { Link, useSearch } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getMarksBy, listAssessments, listStructure, putMarksBy, type Subject, type TeachingAssignment } from '../api/client'
+import { getMarksBy, listStructure, putMarksBy, type Subject, type TeachingAssignment } from '../api/client'
 import { ApiError } from '../api/problem'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 import { EntryGrid } from './marks/EntryGrid'
+import { AssessmentSelect } from './papers/AssessmentSelect'
+import { usePaperAssessments } from './papers/assessments'
 import { PAPER } from './papers/types'
 import { useSectionNames } from './people/sections'
 
-/** Marks: choose an assessment and a section, then enter marks on the grid. */
+/**
+ * Marks: choose the exam by year, term, class and subject, then the
+ * section, and enter marks on the grid. A teacher sees only the sections
+ * and subjects they teach.
+ */
 export function Marks() {
   const t = useT()
   const search = useSearch({ from: '/marks' })
@@ -19,7 +25,7 @@ export function Marks() {
   const roles = current?.roles ?? []
   const leads = roles.some((r) => r === 'admin' || r === 'coordinator' || r === 'principal')
   const names = useSectionNames(orgId)
-  const assessments = useQuery({ queryKey: ['assessments', orgId], queryFn: ({ signal }) => listAssessments(orgId, {}, signal), enabled: !!orgId })
+  const { choices, pending, preferred } = usePaperAssessments()
   const subjects = useQuery({ queryKey: ['structure', orgId, 'subjects', {}], queryFn: ({ signal }) => listStructure<Subject>(orgId, 'subjects', {}, signal), enabled: !!orgId }).data ?? []
   const mine = useQuery({
     queryKey: ['structure', orgId, 'teaching-assignments', { staffId: current?.staffId }],
@@ -37,13 +43,18 @@ export function Marks() {
     const s = names.byId(id)
     return s ? names.name(s) : ''
   }
-  // Each assessment once per section the person works with.
-  const entries = (assessments.data ?? []).flatMap((a) =>
+  // Each assessment once per section the person works with, in the order
+  // the exam lists put them: year, term, class, subject, exam.
+  const entries = choices.flatMap(({ a }) =>
     a.sectionIds
       .filter((s) => leads || mine?.some((m) => m.sectionId === s && (!m.subjectId || m.subjectId === a.subjectId)))
       .map((s) => ({ key: `${a.id}/${s}`, a, sectionId: s })),
   )
-  const entry = entries.find((e) => e.key === picked) ?? entries[0]
+  const entry = entries.find((e) => e.key === picked) ?? entries.find((e) => e.a.id === (picked.split('/')[0] || preferred)) ?? entries[0]
+  const here = entries.filter((e) => e.a.id === entry?.a.id)
+  // Another exam keeps the same section when it has it.
+  const choose = (assessmentId: string) =>
+    setPicked((entries.find((e) => e.a.id === assessmentId && e.sectionId === entry?.sectionId) ?? entries.find((e) => e.a.id === assessmentId))?.key ?? '')
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-10">
@@ -54,7 +65,7 @@ export function Marks() {
         </div>
       </div>
 
-      {assessments.isPending ? (
+      {pending ? (
         <Loading />
       ) : entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
@@ -72,17 +83,24 @@ export function Marks() {
         </div>
       ) : (
         <>
-          <label className="flex max-w-xl flex-col gap-1 text-sm font-semibold">
-            Assessment
-            <select className="rounded-md border border-line bg-white px-2 py-1.5 font-normal" value={entry?.key} onChange={(e) => setPicked(e.target.value)}>
-              {entries.map((e) => (
-                <option key={e.key} value={e.key}>
-                  {subjectName(e.a.subjectId)}, {e.a.title}, {sectionName(e.sectionId)}
-                  {e.a.status === 'locked' ? ' (locked)' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          <AssessmentSelect choices={choices.filter((c) => entries.some((e) => e.a.id === c.a.id))} value={entry?.a.id ?? ''} onChange={choose}>
+            <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold">
+              {t('group.section')}
+              <select
+                aria-label={t('group.section')}
+                className="w-full rounded-md border border-line bg-white px-2 py-1.5 text-sm font-normal disabled:bg-canvas disabled:text-muted"
+                value={entry?.key}
+                disabled={here.length < 2}
+                onChange={(e) => setPicked(e.target.value)}
+              >
+                {here.map((e) => (
+                  <option key={e.key} value={e.key}>
+                    {sectionName(e.sectionId)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </AssessmentSelect>
           {entry && <MarksByChoice orgId={orgId} assessmentId={entry.a.id} onChange={setBy} />}
           {entry && (
             <EntryGrid

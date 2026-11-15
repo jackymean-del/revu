@@ -138,7 +138,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus
                 Fill from the bank
               </button>
             )}
-            {!may?.submit && copy(false)}
+            {!may?.submit && !p.locked && copy(false)}
             {may?.return && (
               <button type="button" className={button} aria-expanded={note !== null} onClick={() => setNote(note === null ? '' : null)}>
                 Send back
@@ -188,11 +188,16 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus
             {p.status === 'final' ? 'It was approved and its questions are no longer shown here.' : 'It was submitted for approval, and its questions are not shown here while it is reviewed.'} To write the next set, copy this one and change each
             question for a similar one.
           </p>
-          <div className="flex justify-center">{copy(true)}</div>
+          {!p.locked && <div className="flex justify-center">{copy(true)}</div>}
         </div>
       ) : (
         <div ref={split} className="items-start gap-1 lg:flex">
           <div className="min-w-0 flex-1 space-y-4">
+            {p.locked && (
+              <p role="status" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm">
+                <strong>This exam is locked.</strong> Its papers stay as they are; an administrator unlocks it, with a reason, to change them.
+              </p>
+            )}
             {p.reviewNote && p.status === 'draft' && (
               <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
                 <strong>Sent back to change:</strong> {p.reviewNote}
