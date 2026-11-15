@@ -152,3 +152,10 @@ test('nothing waiting shows nothing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible()
   await expect(page.getByRole('region', { name: /Waiting for you/ })).toHaveCount(0)
 })
+
+test('only the platform owner has the Switch menu; an administrator does not', async ({ page }) => {
+  fakeApi(page, ['admin'])
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Switch' })).toHaveCount(0)
+})

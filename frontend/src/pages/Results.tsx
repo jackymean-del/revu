@@ -42,7 +42,7 @@ export function Results() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
 
-  const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
+  const latestYear = names.chosenYear
   const sections = names.sections.filter((s) => s.yearId === latestYear && (leads || mine?.some((m) => m.sectionId === s.id)))
   const sectionId = pick.sectionId || sections[0]?.id || ''
   const yearOf = names.byId(sectionId)?.yearId ?? latestYear

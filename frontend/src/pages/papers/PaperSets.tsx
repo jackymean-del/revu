@@ -193,9 +193,22 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus
       ) : (
         <div ref={split} className="items-start gap-1 lg:flex">
           <div className="min-w-0 flex-1 space-y-4">
-            {p.locked && (
+            {(p.locked || p.status === 'final') && (
               <p role="status" className="rounded-xl border border-line bg-canvas px-3 py-2 text-sm">
-                <strong>This exam is locked.</strong> Its papers stay as they are; an administrator unlocks it, with a reason, to change them.
+                {may?.edit ? (
+                  <>
+                    <strong>{p.locked ? 'This exam is locked' : `${p.set} is final`} for everyone else.</strong> As administrator you can still change it; the marks sheet follows
+                    while no marks are in.
+                  </>
+                ) : p.locked ? (
+                  <>
+                    <strong>This exam is locked.</strong> Its papers stay as they are; an administrator unlocks it, with a reason, to change them.
+                  </>
+                ) : (
+                  <>
+                    <strong>{p.set} is final.</strong> Only an administrator changes it now.
+                  </>
+                )}
               </p>
             )}
             {p.reviewNote && p.status === 'draft' && (

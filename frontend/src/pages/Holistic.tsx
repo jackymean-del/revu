@@ -38,7 +38,7 @@ export function Holistic() {
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
   const [busy, setBusy] = useState('')
 
-  const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
+  const latestYear = names.chosenYear
   const sections = names.sections
     .filter((s) => s.yearId === latestYear && (leads || mine?.some((m) => m.sectionId === s.id)))
     .sort((a, b) => (names.levels.findIndex((l) => l.id === a.levelId) - names.levels.findIndex((l) => l.id === b.levelId)) || a.name.localeCompare(b.name))

@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { moduleOf, modules, nextStep, visiblePages, type Module } from '../lib/journey'
 import { useOrg } from '../lib/org-context'
 import { useSetup } from '../lib/progress'
+import { chooseYear } from '../lib/year'
+import { useSectionNames } from '../pages/people/sections'
 import { useT } from '../lib/terminology/terms-context'
 import { Account } from './Account'
 import { BrandLockup } from './BrandLockup'
@@ -86,6 +88,33 @@ function OrgPicker({ open }: { open: boolean }) {
         {orgs.map((o) => (
           <option key={o.id} value={o.id}>
             {o.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+/**
+ * The academic year every page shows, chosen once here for the whole app;
+ * the latest until another is chosen. Shown, greyed, even with one year,
+ * so everyone knows where the year is set.
+ */
+function YearPicker() {
+  const t = useT()
+  const { current } = useOrg()
+  const orgId = current?.id ?? ''
+  const names = useSectionNames(orgId)
+  const years = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))
+  if (!current || years.length === 0) return null
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[10px] font-extrabold uppercase tracking-[0.08em] text-subtle">{t('period.year')}</span>
+      <select aria-label={t('period.year')} value={names.chosenYear} disabled={years.length < 2} onChange={(e) => chooseYear(orgId, e.target.value)} className="w-full rounded-lg border border-line bg-canvas px-2 py-1.5 text-sm font-semibold disabled:text-ink disabled:opacity-80">
+        {years.map((y, i) => (
+          <option key={y.id} value={y.id}>
+            {y.label}
+            {i === 0 ? ' (current)' : ''}
           </option>
         ))}
       </select>
@@ -234,6 +263,7 @@ export function Shell() {
         {wide && (
           <div className="shrink-0 space-y-2 border-b border-line px-3.5 py-3">
             <OrgPicker open={wide} />
+            <YearPicker />
             <Switcher align="left" />
           </div>
         )}

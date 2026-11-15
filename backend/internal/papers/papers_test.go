@@ -212,7 +212,7 @@ func TestBlueprintToPaper(t *testing.T) {
 		if mode := one(`SELECT entry_mode FROM assessments WHERE id = $1`, exam); mode != "sections" {
 			t.Fatalf("entry mode %s", mode)
 		}
-		admin.json(409, "PUT", "/v1/papers/"+paper.ID+"/items/"+paper.Items[0].ID, map[string]any{"locked": true}, nil)
+		admin.json(200, "PUT", "/v1/papers/"+paper.ID+"/items/"+paper.Items[0].ID, map[string]any{"locked": true}, nil) // an administrator may still change a final set
 		q := paper.Items[0].Question
 		admin.json(409, "PUT", "/v1/questions/"+q.ID, map[string]any{"levelId": a.LevelID, "subjectId": a.SubjectID, "qtype": q.QType, "marks": q.Marks, "bloom": q.Bloom, "text": "Changed"}, nil)
 	})
@@ -459,7 +459,7 @@ func TestFreePaper(t *testing.T) {
 	if got != "Section C=9:1, Warm up=1:1 sections/sections" {
 		t.Fatalf("parts by section: %s", got)
 	}
-	admin.json(409, "POST", base+"/sections", nil, nil) // final
+	admin.json(201, "POST", base+"/sections", nil, nil) // final, but nothing is closed to an administrator
 }
 
 // A paper at every level: sections, sub-sections, questions and their bits.
@@ -780,6 +780,20 @@ func TestPaperReview(t *testing.T) {
 	if _, body := admin.raw("GET", base+"/html", nil); strings.Contains(string(body), "Only an administrator prints") {
 		t.Fatal("the administrator prints a final set")
 	}
+	// An administrator may still change a final set; while no mark is in,
+	// the marks sheet follows the change.
+	admin.json(200, "GET", base, nil, &p)
+	if !p.May.Edit || p.May.Approve {
+		t.Fatalf("a final set, for the administrator: %+v", p.May)
+	}
+	admin.json(200, "PUT", base+"/items/"+p.Items[0].ID, map[string]any{"question": map[string]any{"qtype": "Short answer", "marks": "4", "text": "Name two rivers."}}, &p)
+	if p.Items[0].Question.Text != "Name two rivers." || p.Total != "4" {
+		t.Fatalf("changed by the administrator: %+v total %s", p.Items[0].Question, p.Total)
+	}
+	if got := one(`SELECT string_agg(name || '=' || max_marks::int, ',') FROM assessment_parts WHERE assessment_id = $1 AND deleted_at IS NULL`, exam); got != "Q1=4" {
+		t.Fatalf("the marks sheet follows: %s", got)
+	}
+	head.json(409, "POST", base+"/sections", nil, nil) // still final for a moderator
 	teacher.json(403, "GET", base+"/html", nil, nil)
 
 	// The administrator names who moderates; left out of other saves, it stays.
@@ -872,13 +886,19 @@ func TestExamFocusAndLock(t *testing.T) {
 	var p papers.Paper
 	teacher.json(201, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, &p)
 	admin.json(200, "POST", "/v1/assessments/"+exam+"/lock", nil, nil)
-	admin.json(200, "GET", "/v1/papers/"+p.ID, nil, &p)
-	if !p.Locked || p.May.Edit || p.May.Approve {
-		t.Fatalf("a locked exam's paper: locked %v, %+v", p.Locked, p.May)
+	teacher.json(200, "GET", "/v1/papers/"+p.ID, nil, &p)
+	if !p.Locked || p.May.Edit || p.May.Submit {
+		t.Fatalf("a locked exam's paper, for its teacher: locked %v, %+v", p.Locked, p.May)
 	}
-	admin.json(409, "POST", "/v1/papers/"+p.ID+"/sections", nil, nil)
-	admin.json(409, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, nil)
-	admin.json(409, "POST", "/v1/papers/"+p.ID+"/duplicate", nil, nil)
-	admin.json(200, "POST", "/v1/assessments/"+exam+"/unlock", map[string]string{"reason": "A typo in Q1"}, nil)
+	teacher.json(409, "POST", "/v1/papers/"+p.ID+"/sections", nil, nil)
+	teacher.json(409, "POST", "/v1/assessments/"+exam+"/papers", map[string]any{"blank": true}, nil)
+	teacher.json(409, "POST", "/v1/papers/"+p.ID+"/duplicate", nil, nil)
+	// Nothing is closed to an administrator.
+	admin.json(200, "GET", "/v1/papers/"+p.ID, nil, &p)
+	if !p.Locked || !p.May.Edit {
+		t.Fatalf("a locked exam's paper, for the administrator: %+v", p.May)
+	}
 	admin.json(201, "POST", "/v1/papers/"+p.ID+"/sections", nil, &p)
+	admin.json(200, "POST", "/v1/assessments/"+exam+"/unlock", map[string]string{"reason": "A typo in Q1"}, nil)
+	teacher.json(201, "POST", "/v1/papers/"+p.ID+"/sections", nil, &p)
 }

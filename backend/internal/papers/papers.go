@@ -75,6 +75,7 @@ type Paper struct {
 	Locked           bool         `json:"locked"` // its exam is locked: nothing in it changes
 	copiedFromID     string
 	open             bool
+	admin            bool // an administrator: nothing is closed to them
 }
 
 // paperOf is a set this person may see the questions of.
@@ -284,7 +285,7 @@ func createPaper(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if a.locked {
+	if a.locked && !isAdmin(c) {
 		return problem.New(http.StatusConflict, "paper.locked", "This exam is locked, so no new set is made for it.")
 	}
 	var in createIn
@@ -433,6 +434,11 @@ func fill(ctx context.Context, tx pgx.Tx, a assessment, paperID, taxonomy string
 }
 
 func draftOnly(p Paper) error {
+	// An administrator may change any set, final or in a locked exam; the
+	// marks sheet follows while no mark is in (see relay).
+	if p.admin {
+		return nil
+	}
 	if p.Locked {
 		return problem.New(http.StatusConflict, "paper.locked", "This exam is locked, so its papers stay as they are. An administrator unlocks it, with a reason, to change them.")
 	}
@@ -496,6 +502,12 @@ func putItem(c fiber.Ctx) error {
 	if in.Question != nil {
 		if err := retype(c, tx, p, a, p.Items[i], *in.Question); err != nil {
 			return err
+		}
+		if p.Status == "final" {
+			m, _ := tenant.MemberFrom(c)
+			if err := relay(ctx, tx, m.OrgID, p.AssessmentID); err != nil {
+				return err
+			}
 		}
 		if err := loadItems(ctx, tx, &p); err != nil {
 			return err
@@ -607,7 +619,7 @@ func duplicatePaper(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if a.locked {
+	if a.locked && !isAdmin(c) {
 		return problem.New(http.StatusConflict, "paper.locked", "This exam is locked, so no new set is made for it.")
 	}
 	m, _ := tenant.MemberFrom(c)

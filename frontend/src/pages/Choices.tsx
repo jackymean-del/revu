@@ -52,7 +52,7 @@ export function Choices() {
   const subjects = useQuery({ queryKey: ['structure', orgId, 'subjects', {}], queryFn: ({ signal }) => listStructure<Subject>(orgId, 'subjects', {}, signal), enabled: !!orgId }).data ?? []
 
   // Leaders choose any section; a class teacher their own.
-  const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id
+  const latestYear = names.chosenYear
   const sections = names.sections.filter((s) => (leads ? s.yearId === latestYear : mine?.some((a) => a.sectionId === s.id && !a.subjectId)))
   const [picked, setPicked] = useState('')
   const sectionId = sections.some((s) => s.id === picked) ? picked : (sections[0]?.id ?? '')

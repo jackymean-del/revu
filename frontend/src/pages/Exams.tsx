@@ -40,14 +40,14 @@ export function Exams() {
   if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
-  const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
+  const latestYear = names.chosenYear
   const subjectName = (id: string) => subjects.find((s) => s.id === id)?.name ?? ''
   const sectionName = (id: string) => {
     const s = names.byId(id)
     return s ? names.name(s) : ''
   }
   const mineOnly = (a: Assessment) => leads || a.sectionIds.some((s) => mine?.some((m) => m.sectionId === s && (!m.subjectId || m.subjectId === a.subjectId)))
-  const list = (assessments.data ?? []).filter(mineOnly)
+  const list = (assessments.data ?? []).filter((a) => a.yearId === latestYear).filter(mineOnly)
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-6">

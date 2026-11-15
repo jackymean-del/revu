@@ -82,6 +82,12 @@ func reply(c fiber.Ctx, tx pgx.Tx, p Paper, status int) error {
 	if err := renumber(c.Context(), tx, p.ID); err != nil {
 		return err
 	}
+	if p.Status == "final" {
+		m, _ := tenant.MemberFrom(c)
+		if err := relay(c.Context(), tx, m.OrgID, p.AssessmentID); err != nil {
+			return err
+		}
+	}
 	if err := loadItems(c.Context(), tx, &p); err != nil {
 		return err
 	}

@@ -45,7 +45,7 @@ export function Analysis() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
 
-  const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
+  const latestYear = names.chosenYear
   const sections = names.sections.filter((s) => s.yearId === latestYear && (leads || mine?.some((m) => m.sectionId === s.id)))
   // Class first (one, or all), then any of its sections (one, several, or all).
   const levels = names.levels.filter((l) => sections.some((s) => s.levelId === l.id))

@@ -47,6 +47,8 @@ export function usePaperAssessments() {
   }
   const teaches = (a: Assessment) => leads || a.sectionIds.some((s) => mine?.some((m) => m.sectionId === s && (!m.subjectId || m.subjectId === a.subjectId)))
   const choices: Choice[] = (assessments.data ?? [])
+    // Only the year chosen at the top of the app.
+    .filter((a) => !names.chosenYear || a.yearId === names.chosenYear)
     .filter(teaches)
     .map((a) => {
       const subject = subjectName(a.subjectId)

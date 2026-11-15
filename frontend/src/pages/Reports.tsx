@@ -43,7 +43,7 @@ export function Reports() {
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
   const printer = useRef<HTMLIFrameElement>(null)
 
-  const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
+  const latestYear = names.chosenYear
   // Class teachers build their own section's reports; administrators any.
   const sections = names.sections.filter((s) => s.yearId === latestYear && (admin || mine?.some((m) => m.sectionId === s.id && !m.subjectId)))
   const sectionId = pick.sectionId || sections[0]?.id || ''

@@ -4,10 +4,12 @@ import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 
 /**
- * One place to change who you are acting as: the platform owner's console,
- * the groups you run, and, for an administrator, a preview of the
- * institution as another role. The server enforces the previewed role and
- * refuses changes, so the preview is exactly what that role sees.
+ * One place for the platform owner to change who they are acting as: the
+ * owner's console, the groups, and a preview of an institution as another
+ * role. Only the platform owner sees it; administrators and group
+ * administrators reach their own pages from the menu. The server enforces
+ * the previewed role and refuses changes, so the preview is exactly what
+ * that role sees.
  */
 export function Switcher({ align = 'right' }: { align?: 'left' | 'right' }) {
   const t = useT()
@@ -29,7 +31,7 @@ export function Switcher({ align = 'right' }: { align?: 'left' | 'right' }) {
     }
   }, [open])
 
-  if (!platformOwner && groups.length === 0 && !admin) return null
+  if (!platformOwner) return null
 
   const roles = [
     { role: 'principal', label: t('person.principal') },

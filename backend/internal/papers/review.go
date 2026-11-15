@@ -59,13 +59,47 @@ func permit(c fiber.Ctx, tx pgx.Tx, p *Paper) error {
 		return err
 	}
 	p.open = p.Status == "draft" || mod
-	live := !p.Locked // a locked exam's papers no longer move
+	p.admin = admin
+	live := !p.Locked // a locked exam's papers no longer move, except for an administrator
 	p.May = May{
-		Edit:    live && p.open && p.Status != "final",
+		Edit:    admin || (live && p.open && p.Status != "final"),
 		Submit:  live && p.Status == "draft" && !mod,
 		Approve: live && mod && p.Status != "final",
 		Return:  live && mod && p.Status == "submitted",
 		Print:   admin && p.Status == "final",
+	}
+	return nil
+}
+
+// isAdmin says whether the person asking is an administrator.
+func isAdmin(c fiber.Ctx) bool {
+	actor, err := tenant.Teaching(c)
+	return err == nil && slices.ContainsFunc(actor.Roles, func(r policy.RoleIn) bool { return r.Role == policy.Admin })
+}
+
+// relay lays the marks sheet out again after an administrator changes a
+// final set, while no mark is in: one part a question, section or total as
+// was chosen, tagged for every final set. Once marks are in, the sheet
+// stays as it is, so no mark already entered loses its place.
+func relay(ctx context.Context, tx pgx.Tx, orgID, assessmentID string) error {
+	var marked bool
+	var marksBy string
+	var finals []string
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM evidence WHERE assessment_id = $1::uuid AND state <> 'pending'), coalesce((SELECT marks_by FROM assessments WHERE id = $1::uuid), 'questions'),
+		       coalesce((SELECT array_agg(id::text ORDER BY finalised_at) FROM papers WHERE assessment_id = $1::uuid AND status = 'final'), '{}')`, assessmentID).Scan(&marked, &marksBy, &finals); err != nil {
+		return err
+	}
+	if marked || len(finals) == 0 {
+		return nil
+	}
+	if err := layParts(ctx, tx, orgID, assessmentID, finals[0], marksBy); err != nil {
+		return err
+	}
+	for _, id := range finals {
+		if err := tagParts(ctx, tx, orgID, assessmentID, id, marksBy); err != nil {
+			return err
+		}
 	}
 	return nil
 }

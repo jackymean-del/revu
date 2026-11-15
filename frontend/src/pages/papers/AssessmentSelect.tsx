@@ -4,13 +4,13 @@ import type { Choice } from './assessments'
 const field = 'w-full rounded-md border border-line bg-white px-2 py-1.5 text-sm font-normal disabled:bg-canvas disabled:text-muted'
 
 /** The levels the choice narrows through, in order; the last is the exam itself. */
-const LEVELS = ['year', 'term', 'level', 'subject'] as const
+const LEVELS = ['term', 'level', 'subject'] as const
 type Level = (typeof LEVELS)[number]
 const keyOf = (c: Choice, l: Level) => (l === 'level' ? c.level : c[l])
 
 /**
- * The exam to work on, narrowed step by step: year, then term, class and
- * subject, then the exam itself. Each list holds only what the one before
+ * The exam to work on, narrowed step by step: term, class and subject,
+ * then the exam itself, within the year chosen at the top of the app. Each list holds only what the one before
  * leaves, and only what this person may open: everything for those who
  * lead, the classes and subjects they teach for a teacher. A list with one
  * thing in it shows it without asking. A page may add a last step after
@@ -19,7 +19,7 @@ const keyOf = (c: Choice, l: Level) => (l === 'level' ? c.level : c[l])
 export function AssessmentSelect({ choices, value, onChange, children }: { choices: Choice[]; value: string; onChange: (id: string) => void; children?: React.ReactNode }) {
   const t = useT()
   const current = choices.find((c) => c.a.id === value) ?? choices[0]
-  const label: Record<Level, string> = { year: t('period.year'), term: t('period.term'), level: t('group.level'), subject: t('course.subject') }
+  const label: Record<Level, string> = { term: t('period.term'), level: t('group.level'), subject: t('course.subject') }
   // What each list offers, given the choices made above it.
   const lists = LEVELS.map((l, i) => {
     const within = choices.filter((c) => LEVELS.slice(0, i).every((up) => keyOf(c, up) === keyOf(current, up)))
@@ -36,7 +36,7 @@ export function AssessmentSelect({ choices, value, onChange, children }: { choic
   }
   if (!current) return null
   return (
-    <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${children ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
+    <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${children ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
       {lists.map(({ l, options }) => (
         <label key={l} className="flex min-w-0 flex-col gap-1 text-xs font-semibold">
           {label[l]}
