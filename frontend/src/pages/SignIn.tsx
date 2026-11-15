@@ -9,6 +9,7 @@
  * copy uses neutral words that fit every institution, never a preset's.
  */
 import { useEffect, useState, type FormEvent } from 'react'
+import { Loading } from '../components/Loading'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@clerk/react'
 import { useSignIn } from '@clerk/react/legacy'
@@ -254,7 +255,7 @@ function ClerkSignIn() {
     if (authLoaded && isSignedIn) window.location.replace('/')
   }, [authLoaded, isSignedIn])
 
-  if (!authLoaded || isSignedIn || !isLoaded || !signIn) return <p className="text-sm text-muted">Loading</p>
+  if (!authLoaded || isSignedIn || !isLoaded || !signIn) return <Loading />
 
   const finish = async (res: { status: string | null; createdSessionId: string | null }) => {
     if (res.status !== 'complete' || !res.createdSessionId) throw new Error('That did not finish signing you in. Try again.')

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getHolisticSettings, putHolisticSettings, type HolisticSettings } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -20,7 +21,7 @@ export function HolisticLevels() {
   const { current, loading } = useOrg()
   const orgId = current?.id ?? ''
   const settings = useQuery({ queryKey: ['holistic-settings', orgId], queryFn: ({ signal }) => getHolisticSettings(orgId, signal), enabled: !!orgId })
-  if (loading || settings.isPending) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading || settings.isPending) return <Loading page />
   if (!orgId || !settings.data) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
   return <Form orgId={orgId} settings={settings.data} />
 }

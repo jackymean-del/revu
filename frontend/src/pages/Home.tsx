@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { Loading } from '../components/Loading'
 import { SignInPrompt } from '../components/Account'
 import { Dashboard } from '../components/Dashboard'
 import { Icon } from '../components/Icon'
@@ -31,7 +32,7 @@ export function Home() {
         <SignInPrompt />
       </div>,
     )
-  if (loading) return shell(<p className="text-muted">Loading</p>)
+  if (loading) return shell(<Loading />)
   if (error?.status === 401) return shell(<p className="text-muted">Your sign-in was not accepted. Sign out and sign in again.</p>)
   if (unreachable)
     return shell(

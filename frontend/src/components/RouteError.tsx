@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import type { ErrorComponentProps } from '@tanstack/react-router'
+import { reportError } from '../lib/report-error'
 
 /**
  * A screen that could not open says so, with one way forward, instead of
@@ -6,6 +8,10 @@ import type { ErrorComponentProps } from '@tanstack/react-router'
  */
 export function RouteError({ error }: ErrorComponentProps) {
   const stale = /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(error instanceof Error ? error.message : String(error))
+  // An old tab after a deploy is not a fault; anything else is reported.
+  useEffect(() => {
+    if (!stale) reportError(error)
+  }, [error, stale])
   return (
     <div role="alert" className="mx-auto mt-10 max-w-lg space-y-3 rounded-2xl border border-line bg-white p-6 text-center">
       <p className="font-bold">{stale ? 'revU has been updated' : 'This screen could not open'}</p>

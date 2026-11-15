@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   addPaperItem,
   addPaperSection,
@@ -12,10 +12,13 @@ import {
   type PaperItem,
   type PaperSection,
   type Question,
+  type Syllabus,
+  updateQuestion,
 } from '../../api/client'
 import { bitsAlike, hundredths, moveItem, moveSection, orderOf, parentsOf, type Order, type Parents } from '../../lib/papers'
 import { levelLabel, questionLevel, type Taxonomy } from '../../lib/taxonomy'
-import { Outline, type Place } from './Outline'
+import { useLater } from '../../lib/undo'
+import { AiDraft } from './AiDraft'
 import { Problem, QuestionForm } from './QuestionForm'
 import { usePaperSettings } from './settings'
 import { PAPER } from './types'
@@ -27,16 +30,18 @@ const field = 'rounded-md border border-line bg-white px-2 py-1.5 text-sm'
 const letter = (i: number) => String.fromCharCode(97 + i)
 
 type Drag = { kind: 'section'; id: string } | { kind: 'item'; id: string } | null
-type View = 'cards' | 'list' | 'outline'
 
 /** What every card of one paper shares. */
 interface Board {
   orgId: string
   paper: Paper
   bank: Question[]
+  syllabus: Syllabus
+  place: { levelId: string; subjectId: string }
   draft: boolean
-  all: boolean
   open: Set<string>
+  gone: Set<string> // removed, with Undo still open
+  hide: (id: string, on: boolean) => void
   toggle: (id: string) => void
   editing: string
   setEditing: (itemId: string) => void
@@ -56,43 +61,41 @@ interface Board {
  * it; a card's questions show only once it is opened, where it is named and
  * its questions are typed, picked from the bank, changed, ordered and
  * removed. Everything moves by drag and drop, or by the up and down
- * buttons. The outline shows the whole paper as a tree and goes straight to
- * any level of it.
+ * buttons. One button opens or closes every card at once.
  */
-export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; paper: Paper; bank: Question[]; onChange: (p: Paper) => void }) {
+export function SectionCards({ orgId, paper, bank, syllabus, place, onChange }: {
+  orgId: string
+  paper: Paper
+  bank: Question[]
+  syllabus: Syllabus
+  place: { levelId: string; subjectId: string }
+  onChange: (p: Paper) => void
+}) {
   // Whoever may change the set: its teachers while a draft, then those who moderate.
   const draft = paper.may.edit
   const [open, setOpen] = useState<Set<string>>(() => new Set(paper.sections.slice(0, 1).flatMap((s) => (paper.sections.some((x) => x.parentId === s.id) ? [] : [s.id]))))
-  const [view, setView] = useState<View>('cards')
   const [editing, setEditing] = useState('')
   const [drag, setDrag] = useState<Drag>(null)
-  const goal = useRef('')
+  const [gone, setGone] = useState<Set<string>>(new Set())
   const reorder = useMutation({ mutationFn: (o: Order) => putPaperOrder(orgId, paper.id, o), onSuccess: onChange })
   const add = useMutation({ mutationFn: () => addPaperSection(orgId, paper.id), onSuccess: (p) => (onChange(p), setOpen(new Set([...open, p.sections.filter((s) => !s.parentId).at(-1)?.id ?? '']))) })
   const err = (reorder.error ?? add.error) as Error | null
-  const tops = paper.sections.filter((s) => !s.parentId)
+  const tops = paper.sections.filter((s) => !s.parentId && !gone.has(s.id))
 
-  // After a jump from the outline, bring the place asked for into view.
-  useEffect(() => {
-    if (!goal.current) return
-    document.getElementById(goal.current)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    goal.current = ''
-  })
-  const go = (to: Place) => {
-    const s = paper.sections.find((x) => x.id === to.sectionId)
-    setOpen(new Set([...open, to.sectionId, s?.parentId ?? to.sectionId]))
-    setEditing(to.itemId && draft ? to.itemId : '')
-    goal.current = to.itemId ? `item-${to.itemId}` : `sec-${to.sectionId}`
-    setView('cards')
-  }
+  // Every section and sub-section, to open or close them all at once.
+  const every = paper.sections.filter((x) => !gone.has(x.id)).map((x) => x.id)
+  const allOpen = every.length > 0 && every.every((id) => open.has(id))
 
   const board: Board = {
     orgId,
     paper,
     bank,
+    syllabus,
+    place,
     draft,
-    all: view === 'list',
     open,
+    gone,
+    hide: (id, on) => setGone((was) => new Set(on ? [...was, id] : [...was].filter((x) => x !== id))),
     toggle: (id) => setOpen((was) => new Set(was.has(id) ? [...was].filter((x) => x !== id) : [...was, id])),
     editing,
     setEditing,
@@ -108,28 +111,16 @@ export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <div role="group" aria-label="View" className="flex rounded-lg bg-mist p-0.5">
-          {(
-            [
-              ['cards', 'Cards'],
-              ['list', 'Full list'],
-              ['outline', 'Outline'],
-            ] as const
-          ).map(([v, label]) => (
-            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`rounded-md px-2.5 py-1 font-semibold ${view === v ? 'bg-white text-brand shadow-sm' : 'text-muted'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {view === 'outline' ? (
-          <span className="text-xs text-muted">The whole paper, level by level. Choose any line to go to it.</span>
-        ) : (
-          draft && <span className="text-xs text-muted">Drag a card or a question to move it, or use the arrows.</span>
-        )}
+        {draft && <span className="flex-1 text-xs text-muted">Drag a card or a question to move it, or use the arrows.</span>}
+        <button type="button" className={`${button} ml-auto`} onClick={() => setOpen(new Set(allOpen ? [] : every))}>
+          {allOpen ? 'Close all' : 'Open all'}
+        </button>
       </div>
       {err && <Problem error={err} />}
-      {view === 'outline' ? <Outline paper={paper} draft={draft} onGo={go} /> : tops.map((s) => <SectionCard key={s.id} board={board} section={s} />)}
-      {draft && view !== 'outline' && (
+      {tops.map((s) => (
+        <SectionCard key={s.id} board={board} section={s} />
+      ))}
+      {draft && (
         <button type="button" className="w-full rounded-2xl border border-dashed border-line bg-white py-3 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50" disabled={add.isPending || tops.length >= 26} onClick={() => add.mutate()}>
           Add a {PAPER.section}
         </button>
@@ -139,33 +130,48 @@ export function SectionCards({ orgId, paper, bank, onChange }: { orgId: string; 
 }
 
 function SectionCard({ board, section }: { board: Board; section: PaperSection }) {
-  const { orgId, paper, bank, draft, drag, setDrag, busy, order, parents, onOrder, onChange, editing, setEditing } = board
+  const { orgId, paper, bank, syllabus, place: scope, draft, drag, setDrag, busy, order, parents, onOrder, onChange, editing, setEditing } = board
   const settings = usePaperSettings(orgId)
   const tax = paper.taxonomy as Taxonomy
   const sub = !!section.parentId
   const word = sub ? `sub-${PAPER.section}` : PAPER.section
-  const items = paper.items.filter((i) => i.sectionId === section.id)
-  const subs = paper.sections.filter((s) => s.parentId === section.id)
+  const items = paper.items.filter((i) => i.sectionId === section.id && !board.gone.has(i.id))
+  const subs = paper.sections.filter((s) => s.parentId === section.id && !board.gone.has(s.id))
+  const later = useLater()
+  // A removal waits a few seconds with Undo; the card goes at once.
+  const removeLater = (id: string, label: string, run: () => Promise<Paper>) => {
+    board.hide(id, true)
+    later(
+      label,
+      () => void run().then(onChange).finally(() => board.hide(id, false)),
+      () => board.hide(id, false),
+    )
+  }
   const siblings = paper.sections.filter((s) => (s.parentId ?? '') === (section.parentId ?? ''))
   const place = siblings.findIndex((s) => s.id === section.id)
-  const open = board.all || board.open.has(section.id)
+  const open = board.open.has(section.id)
   const [title, setTitle] = useState(section.title)
   const [note, setNote] = useState(section.instructions)
   const [adding, setAdding] = useState<'' | 'type' | 'bank'>('')
   const [picking, setPicking] = useState('')
   const [over, setOver] = useState(false)
   const change = useMutation({ mutationFn: (b: Parameters<typeof putPaperSection>[3]) => putPaperSection(orgId, paper.id, section.id, b), onSuccess: onChange })
-  const remove = useMutation({ mutationFn: () => deletePaperSection(orgId, paper.id, section.id), onSuccess: onChange })
   const addSub = useMutation({ mutationFn: () => addPaperSection(orgId, paper.id, section.id), onSuccess: (p) => (onChange(p), board.toggle(p.sections.filter((s) => s.parentId === section.id).at(-1)?.id ?? '')) })
-  const drop = useMutation({ mutationFn: (item: string) => deletePaperItem(orgId, paper.id, item), onSuccess: onChange })
-  const put = useMutation({ mutationFn: (v: { item: string; questionId: string }) => putPaperItem(orgId, paper.id, v.item, { questionId: v.questionId }), onSuccess: (p) => (setPicking(''), onChange(p)) })
-  const err = (change.error ?? remove.error ?? addSub.error ?? drop.error ?? put.error) as Error | null
+  // Using an AI draft is approving it.
+  const put = useMutation({
+    mutationFn: async (v: { item: string; q: Question }) => {
+      if (v.q.status === 'draft') await approve(orgId, scope, v.q)
+      return putPaperItem(orgId, paper.id, v.item, { questionId: v.q.id })
+    },
+    onSuccess: (p) => (setPicking(''), onChange(p)),
+  })
+  const err = (change.error ?? addSub.error ?? put.error) as Error | null
   const inPaper = new Set(paper.items.flatMap((i) => (i.question ? [i.question.id] : [])))
   const only = !sub && siblings.length <= 1
   const fits = (it: PaperItem) =>
     bank.filter(
       (q) =>
-        q.status === 'approved' &&
+        q.status !== 'retired' &&
         !inPaper.has(q.id) &&
         q.qtype.toLowerCase() === it.section.toLowerCase() &&
         hundredths(q.marks) === hundredths(it.marks) &&
@@ -305,9 +311,14 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                             Edit
                           </button>
                         ) : (
-                          <button type="button" className={button} aria-expanded={picking === it.id} onClick={() => setPicking(picking === it.id ? '' : it.id)}>
-                            Choose
-                          </button>
+                          <>
+                            <button type="button" className={button} aria-expanded={editing === it.id} onClick={() => (setPicking(''), setEditing(editing === it.id ? '' : it.id))}>
+                              Type it
+                            </button>
+                            <button type="button" className={button} aria-expanded={picking === it.id} onClick={() => (setEditing(''), setPicking(picking === it.id ? '' : it.id))}>
+                              Pick
+                            </button>
+                          </>
                         )}
                         <button type="button" className={icon} aria-label={`Move question ${it.seq} up`} disabled={busy || k === 0} onClick={() => onOrder(moveItem(order, it.id, section.id, k - 1))}>
                           ↑
@@ -315,25 +326,49 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                         <button type="button" className={icon} aria-label={`Move question ${it.seq} down`} disabled={busy || k === items.length - 1} onClick={() => onOrder(moveItem(order, it.id, section.id, k + 2))}>
                           ↓
                         </button>
-                        <button type="button" className={icon} aria-label={`Remove question ${it.seq}`} disabled={drop.isPending} onClick={() => drop.mutate(it.id)}>
+                        <button type="button" className={icon} aria-label={`Remove question ${it.seq}`} onClick={() => removeLater(it.id, `Removed Q${it.seq}`, () => deletePaperItem(orgId, paper.id, it.id))}>
                           ×
                         </button>
                       </span>
                     )}
                   </div>
-                  {editing === it.id && it.question && draft && (
+                  {editing === it.id && draft && (
                     <div className="mt-2">
-                      <QuestionForm key={it.question.id} orgId={orgId} paper={paper} sectionId={section.id} editing={it.question} itemId={it.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setEditing(''))} />
+                      <QuestionForm
+                        key={it.question?.id ?? it.id}
+                        orgId={orgId}
+                        paper={paper}
+                        sectionId={section.id}
+                        editing={it.question}
+                        slot={it}
+                        itemId={it.id}
+                        syllabus={syllabus}
+                        onAdded={onChange}
+                        onDone={(p) => (p && onChange(p), setEditing(''))}
+                      />
                     </div>
                   )}
                   {picking === it.id && (
                     <ul className="mt-2 space-y-1 rounded-xl bg-canvas p-2">
-                      {fits(it).length === 0 && <li className="p-1 text-sm text-muted">No approved question in the bank fits this slot. Remove the slot and type a question instead.</li>}
+                      <li className="flex flex-wrap items-center gap-2 p-1 text-sm text-muted">
+                        <span className="flex-1">{fits(it).length === 0 ? 'Nothing in the bank fits this slot yet. Type one, or draft some with AI.' : 'Questions in the bank that fit this slot.'}</span>
+                        <AiDraft
+                          orgId={orgId}
+                          place={scope}
+                          need={{ key: it.id, lessonId: it.lessonId, chapter: it.chapter, qtype: it.section, level: it.level ?? '', marks: it.marks, count: 3, have: 0 }}
+                          taxonomy={tax}
+                          syllabus={syllabus}
+                          onDone={() => onChange(paper)}
+                        />
+                      </li>
                       {fits(it).map((q) => (
                         <li key={q.id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-sm">
-                          <span className="flex-1 whitespace-pre-wrap">{q.text}</span>
-                          <button type="button" className={button} disabled={put.isPending} onClick={() => put.mutate({ item: it.id, questionId: q.id })}>
-                            Use this
+                          <span className="flex-1 whitespace-pre-wrap">
+                            {q.text}
+                            {q.status === 'draft' && <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">AI draft</span>}
+                          </span>
+                          <button type="button" className={button} disabled={put.isPending} onClick={() => put.mutate({ item: it.id, q })}>
+                            {q.status === 'draft' ? 'Approve and use' : 'Use this'}
                           </button>
                         </li>
                       ))}
@@ -365,16 +400,16 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
               <button
                 type="button"
                 className="text-sm font-semibold text-red-700 disabled:opacity-50"
-                disabled={remove.isPending || only}
+                disabled={only}
                 title={only ? `A paper keeps at least one ${PAPER.section}` : undefined}
-                onClick={() => (section.questions === 0 || window.confirm(`Remove ${section.title} and its ${section.questions} questions from the paper? The questions stay in the bank.`)) && remove.mutate()}
+                onClick={() => removeLater(section.id, `Removed ${section.title}${section.questions ? ` and its ${section.questions} ${section.questions === 1 ? 'question' : 'questions'}` : ''}`, () => deletePaperSection(orgId, paper.id, section.id))}
               >
                 Remove {word}
               </button>
             </div>
           )}
-          {open && adding === 'type' && <QuestionForm orgId={orgId} paper={paper} sectionId={section.id} onAdded={onChange} onDone={(p) => (p && onChange(p), setAdding(''))} />}
-          {open && adding === 'bank' && <FromBank orgId={orgId} paper={paper} sectionId={section.id} bank={bank.filter((q) => q.status === 'approved' && !inPaper.has(q.id))} onChange={onChange} onClose={() => setAdding('')} />}
+          {open && adding === 'type' && <QuestionForm orgId={orgId} paper={paper} sectionId={section.id} syllabus={syllabus} onAdded={onChange} onDone={(p) => (p && onChange(p), setAdding(''))} />}
+          {open && adding === 'bank' && <FromBank orgId={orgId} paper={paper} place={scope} sectionId={section.id} bank={bank.filter((q) => q.status !== 'retired' && !inPaper.has(q.id))} onChange={onChange} onClose={() => setAdding('')} />}
         </div>
       )}
     </section>
@@ -396,10 +431,56 @@ function Choices({ options, answer }: { options: string[]; answer: string }) {
   )
 }
 
-function FromBank({ orgId, paper, sectionId, bank, onChange, onClose }: { orgId: string; paper: Paper; sectionId: string; bank: Question[]; onChange: (p: Paper) => void; onClose: () => void }) {
+/** A bank question as the server takes it back, made approved or retired. */
+const approve = (orgId: string, place: { levelId: string; subjectId: string }, q: Question, status: 'approved' | 'retired' = 'approved') =>
+  updateQuestion(orgId, q.id, {
+    ...place,
+    lessonId: q.lessonId,
+    outcomeId: q.outcomeId,
+    bloom: q.bloom,
+    solo: q.solo,
+    customLevel: q.customLevel,
+    qtype: q.qtype,
+    marks: q.marks,
+    difficulty: q.difficulty,
+    text: q.text,
+    options: q.options,
+    answer: q.answer,
+    bits: q.bits,
+    spaceKind: q.spaceKind,
+    spaceSize: q.spaceSize,
+    optionCols: q.optionCols,
+    optionBoxes: q.optionBoxes,
+    source: q.source,
+    status,
+  })
+
+/**
+ * The class and subject's question bank, to add from: approved questions
+ * and AI drafts (approved by using them). A question no longer wanted is
+ * retired here; it stays in past papers.
+ */
+function FromBank({ orgId, paper, place, sectionId, bank, onChange, onClose }: {
+  orgId: string
+  paper: Paper
+  place: { levelId: string; subjectId: string }
+  sectionId: string
+  bank: Question[]
+  onChange: (p: Paper) => void
+  onClose: () => void
+}) {
+  const qc = useQueryClient()
   const [find, setFind] = useState('')
-  const add = useMutation({ mutationFn: (questionId: string) => addPaperItem(orgId, paper.id, { sectionId, questionId }), onSuccess: onChange })
+  const add = useMutation({
+    mutationFn: async (q: Question) => {
+      if (q.status === 'draft') await approve(orgId, place, q)
+      return addPaperItem(orgId, paper.id, { sectionId, questionId: q.id })
+    },
+    onSuccess: onChange,
+  })
+  const retire = useMutation({ mutationFn: (q: Question) => approve(orgId, place, q, 'retired'), onSuccess: () => qc.invalidateQueries({ queryKey: ['questions', orgId] }) })
   const shown = bank.filter((q) => !find.trim() || `${q.text} ${q.qtype}`.toLowerCase().includes(find.trim().toLowerCase())).slice(0, 30)
+  const error = (add.error ?? retire.error) as Error | null
   return (
     <div className="space-y-2 rounded-xl border border-line bg-canvas p-3">
       <div className="flex gap-2">
@@ -408,7 +489,7 @@ function FromBank({ orgId, paper, sectionId, bank, onChange, onClose }: { orgId:
           Close
         </button>
       </div>
-      {add.error && <Problem error={add.error} />}
+      {error && <Problem error={error} />}
       {shown.length === 0 ? (
         <p className="text-sm text-muted">Nothing in the bank matches. Type a question instead.</p>
       ) : (
@@ -419,10 +500,14 @@ function FromBank({ orgId, paper, sectionId, bank, onChange, onClose }: { orgId:
                 <span className="block whitespace-pre-wrap">{q.text}</span>
                 <span className="text-xs text-muted">
                   {q.qtype} · {q.marks} {q.marks === '1' ? 'mark' : 'marks'}
+                  {q.status === 'draft' && <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">AI draft</span>}
                 </span>
               </span>
-              <button type="button" className={button} disabled={add.isPending} onClick={() => add.mutate(q.id)}>
-                Add
+              <button type="button" className={button} disabled={add.isPending} onClick={() => add.mutate(q)}>
+                {q.status === 'draft' ? 'Approve and add' : 'Add'}
+              </button>
+              <button type="button" className="px-1 text-xs font-semibold text-muted hover:text-red-700" disabled={retire.isPending} onClick={() => retire.mutate(q)} title="No longer used in new papers; past papers keep it">
+                Retire
               </button>
             </li>
           ))}

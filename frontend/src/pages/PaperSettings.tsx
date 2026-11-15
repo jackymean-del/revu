@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { putPaperSettings, type PaperSettings as Settings } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -22,7 +23,7 @@ export function PaperSettings() {
   const { current, loading } = useOrg()
   const orgId = current?.id ?? ''
   const settings = usePaperSettings(orgId)
-  if (loading || (orgId && !settings)) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading || (orgId && !settings)) return <Loading page />
   if (!orgId || !settings) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
   return <Form orgId={orgId} settings={settings} />
 }

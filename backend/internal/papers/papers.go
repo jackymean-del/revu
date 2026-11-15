@@ -526,11 +526,34 @@ func retype(c fiber.Ctx, tx pgx.Tx, p Paper, a assessment, it Item, q questionIn
 	ctx := c.Context()
 	q.LevelID, q.SubjectID = a.levelID, a.subjectID
 	shared := false
+	// What the form leaves out is kept from the question there, or taken
+	// from the slot: its lesson, and its level in the paper's taxonomy.
+	keep := func(v *string, from string) {
+		if *v == "" {
+			*v = from
+		}
+	}
 	if cur := it.Question; cur != nil {
-		q.LessonID, q.OutcomeID, q.Bloom, q.Solo, q.Custom, q.Difficulty = cur.LessonID, cur.OutcomeID, cur.Bloom, cur.Solo, cur.Custom, cur.Difficulty
+		keep(&q.LessonID, cur.LessonID)
+		keep(&q.OutcomeID, cur.OutcomeID)
+		keep(&q.Bloom, cur.Bloom)
+		keep(&q.Solo, cur.Solo)
+		keep(&q.Custom, cur.Custom)
+		keep(&q.Difficulty, cur.Difficulty)
 		q.Source, q.Status = cur.Source, cur.Status
 		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM paper_items WHERE question_id = $1::uuid AND paper_id <> $2::uuid)`, cur.ID, p.ID).Scan(&shared); err != nil {
 			return err
+		}
+	}
+	if it.Question == nil {
+		keep(&q.LessonID, it.LessonID)
+		switch p.Taxonomy {
+		case "bloom":
+			keep(&q.Bloom, it.Level)
+		case "solo":
+			keep(&q.Solo, it.Level)
+		case "custom":
+			keep(&q.Custom, it.Level)
 		}
 	}
 	if it.Question == nil || shared {

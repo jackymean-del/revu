@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { downloadHolisticPdf, getHolisticClass, getHolisticHtml, listStructure, type HolisticClass, type Period, type TeachingAssignment } from '../api/client'
@@ -48,7 +49,7 @@ export function Holistic() {
   const cls = useQuery({ queryKey: ['holistic-class', orgId, q], queryFn: ({ signal }) => getHolisticClass(orgId, q, signal), enabled: !!(orgId && sectionId && periodId), placeholderData: keepPreviousData })
   const go = (change: { section?: string; term?: string; child?: string }) => void navigate({ search: { section: sectionId, term: periodId, ...change } })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const run = async (key: string, work: () => Promise<string>) => {
@@ -126,7 +127,7 @@ export function Holistic() {
           {cls.error instanceof ApiError ? cls.error.message : 'The holistic report could not be loaded.'}
         </p>
       ) : !data ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : child ? (
         <ChildPanel key={child} orgId={orgId} studentId={child} periodId={periodId} students={data.students} onPick={(id) => go({ child: id })} onBack={() => go({ child: undefined })} />
       ) : (

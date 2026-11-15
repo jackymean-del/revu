@@ -1526,6 +1526,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A screen that failed in someone's browser says so, for the server's log. Kept to what places the fault; a few a minute per address. */
+        post: operations["reportClientError"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/schemes": {
         parameters: {
             query?: never;
@@ -4538,6 +4555,8 @@ export interface components {
             qtype: string;
             marks: string;
             text: string;
+            solo?: string;
+            customLevel?: string;
             options?: string[];
             answer?: string;
             /** @description Lettered parts, (a), (b); the question is worth what they add up to. */
@@ -8328,6 +8347,34 @@ export interface operations {
                 };
             };
             default: components["responses"]["Problem"];
+        };
+    };
+    reportClientError: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    message: string;
+                    stack?: string;
+                    /** @description The page, without its query. */
+                    path?: string;
+                    version?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Noted, or ignored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listSchemes: {

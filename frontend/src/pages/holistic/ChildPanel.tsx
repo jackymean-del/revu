@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { downloadHolisticPdf, draftHolisticNote, getHolisticHtml, getHolisticStudent, putHolisticStudent, type HolisticClass, type HolisticReport } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -82,7 +83,7 @@ export function ChildPanel({ orgId, studentId, periodId, students, onPick, onBac
           {report.error instanceof ApiError ? report.error.message : 'This report could not be loaded.'}
         </p>
       ) : !r ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 rounded-2xl border border-line bg-white">

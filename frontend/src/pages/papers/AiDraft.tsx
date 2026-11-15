@@ -35,7 +35,7 @@ export function AiDraft({ orgId, place, need, taxonomy, syllabus, onDone }: {
           {draft.error instanceof ApiError ? draft.error.message : 'Try again.'}
         </span>
       )}
-      {draft.isSuccess && <span className="text-xs font-semibold text-emerald-700">{draft.data.length} drafted: check them in Drafts</span>}
+      {draft.isSuccess && <span className="text-xs font-semibold text-emerald-700">{draft.data.length} drafted below, to approve</span>}
       <button type="button" className={button} disabled={draft.isPending} onClick={() => draft.mutate()} title="Drafts from the syllabus only; you approve each one">
         {draft.isPending ? 'Drafting' : 'Draft with AI'}
       </button>

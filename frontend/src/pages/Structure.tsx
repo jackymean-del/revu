@@ -1,4 +1,5 @@
 import { useRouterState } from '@tanstack/react-router'
+import { Loading } from '../components/Loading'
 import { ClassesTable } from './structure/ClassesTable'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -72,7 +73,7 @@ export function Structure() {
   const [groupPick, setGroup] = useState('')
   const groupId = groups.some((g) => g.id === groupPick) ? groupPick : groups[0]?.id || ''
 
-  if (loading) return <p className="mx-auto max-w-5xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId)
     return (
       <p className="mx-auto max-w-5xl px-4 py-10 text-muted">

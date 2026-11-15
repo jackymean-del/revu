@@ -156,8 +156,8 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
   expect(api.sent[0].body).toEqual({ taxonomy: 'bloom', rows: [{ lessonId: 'les', chapter: 'Fractions', qtype: 'Short answer', cells: { remember: { questions: 2, marks: '1' }, apply: { questions: 1, marks: '2' } } }] })
 
   // The next step is named: the bank has no short recall questions yet.
-  await expect(page.getByRole('button', { name: /^Next:/ })).toContainText('Add the 2 questions the blueprint still needs')
-  await page.getByRole('button', { name: /Paper sets/ }).click()
+  await expect(page.getByRole('button', { name: /^Next:/ })).toContainText('Make the first set: 2 questions to write, pick or draft with AI')
+  await page.getByRole('button', { name: /^2\s*Paper/ }).click()
   await page.getByRole('button', { name: 'Make Set A' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'slots' })).toContainText('3 of 3 slots filled · 4 marks · ready to approve')
 
@@ -184,7 +184,7 @@ test('a paper from blueprint to assigned: plan, approve, fill from the bank, fin
     { path: 'order', body: { sections: [{ id: 'secB', itemIds: ['i3'] }, { id: 'secA', itemIds: ['i1', 'i2'] }] } },
     { path: 'section', body: { kind: 'extra' } },
     { path: 'section', body: { print: false } },
-    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true, bits: [] } } },
+    { path: 'item', body: { sectionId: 'secB', question: { qtype: 'Match the following', marks: '2', text: 'Match each fraction to its decimal.', options: ['1/2 = 0.5', '1/4 = 0.25'], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true, bits: [], difficulty: 'medium' } } },
   ])
   // The paper as it prints, beside the slots: with space to answer, then as the key.
   const preview = page.getByRole('complementary', { name: 'Print preview' })
@@ -228,26 +228,43 @@ test('a teacher submits a set and no longer sees it; the next set is a copy to r
   await expect(page.getByText('Same as Set A').first()).toBeVisible()
 })
 
-test('AI drafts what the blueprint still needs, as drafts to approve', async ({ page }) => {
+test('an empty slot is typed, picked or drafted with AI where it stands; a draft is approved by using it', async ({ page }) => {
   const api = fakeApi(page)
-  await page.goto('/papers?a=ut&tab=questions')
-  await expect(page.getByRole('region', { name: 'Question bank' })).toContainText('Add 1/4 and 1/2.')
-  // Nothing is planned yet, so nothing is still needed.
-  await expect(page.getByRole('region', { name: 'Still needed' })).toHaveCount(0)
-  await page.goto('/papers?a=ut&tab=blueprint')
-  await page.getByRole('button', { name: 'One row per lesson (1)' }).click()
-  await page.getByLabel('Row 1 Apply questions').fill('2')
-  await page.getByLabel('Row 1 Apply marks each').fill('2')
-  await page.getByRole('button', { name: 'Save draft' }).click()
-  await page.getByRole('button', { name: /Questions/ }).click()
-  const need = page.getByRole('region', { name: 'Still needed' })
-  await expect(need).toContainText('1 × Short answer, 2 marks, Apply')
-  await need.getByRole('button', { name: 'Draft with AI' }).click()
-  // A draft does not count until approved, so the need stays until then.
-  await expect(need).toContainText('1 drafted: check them in Drafts')
-  expect(api.sent.find((s) => s.path === 'draft')?.body).toEqual({ levelId: 'l6', subjectId: 'math', lessonId: 'les', qtype: 'Short answer', bloom: 'apply', marks: '2', count: 1 })
-  await page.getByRole('button', { name: /Drafts to check \(1\)/ }).click()
-  await expect(page.getByRole('region', { name: 'Question bank' })).toContainText('AI draft')
+  // A set laid out from the blueprint, with its one slot still empty.
+  const slot = { id: 'e1', seq: 1, section: 'Short answer', sectionId: 'secS', chapter: 'Fractions', lessonId: 'les', level: 'apply', marks: '2', locked: false, sameAsSource: false }
+  const empty = {
+    id: 'pE', assessmentId: 'ut', set: 'Set A', status: 'draft', taxonomy: 'bloom', blueprintVersion: 1, instructions: '', filled: 0, total: '2',
+    sections: [{ id: 'secS', seq: 1, title: 'Short answer', instructions: '', kind: 'core', print: true, questions: 1, marks: '2' }],
+    items: [slot], bySection: [], byLevel: [], assignments: [], copiedFrom: '', reviewNote: '', veiled: false,
+    may: { edit: true, submit: false, approve: true, return: false, print: false },
+  }
+  void page.route('**/v1/assessments/ut/papers', (r) => r.fulfill({ json: [{ id: 'pE', set: 'Set A', status: 'draft', items: 1, filled: 0, blueprintVersion: 1, open: true }] }))
+  void page.route('**/v1/papers/pE', (r) => r.fulfill({ json: empty }))
+  void page.route(/\/v1\/papers\/pE\/html/, (r) => r.fulfill({ contentType: 'text/html', body: '<p>Set A</p>' }))
+  void page.route('**/v1/questions/q9', (r) => (api.sent.push({ path: 'approve', body: r.request().postDataJSON() }), r.fulfill({ json: {} })))
+  void page.route('**/v1/papers/pE/items/e1', (r) => (api.sent.push({ path: 'slot', body: r.request().postDataJSON() }), r.fulfill({ json: empty })))
+  await page.goto('/papers?a=ut&tab=sets')
+  const card = page.getByRole('region', { name: 'Short answer' })
+  await expect(card).toContainText('Still to choose')
+
+  // Typed where it stands, the form starts with the slot's type, marks and lesson.
+  await card.getByRole('button', { name: 'Type it' }).click()
+  await expect(card.getByLabel('Question type')).toHaveValue('Short answer')
+  await expect(card.getByLabel('Marks', { exact: true })).toHaveValue('2')
+  await expect(card.getByText('Lesson and outcome')).toContainText('Fractions')
+  await card.getByRole('button', { name: 'Close' }).click()
+
+  // Drafted with AI from the slot's own needs, then approved by using it.
+  await card.getByRole('button', { name: 'Pick' }).click()
+  await card.getByRole('button', { name: 'Draft with AI' }).click()
+  await expect(card).toContainText('1 drafted below, to approve')
+  expect(api.sent.find((s) => s.path === 'draft')?.body).toEqual({ levelId: 'l6', subjectId: 'math', lessonId: 'les', qtype: 'Short answer', bloom: 'apply', marks: '2', count: 3 })
+  await expect(card).toContainText('AI draft')
+  await card.getByRole('button', { name: 'Approve and use' }).click()
+  await expect.poll(() => api.sent.find((s) => s.path === 'slot')?.body).toEqual({ questionId: 'q9' })
+  expect((api.sent.find((s) => s.path === 'approve')?.body as { status: string }).status).toBe('approved')
+  // There is no separate question bank step any more.
+  await expect(page.getByRole('button', { name: /^2\s*Questions/ })).toHaveCount(0)
 })
 
 test('an administrator names the sets and sets the institution own levels', async ({ page }) => {

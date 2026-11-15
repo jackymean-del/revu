@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { Link, useSearch } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getMarksBy, listAssessments, listStructure, putMarksBy, type Subject, type TeachingAssignment } from '../api/client'
@@ -28,7 +29,7 @@ export function Marks() {
   const [picked, setPicked] = useState(search.a ?? '')
   const [by, setBy] = useState('')
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const subjectName = (id: string) => subjects.find((s) => s.id === id)?.name ?? ''
@@ -54,7 +55,7 @@ export function Marks() {
       </div>
 
       {assessments.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : entries.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
           <p className="font-bold">No assessments for your {t('group.section', { count: 2, lower: true })} yet</p>

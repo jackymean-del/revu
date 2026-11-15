@@ -2619,6 +2619,32 @@ paths:
                 $ref: "#/components/schemas/Health"
         default:
           $ref: "#/components/responses/Problem"
+  /api/client-errors:
+    post:
+      operationId: reportClientError
+      summary: A screen that failed in someone's browser says so, for the server's log. Kept to what places the fault; a few a minute per address.
+      tags: [system]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: string
+                stack:
+                  type: string
+                path:
+                  type: string
+                  description: The page, without its query.
+                version:
+                  type: string
+      responses:
+        "204":
+          description: Noted, or ignored.
   /v1/schemes:
     get:
       operationId: listSchemes
@@ -8134,6 +8160,10 @@ components:
         marks:
           type: string
         text:
+          type: string
+        solo:
+          type: string
+        customLevel:
           type: string
         options:
           type: array

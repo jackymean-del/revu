@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createReexam, previewReexam, type ReexamCriteria } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -112,7 +113,7 @@ export function ReexamPlan({ orgId, sourceId, choices, onSource, onMade, onCance
             {preview.error instanceof ApiError ? preview.error.message : 'The list could not be loaded.'}
           </p>
         ) : !preview.data ? (
-          <p className="text-sm text-muted">Loading</p>
+          <Loading />
         ) : (
           <>
             <p role="status" className="text-sm">

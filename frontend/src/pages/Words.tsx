@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getTerminology, putTerminology, type TerminologyDoc } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -55,7 +56,7 @@ export function Words() {
       </Notice>
     )
   else if (error?.status === 401) body = <Notice title="Your sign-in was not accepted">Sign out and sign in again. If it keeps happening, quote request {error.requestId}.</Notice>
-  else if (loading || !auth.loaded) body = <p className="text-muted">Loading</p>
+  else if (loading || !auth.loaded) body = <Loading />
   else if (!current)
     body = (
       <Notice title={`No ${institution} yet`}>
@@ -64,7 +65,7 @@ export function Words() {
       </Notice>
     )
   else if (q.isError) body = <Notice title="These words could not be loaded">{q.error.message}</Notice>
-  else if (!q.data) body = <p className="text-muted">Loading</p>
+  else if (!q.data) body = <Loading />
   else body = <Editor key={`${current.id}:${q.dataUpdatedAt}`} orgId={current.id} saved={q.data} canEdit={current.roles.includes('admin')} />
 
   return (

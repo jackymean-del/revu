@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { Loading } from '../components/Loading'
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { analysisQuery, download, getAnalysisSummary, listStructure, type Period, type TeachingAssignment } from '../api/client'
@@ -70,7 +71,7 @@ export function Analysis() {
     placeholderData: keepPreviousData,
   })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const levelName = levelId === 'all' ? 'All' : (levels.find((l) => l.id === levelId)?.name ?? '')
@@ -196,7 +197,7 @@ export function Analysis() {
       ) : tab === 'reteach' ? (
         <ReteachPanel orgId={orgId} sections={chosen.map((s) => ({ id: s.id, name: names.name(s) }))} periodId={periodId} />
       ) : summary.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : summary.isError ? (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {summary.error instanceof ApiError ? summary.error.message : 'This analysis could not be loaded.'}

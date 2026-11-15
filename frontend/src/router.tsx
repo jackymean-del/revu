@@ -64,14 +64,15 @@ const marks = createRoute({
   validateSearch: (s: Record<string, unknown>): { a?: string } => (typeof s.a === 'string' ? { a: s.a } : {}),
   component: lazyRouteComponent(() => import('./pages/Marks'), 'Marks'),
 })
-type PaperTab = 'blueprint' | 'questions' | 'sets'
+type PaperTab = 'blueprint' | 'sets'
 const papersPage = createRoute({
   getParentRoute: () => root,
   path: '/papers',
   // ?a=assessment&tab=blueprint|questions|sets opens that step.
   validateSearch: (s: Record<string, unknown>): { a?: string; tab?: PaperTab } => ({
     ...(typeof s.a === 'string' ? { a: s.a } : {}),
-    ...(s.tab === 'blueprint' || s.tab === 'questions' || s.tab === 'sets' ? { tab: s.tab } : {}),
+    // questions was a step of its own; it now opens the paper.
+    ...(s.tab === 'blueprint' ? { tab: 'blueprint' as const } : s.tab === 'sets' || s.tab === 'questions' ? { tab: 'sets' as const } : {}),
   }),
   component: lazyRouteComponent(() => import('./pages/Papers'), 'Papers'),
 })

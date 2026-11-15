@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAnalysisSettings, putAnalysisSettings } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -13,7 +14,7 @@ const primary = 'rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white 
 /** The institution's analysis settings: mastery and reteach limits, range boundaries, criteria lists and sign-off lines. */
 export function SettingsPanel({ orgId }: { orgId: string }) {
   const settings = useQuery({ queryKey: ['analysis-settings', orgId], queryFn: ({ signal }) => getAnalysisSettings(orgId, signal) })
-  if (settings.isPending) return <p className="text-sm text-muted">Loading</p>
+  if (settings.isPending) return <Loading />
   if (settings.isError) return <p role="alert" className="text-sm font-semibold text-red-700">The settings could not be loaded.</p>
   return <Form orgId={orgId} initial={settings.data} />
 }

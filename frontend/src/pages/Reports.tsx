@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useQuery } from '@tanstack/react-query'
 import {
   download,
@@ -59,7 +60,7 @@ export function Reports() {
     enabled: ready && !!studentId && tab === 'preview',
   })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const sectionName = names.byId(sectionId) ? names.name(names.byId(sectionId)!) : ''
@@ -153,7 +154,7 @@ export function Reports() {
       ) : tab === 'branding' ? (
         <BrandingPanel orgId={orgId} />
       ) : status.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : status.isError ? (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {status.error instanceof ApiError ? status.error.message : 'These reports could not be loaded.'}

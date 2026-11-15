@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAssessmentAnalysis, listAssessments, putReteach } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -31,7 +32,7 @@ export function ReteachPanel({ orgId, sections, periodId }: { orgId: string; sec
       ),
   })
 
-  if (assessments.isPending) return <p className="text-sm text-muted">Loading</p>
+  if (assessments.isPending) return <Loading />
   if (list.length === 0) return <p className="text-sm text-muted">No assessment for this {t('group.section', { lower: true })} in this {t('period.term', { lower: true })} yet.</p>
   const d = view.data
   const scores = d?.students ?? []
@@ -62,7 +63,7 @@ export function ReteachPanel({ orgId, sections, periodId }: { orgId: string; sec
         </select>
       </label>
       {view.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : view.isError ? (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {view.error instanceof ApiError ? view.error.message : 'This assessment could not be loaded.'}

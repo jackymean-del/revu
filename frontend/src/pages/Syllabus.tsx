@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSyllabus, getSyllabusSummary, importSyllabus, listStructure, updateLearningOutcome, type Subject, type SyllabusImportReport } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -45,7 +46,7 @@ export function Syllabus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['syllabus', orgId, q] }),
   })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const s = syllabus.data
@@ -122,7 +123,7 @@ export function Syllabus() {
       {!subjectId ? (
         <p className="text-sm text-muted">This {t('group.level', { lower: true })} has no {t('course.subject', { count: 2, lower: true })} yet. Add them in Configuration.</p>
       ) : syllabus.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : syllabus.isError ? (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {syllabus.error instanceof ApiError ? syllabus.error.message : 'The syllabus could not be loaded.'}

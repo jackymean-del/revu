@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Loading } from '../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   addGroupAdmin, createOwnerDemo, createOwnerGroup, getOwnerDemo, createOwnerOrg, listOwnerGroups, listOwnerOrgs, removeGroupAdmin, setGroupMember, type OwnerGroup,
@@ -39,7 +40,7 @@ export function Owner() {
   const [groupName, setGroupName] = useState('')
   const [adminFor, setAdminFor] = useState<Record<string, string>>({})
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!platformOwner) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">This console is for the platform owner.</p>
 
   async function run(work: () => Promise<string>) {

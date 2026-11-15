@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   assignSubjectChoices,
@@ -69,7 +70,7 @@ export function Choices() {
     enabled: !!sectionId,
   })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const subjectName = (id: string) => subjects.find((s) => s.id === id)?.name ?? ''

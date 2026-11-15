@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getReportTemplate, listStructure, putReportTemplate, type ReportConfig, type Subject } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -29,7 +30,7 @@ export function TemplatePanel({ orgId, levelId }: { orgId: string; levelId: stri
     if (saved.data) setCfg(saved.data.config)
   }, [saved.data])
 
-  if (!cfg) return <p className="text-sm text-muted">Loading</p>
+  if (!cfg) return <Loading />
   const change = (c: ReportConfig) => {
     setCfg(c)
     setNote(null)

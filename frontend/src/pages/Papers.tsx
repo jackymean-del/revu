@@ -1,4 +1,5 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { Loading } from '../components/Loading'
 import { useQuery } from '@tanstack/react-query'
 import { getBlueprint, getSyllabus, listPapers, listQuestions } from '../api/client'
 import { Icon } from '../components/Icon'
@@ -8,17 +9,17 @@ import { useT } from '../lib/terminology/terms-context'
 import { AssessmentSelect } from './papers/AssessmentSelect'
 import { usePaperAssessments } from './papers/assessments'
 import { BlueprintEditor } from './papers/BlueprintEditor'
-import { QuestionBank } from './papers/QuestionBank'
 import { PaperSets } from './papers/PaperSets'
 
-export type PaperTab = 'blueprint' | 'questions' | 'sets'
+export type PaperTab = 'blueprint' | 'sets'
 
 const STATUS: Record<string, string> = { draft: 'Draft', submitted: 'Waiting for approval', approved: 'Approved', returned: 'Returned for changes' }
 
 /**
  * Create question paper (exam step 1): for one assessment, the blueprint
- * (marks by chapter, question type and Bloom level), the questions it
- * needs, and the paper in sets. One step at a time, the next one named.
+ * (marks by chapter, question type and Bloom level), then the paper in
+ * sets, where its questions are typed, picked from the bank or drafted
+ * with AI, slot by slot. One step at a time, the next one named.
  */
 export function Papers() {
   const t = useT()
@@ -28,7 +29,8 @@ export function Papers() {
   const choice = choices.find((c) => c.a.id === search.a) ?? choices[0]
   const a = choice?.a
   const id = a?.id ?? ''
-  const tab: PaperTab = search.tab ?? 'blueprint'
+  // Old links to the question bank open the paper, where the bank now lives.
+  const tab: PaperTab = !search.tab ? 'blueprint' : search.tab === 'blueprint' ? 'blueprint' : 'sets'
   const place = { levelId: a?.levelId ?? '', subjectId: a?.subjectId ?? '' }
 
   const blueprint = useQuery({ queryKey: ['blueprint', orgId, id], queryFn: ({ signal }) => getBlueprint(orgId, id, signal), enabled: !!(orgId && id) })
@@ -36,7 +38,7 @@ export function Papers() {
   const bank = useQuery({ queryKey: ['questions', orgId, place], queryFn: ({ signal }) => listQuestions(orgId, place, signal), enabled: !!(orgId && place.levelId) })
   const papers = useQuery({ queryKey: ['papers', orgId, id], queryFn: ({ signal }) => listPapers(orgId, id, signal), enabled: !!(orgId && id) })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const bp = blueprint.data
@@ -50,18 +52,15 @@ export function Papers() {
         : { tab: 'sets' as const, text: `Add or choose the questions, then finalise ${sets[0].set}` }
       : bp.status !== 'approved'
       ? { tab: 'blueprint' as const, text: bp.status === 'submitted' ? (approves ? 'Approve the blueprint, or return it with a comment' : 'The blueprint is waiting for approval') : 'Plan the marks, then submit the blueprint' }
-      : short > 0 && sets.length === 0
-        ? { tab: 'questions' as const, text: `Add the ${short} ${short === 1 ? 'question' : 'questions'} the blueprint still needs` }
-        : sets.length === 0
-          ? { tab: 'sets' as const, text: 'Make the first set from the bank' }
+      : sets.length === 0
+        ? { tab: 'sets' as const, text: short > 0 ? `Make the first set: ${short} ${short === 1 ? 'question' : 'questions'} to write, pick or draft with AI` : 'Make the first set from the bank' }
           : sets.some((s) => s.status === 'final')
             ? null
             : { tab: 'sets' as const, text: `Fill every slot and finalise ${sets[0].set}` }
   const open = (to: PaperTab) => void navigate({ search: { a: id, tab: to } })
   const steps: { key: PaperTab; label: string; fact: string }[] = [
     { key: 'blueprint', label: 'Blueprint', fact: bp ? (bp.exists ? STATUS[bp.status] : 'Not started') : '' },
-    { key: 'questions', label: 'Questions', fact: bank.data ? `${bank.data.filter((q) => q.status === 'approved').length} in the bank${short ? `, ${short} still needed` : ''}` : '' },
-    { key: 'sets', label: 'Paper sets', fact: sets.length ? sets.map((s) => `${s.set} ${s.status}`).join(', ') : 'None yet' },
+    { key: 'sets', label: 'Paper', fact: sets.length ? sets.map((s) => `${s.set} ${s.status}`).join(', ') : 'None yet' },
   ]
 
   return (
@@ -75,7 +74,7 @@ export function Papers() {
       </div>
 
       {pending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : !a ? (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
           <p className="font-bold">No assessments to make a paper for</p>
@@ -85,7 +84,7 @@ export function Papers() {
         <>
           <AssessmentSelect choices={choices} value={id} onChange={(id) => void navigate({ search: { a: id, tab } })} />
 
-          <nav aria-label="Paper steps" className="grid grid-cols-3 gap-2">
+          <nav aria-label="Paper steps" className="grid grid-cols-2 gap-2">
             {steps.map((s, i) => (
               <button
                 key={s.key}
@@ -117,13 +116,11 @@ export function Papers() {
           )}
 
           {!bp || !syllabus.data || !bank.data ? (
-            <p className="text-sm text-muted">Loading</p>
+            <Loading />
           ) : tab === 'blueprint' ? (
             <BlueprintEditor key={`${id}-${bp.version}-${bp.status}`} orgId={orgId} assessmentId={id} blueprint={bp} syllabus={syllabus.data} approves={approves} />
-          ) : tab === 'questions' ? (
-            <QuestionBank orgId={orgId} place={place} blueprint={bp} syllabus={syllabus.data} bank={bank.data} />
           ) : (
-            <PaperSets orgId={orgId} assessmentId={id} blueprint={bp} sets={sets} bank={bank.data} />
+            <PaperSets orgId={orgId} assessmentId={id} blueprint={bp} sets={sets} bank={bank.data} syllabus={syllabus.data} place={place} />
           )}
         </>
       )}

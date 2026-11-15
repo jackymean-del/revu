@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createStructure, listStructure, removeStructure, updateStructure, type Branch, type Level, type Section } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -80,7 +81,7 @@ export function ClassesTable({ orgId, canEdit, yearId, branches }: { orgId: stri
       return `${made} ${made === 1 ? levelWord.toLowerCase() : t('group.level', { count: 2, lower: true })} made, each with ${letters.join(', ') || 'no'} ${sectionWord}.`
     })
 
-  if (levels.isPending) return <p className="text-sm text-muted">Loading</p>
+  if (levels.isPending) return <Loading />
 
   return (
     <div className="space-y-3">

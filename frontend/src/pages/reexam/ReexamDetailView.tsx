@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getReexam, putReexamRule, stepReexam, type ReexamDetail } from '../../api/client'
@@ -40,7 +41,7 @@ export function ReexamDetailView({ orgId, id, sectionName, onBack }: { orgId: st
         </p>
       </div>
     )
-  if (!d) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (!d) return <Loading page />
 
   const firstSection = d.sectionIds[0]
   const unmarked = d.sitting - d.marked

@@ -89,6 +89,7 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	}))
 
 	app.Get("/api/health", handlers.Health(pinger, cfg.Version))
+	app.Post("/api/client-errors", handlers.ClientError())
 
 	v1 := app.Group("/v1")
 	if d.DB == nil {

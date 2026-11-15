@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { Link } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { listAssessments, listStructure, type Assessment, type Subject, type TeachingAssignment } from '../api/client'
@@ -32,7 +33,7 @@ export function Exams() {
   const [creating, setCreating] = useState(false)
   const [made, setMade] = useState<Assessment | null>(null)
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const latestYear = [...names.years].sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0]?.id ?? ''
@@ -94,7 +95,7 @@ export function Exams() {
       )}
 
       {assessments.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : list.length === 0 ? (
         !creating &&
         latestYear && (

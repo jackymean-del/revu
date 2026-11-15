@@ -1,4 +1,5 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { Loading } from '../components/Loading'
 import { useQuery } from '@tanstack/react-query'
 import { listReexams } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -26,7 +27,7 @@ export function Reexam() {
   const exams = usePaperAssessments()
   const list = useQuery({ queryKey: ['reexams', orgId], queryFn: ({ signal }) => listReexams(orgId, signal), enabled: !!orgId })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   if (search.id) return <ReexamDetailView orgId={orgId} id={search.id} sectionName={exams.sectionName} onBack={() => void navigate({ search: {} })} />
@@ -62,7 +63,7 @@ export function Reexam() {
           {list.error instanceof ApiError ? list.error.message : 'The re-exams could not be loaded.'}
         </p>
       ) : list.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
           <p className="font-bold">No re-exams yet</p>

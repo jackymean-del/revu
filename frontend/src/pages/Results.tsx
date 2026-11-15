@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSectionResults, listStructure, recomputeResults, type Period, type StudentResult, type Subject, type TeachingAssignment } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -60,7 +61,7 @@ export function Results() {
     refetchInterval: (query) => (query.state.data?.counts.stale ? 2000 : false),
   })
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   const data = results.data
@@ -138,7 +139,7 @@ export function Results() {
           Choose a {t('group.section', { lower: true })}, {t('period.term', { lower: true })} and {t('course.subject', { lower: true })} you work with.
         </p>
       ) : results.isPending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : results.isError ? (
         <p role="alert" className="text-sm text-red-700">
           {results.error instanceof ApiError ? results.error.message : 'These results could not be loaded.'}

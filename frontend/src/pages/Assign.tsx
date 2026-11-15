@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getPaper, listPapers, listStructure, listStudents, putPaperAssignments, type Enrolment, type Paper, type PaperAssignment } from '../api/client'
@@ -49,7 +50,7 @@ export function Assign() {
   const full = useQueries({ queries: finals.map((p) => ({ queryKey: ['paper', orgId, p.id], queryFn: ({ signal }: { signal: AbortSignal }) => getPaper(orgId, p.id, signal) })) })
   const loaded = full.every((q) => q.data) ? full.map((q) => q.data!) : null
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   return (
@@ -62,14 +63,14 @@ export function Assign() {
         </p>
       </div>
       {pending ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : !a ? (
         <p className="rounded-2xl border border-dashed border-line bg-white p-8 text-center text-sm text-muted">No assessments yet.</p>
       ) : (
         <>
           <AssessmentSelect choices={choices} value={id} onChange={(id) => void navigate({ search: { a: id } })} />
           {papers.isPending ? (
-            <p className="text-sm text-muted">Loading</p>
+            <Loading />
           ) : finals.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line bg-white p-8 text-center">
               <p className="font-bold">No final set yet</p>
@@ -80,7 +81,7 @@ export function Assign() {
               </Link>
             </div>
           ) : !loaded ? (
-            <p className="text-sm text-muted">Loading</p>
+            <Loading />
           ) : (
             <AssignTable key={id} orgId={orgId} assessmentId={id} sectionIds={a.sectionIds} papers={loaded} sectionName={sectionName} />
           )}
@@ -206,7 +207,7 @@ function Students({ orgId, sectionId, papers, base, others, onChange, setName }:
     queryKey: ['structure', orgId, 'enrolments', { sectionId }],
     queryFn: ({ signal }) => listStructure<Enrolment>(orgId, 'enrolments', { sectionId }, signal),
   })
-  if (!students.data) return <p className="text-sm text-muted">Loading</p>
+  if (!students.data) return <Loading />
   const roll = (id: string) => rolls.data?.find((e) => e.studentId === id)?.rollNo
   // Listed in the order chosen, so a shared-out plan reads down the list.
   const list = inOrder(students.data.items.map((s) => ({ ...s, rollNo: roll(s.id) })), by)

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Loading } from '../../components/Loading'
 import { useQuery } from '@tanstack/react-query'
 import { explainResult, type ResultComponent, type StudentResult } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -144,7 +145,7 @@ export function Explain({
           </button>
         </div>
         {explained.isPending ? (
-          <p className="text-sm text-muted">Loading</p>
+          <Loading />
         ) : explained.isError ? (
           <p role="alert" className="text-sm text-red-700">
             {explained.error instanceof ApiError ? explained.error.message : 'This could not be loaded.'}

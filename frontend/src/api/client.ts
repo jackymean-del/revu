@@ -459,7 +459,6 @@ export const stepBlueprint = (orgId: string, id: string, step: 'submit' | 'appro
   call<Blueprint>(`/v1/assessments/${id}/blueprint/${step}`, { orgId, method: 'POST', body: { comment } })
 export const listQuestions = (orgId: string, q: Record<string, string>, signal?: AbortSignal) =>
   call<Question[]>(`/v1/questions?${new URLSearchParams(q)}`, { orgId, signal })
-export const createQuestion = (orgId: string, body: QuestionInput) => call<Question>('/v1/questions', { orgId, method: 'POST', body })
 export const updateQuestion = (orgId: string, id: string, body: QuestionInput) => call<Question>(`/v1/questions/${id}`, { orgId, method: 'PUT', body })
 export const listPapers = (orgId: string, id: string, signal?: AbortSignal) => call<PaperSummary[]>(`/v1/assessments/${id}/papers`, { orgId, signal })
 export const createPaper = (orgId: string, id: string, fill: boolean, name = '', blank = false) =>

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Loading } from '../components/Loading'
 import { useNavigate } from '@tanstack/react-router'
 import { listMyGroups } from '../api/client'
 import { useOrg } from '../lib/org-context'
@@ -23,7 +24,7 @@ export function Groups() {
         <h1 className="mt-1 text-2xl font-extrabold tracking-tight">Your groups</h1>
         <p className="mt-2 max-w-2xl text-muted">Each institution's status at a glance. Its records stay with it: open one where you belong to it.</p>
       </div>
-      {mine.isPending && <p className="text-sm text-muted">Loading</p>}
+      {mine.isPending && <Loading />}
       {(mine.data ?? []).map((g) => (
         <section key={g.id} aria-labelledby={`g-${g.id}`} className="rounded-xl border border-line bg-white p-5">
           <h2 id={`g-${g.id}`} className="font-extrabold">

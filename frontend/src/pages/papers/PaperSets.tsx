@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createPaper, getPaper, getPaperHtml, paperStep, returnPaper, type Blueprint, type Paper, type PaperSummary, type Question } from '../../api/client'
+import { createPaper, getPaper, getPaperHtml, paperStep, returnPaper, type Blueprint, type Paper, type PaperSummary, type Question, type Syllabus } from '../../api/client'
 import { ApiError } from '../../api/problem'
 import { SectionCards } from './SectionCards'
 import { PAPER } from './types'
@@ -20,7 +21,15 @@ const stage = (s: PaperSummary) => (s.status === 'final' ? 'final' : s.status ==
  * copy it as the next set and rewrite that. Only an administrator prints,
  * and only a final set. What each person may do comes with the set.
  */
-export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgId: string; assessmentId: string; blueprint: Blueprint; sets: PaperSummary[]; bank: Question[] }) {
+export function PaperSets({ orgId, assessmentId, blueprint, sets, bank, syllabus, place }: {
+  orgId: string
+  assessmentId: string
+  blueprint: Blueprint
+  sets: PaperSummary[]
+  bank: Question[]
+  syllabus: Syllabus
+  place: { levelId: string; subjectId: string }
+}) {
   const qc = useQueryClient()
   const settings = usePaperSettings(orgId)
   const [pick, setPick] = useState('')
@@ -169,7 +178,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
       )}
 
       {!p ? (
-        <p className="text-sm text-muted">Loading</p>
+        <Loading />
       ) : p.veiled ? (
         <div className="space-y-3 rounded-2xl border border-line bg-white p-6 text-center">
           <p className="font-bold">{p.status === 'final' ? `${p.set} is final` : `${p.set} is in review`}</p>
@@ -202,7 +211,7 @@ export function PaperSets({ orgId, assessmentId, blueprint, sets, bank }: { orgI
                 {view.show ? 'Hide the preview' : 'Show the preview'}
               </button>
             </div>
-            <SectionCards key={p.id} orgId={orgId} paper={p} bank={bank} onChange={done} />
+            <SectionCards key={p.id} orgId={orgId} paper={p} bank={bank} syllabus={syllabus} place={place} onChange={done} />
           </div>
           {view.show && (
             <>

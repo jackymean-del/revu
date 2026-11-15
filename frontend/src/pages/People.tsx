@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useSearch } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { listStructure, type Branch, type Staff } from '../api/client'
@@ -24,7 +25,7 @@ export function People() {
   const staff = useQuery({ queryKey: ['structure', orgId, 'staff', {}], queryFn: ({ signal }) => listStructure<Staff>(orgId!, 'staff', {}, signal), enabled: !!orgId && tab === 'members' }).data ?? []
   const branches = useQuery({ queryKey: ['structure', orgId, 'branches', {}], queryFn: ({ signal }) => listStructure<Branch>(orgId!, 'branches', {}, signal), enabled: !!orgId && tab === 'members' }).data ?? []
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId)
     return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })} to see its people.</p>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { deleteScheme, getScheme, newSchemeVersion, publishScheme, updateScheme, type Scheme } from '../api/client'
@@ -54,7 +55,7 @@ export function SchemeEditor() {
     }
   }, [scheme])
 
-  if (!orgId || loaded.isPending) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (!orgId || loaded.isPending) return <Loading page />
   if (loaded.isError || !scheme || !def)
     return (
       <p role="alert" className="mx-auto max-w-6xl px-4 py-10 text-red-700">

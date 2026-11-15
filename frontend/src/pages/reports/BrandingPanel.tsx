@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Loading } from '../../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteLogo, getBranding, logoURL, putBranding, putLogo, type BrandingInput } from '../../api/client'
 import { ApiError } from '../../api/problem'
@@ -35,7 +36,7 @@ export function BrandingPanel({ orgId }: { orgId: string }) {
     }
   }, [branding.data])
 
-  if (!form) return <p className="text-sm text-muted">Loading</p>
+  if (!form) return <Loading />
 
   async function act(work: () => Promise<unknown>, done: string) {
     setBusy(true)

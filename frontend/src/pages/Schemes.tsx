@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -47,7 +48,7 @@ export function Schemes() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })}.</p>
 
   // One entry per scheme, with its versions newest first.
@@ -143,7 +144,7 @@ export function Schemes() {
           Your schemes
         </h2>
         {schemes.isPending ? (
-          <p className="text-sm text-muted">Loading</p>
+          <Loading />
         ) : families.size === 0 ? (
           <p className="text-sm text-muted">No scheme yet. Start from a board pack, or make one.</p>
         ) : (

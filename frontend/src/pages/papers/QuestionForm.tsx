@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { addPaperItem, putPaperItem, type Paper, type Question, type TypedQuestion } from '../../api/client'
+import { addPaperItem, putPaperItem, type Paper, type PaperItem, type Question, type Syllabus, type TypedQuestion } from '../../api/client'
 import { ApiError } from '../../api/problem'
 import { hundredths, marks } from '../../lib/papers'
+import { levelsOf, type Taxonomy } from '../../lib/taxonomy'
+import { usePaperSettings } from './settings'
 import { TypeSelect } from './TypeSelect'
 import { QUESTION_TYPES, hasOptions } from './types'
 
@@ -120,12 +122,31 @@ function Answers({ kind, of, numbered, tight, options, answer, onChange }: { kin
  * they add up to. A bit is of the question's type unless it is given its
  * own, so one question can hold bits of several types.
  */
-export function QuestionForm({ orgId, paper, sectionId, editing, itemId, onAdded, onDone }: { orgId: string; paper: Paper; sectionId: string; editing?: Question; itemId?: string; onAdded: (p: Paper) => void; onDone: (p?: Paper) => void }) {
+export function QuestionForm({ orgId, paper, sectionId, editing, slot, itemId, syllabus, onAdded, onDone }: {
+  orgId: string
+  paper: Paper
+  sectionId: string
+  editing?: Question
+  slot?: PaperItem // an empty slot this question fills, with its type, marks, lesson and level
+  itemId?: string
+  syllabus?: Syllabus
+  onAdded: (p: Paper) => void
+  onDone: (p?: Paper) => void
+}) {
   const [q, setQ] = useState<TypedQuestion>(
     editing
       ? { qtype: editing.qtype, marks: editing.marks, text: editing.text, options: editing.options, answer: editing.answer, spaceKind: editing.spaceKind ?? 'auto', spaceSize: editing.spaceSize ?? 0, optionCols: editing.optionCols ?? 0, optionBoxes: editing.optionBoxes ?? true }
-      : { qtype: 'Short answer', marks: '', text: '', options: [], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true },
+      : { qtype: slot?.section || 'Short answer', marks: slot?.marks ?? '', text: '', options: [], answer: '', spaceKind: 'auto', spaceSize: 0, optionCols: 0, optionBoxes: true },
   )
+  // Where it sits in the syllabus, for the holistic report: from the
+  // question, or the slot it fills.
+  const tax = paper.taxonomy as Taxonomy
+  const settings = usePaperSettings(orgId)
+  const levelOf = (x?: Question) => (tax === 'bloom' ? x?.bloom : tax === 'solo' ? x?.solo : tax === 'custom' ? x?.customLevel : '') ?? ''
+  const [where, setWhere] = useState({ lessonId: editing?.lessonId ?? slot?.lessonId ?? '', outcomeId: editing?.outcomeId ?? '', level: editing ? levelOf(editing) : (slot?.level ?? ''), difficulty: (editing?.difficulty ?? 'medium') as 'easy' | 'medium' | 'hard' })
+  const lesson = syllabus?.lessons.find((l) => l.id === where.lessonId)
+  const outcome = lesson?.outcomes.find((o) => o.id === where.outcomeId)
+  const levels = tax === 'none' ? [] : levelsOf(tax, settings)
   const [bits, setBits] = useState<Bit[]>(editing?.bits ?? [])
   const [more, setMore] = useState(false)
   const typeOf = (b: Bit) => b.qtype || q.qtype
@@ -135,6 +156,10 @@ export function QuestionForm({ orgId, paper, sectionId, editing, itemId, onAdded
   const total = kept.length > 0 ? marks(kept.reduce((n, b) => n + hundredths(b.marks), 0)) : q.marks
   const body = {
     ...q,
+    lessonId: where.lessonId || undefined,
+    outcomeId: where.outcomeId || undefined,
+    difficulty: where.difficulty,
+    ...(tax === 'bloom' ? { bloom: where.level || undefined } : tax === 'solo' ? { solo: where.level || undefined } : tax === 'custom' ? { customLevel: where.level || undefined } : {}),
     marks: total,
     // With bits, what there is to choose from belongs to each bit.
     bits: kept.map((b) => ({ ...b, qtype: typeOf(b) === q.qtype ? '' : b.qtype, options: clean(kindOf(typeOf(b)), b.options) })),
@@ -142,7 +167,7 @@ export function QuestionForm({ orgId, paper, sectionId, editing, itemId, onAdded
   }
   const save = useMutation({
     mutationFn: async (again: boolean) => {
-      if (!editing || !itemId) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
+      if (!itemId) return { p: await addPaperItem(orgId, paper.id, { sectionId, question: body }), again }
       // The server changes the question where it stands, or gives this slot
       // a new one when another set shares it.
       return { p: await putPaperItem(orgId, paper.id, itemId, { question: body }), again: false }
@@ -257,6 +282,60 @@ export function QuestionForm({ orgId, paper, sectionId, editing, itemId, onAdded
           {!split && <span className={hint}>For a question with parts, each with its own marks and type.</span>}
         </div>
       </fieldset>
+
+      {syllabus && (
+        <details className="rounded-lg border border-line bg-white px-2.5 py-1.5" open={!editing && !slot ? undefined : !where.outcomeId || undefined}>
+          <summary className="cursor-pointer text-xs font-semibold text-muted">
+            Lesson and outcome
+            <span className="font-normal">{lesson ? `: ${lesson.name}${outcome ? `, ${outcome.text}` : ', no outcome yet'}` : ': not linked'}</span>
+          </summary>
+          <div className="grid gap-2 pt-2 pb-1 sm:grid-cols-2">
+            <label className={label}>
+              Lesson
+              <select aria-label="Lesson" className={field} value={where.lessonId} onChange={(e) => setWhere({ ...where, lessonId: e.target.value, outcomeId: '' })}>
+                <option value="">None</option>
+                {syllabus.lessons.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={label}>
+              Learning outcome <span className={hint}>Marks for it feed the holistic report.</span>
+              <select aria-label="Learning outcome" className={field} value={where.outcomeId} disabled={!lesson} onChange={(e) => setWhere({ ...where, outcomeId: e.target.value })}>
+                <option value="">{lesson ? 'None' : 'Choose a lesson first'}</option>
+                {lesson?.outcomes.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.text}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {levels.length > 0 && levels[0].key !== '' && (
+              <label className={label}>
+                Level
+                <select aria-label="Level" className={field} value={where.level} onChange={(e) => setWhere({ ...where, level: e.target.value })}>
+                  <option value="">{tax === 'bloom' ? 'Suggest from the wording' : 'None'}</option>
+                  {levels.map((l) => (
+                    <option key={l.key} value={l.key}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className={label}>
+              Difficulty
+              <select aria-label="Difficulty" className={field} value={where.difficulty} onChange={(e) => setWhere({ ...where, difficulty: e.target.value as typeof where.difficulty })}>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </label>
+          </div>
+        </details>
+      )}
 
       {(ticks || writes || roomSet) && (
         <details className="rounded-lg border border-line bg-white px-2.5 py-1.5" open={roomSet || (q.optionCols ?? 0) !== 0 || q.optionBoxes === false || undefined}>

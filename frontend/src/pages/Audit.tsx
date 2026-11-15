@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { Loading } from '../components/Loading'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { auditFacets, listAudit, type AuditPage } from '../api/client'
 import { ApiError } from '../api/problem'
@@ -91,7 +92,7 @@ export function Audit() {
   const set = (k: keyof typeof filters) => (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => setFilters((f) => ({ ...f, [k]: e.target.value }))
   const who = (e: Entry) => (e.actorId ? e.actorName || e.actorId : 'Sign-in sync')
 
-  if (loading) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Loading</p>
+  if (loading) return <Loading page />
   if (!orgId) return <p className="mx-auto max-w-6xl px-4 py-10 text-muted">Sign in and choose your {t('org.institution', { lower: true })} to see its history.</p>
 
   return (

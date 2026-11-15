@@ -5232,11 +5232,12 @@ type TypedQuestion struct {
 	Answer string `json:"answer,omitempty"`
 
 	// Bits Lettered parts, (a), (b); the question is worth what they add up to.
-	Bits       []QuestionBit `json:"bits,omitempty"`
-	Bloom      string        `json:"bloom,omitempty"`
-	Difficulty string        `json:"difficulty,omitempty"`
-	LessonId   string        `json:"lessonId,omitempty"`
-	Marks      string        `json:"marks"`
+	Bits        []QuestionBit `json:"bits,omitempty"`
+	Bloom       string        `json:"bloom,omitempty"`
+	CustomLevel string        `json:"customLevel,omitempty"`
+	Difficulty  string        `json:"difficulty,omitempty"`
+	LessonId    string        `json:"lessonId,omitempty"`
+	Marks       string        `json:"marks"`
 
 	// OptionBoxes A box to tick beside each option; on when left out.
 	OptionBoxes bool `json:"optionBoxes,omitempty"`
@@ -5246,6 +5247,7 @@ type TypedQuestion struct {
 	Options    []string `json:"options,omitempty"`
 	OutcomeId  string   `json:"outcomeId,omitempty"`
 	Qtype      string   `json:"qtype"`
+	Solo       string   `json:"solo,omitempty"`
 
 	// SpaceKind Room to answer on the printed paper; auto goes by the marks.
 	SpaceKind TypedQuestionSpaceKind `json:"spaceKind,omitempty"`
@@ -5310,6 +5312,16 @@ type SectionQuery = string
 
 // SectionsQuery defines model for SectionsQuery.
 type SectionsQuery = string
+
+// ReportClientErrorJSONBody defines parameters for ReportClientError.
+type ReportClientErrorJSONBody struct {
+	Message string `json:"message"`
+
+	// Path The page, without its query.
+	Path    string `json:"path,omitempty"`
+	Stack   string `json:"stack,omitempty"`
+	Version string `json:"version,omitempty"`
+}
 
 // AnalysisAssessmentParams defines parameters for AnalysisAssessment.
 type AnalysisAssessmentParams struct {
@@ -6743,6 +6755,9 @@ type RestoreYearParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
+
+// ReportClientErrorJSONRequestBody defines body for ReportClientError for application/json ContentType.
+type ReportClientErrorJSONRequestBody ReportClientErrorJSONBody
 
 // PutReteachJSONRequestBody defines body for PutReteach for application/json ContentType.
 type PutReteachJSONRequestBody = ReteachInput

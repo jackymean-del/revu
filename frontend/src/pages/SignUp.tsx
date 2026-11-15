@@ -7,6 +7,7 @@
  * uses neutral words that fit every institution, never a preset's.
  */
 import { useEffect, useState, type FormEvent } from 'react'
+import { Loading } from '../components/Loading'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@clerk/react'
 import { useSignUp } from '@clerk/react/legacy'
@@ -196,7 +197,7 @@ function ClerkSignUp() {
     if (authLoaded && isSignedIn) window.location.replace('/')
   }, [authLoaded, isSignedIn])
 
-  if (!authLoaded || isSignedIn || !isLoaded || !signUp) return <p className="text-sm text-muted">Loading</p>
+  if (!authLoaded || isSignedIn || !isLoaded || !signUp) return <Loading />
 
   const enter = async (sessionId: string | null) => {
     if (!sessionId) throw new Error('The account was made, but signing in did not finish. Sign in with your new password.')
