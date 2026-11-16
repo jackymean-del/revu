@@ -15,7 +15,8 @@ import { Search, type Place } from './Search'
 import { useWaiting } from '../lib/waiting'
 import { PreviewBanner, Switcher } from './Switcher'
 
-const AUTH_PAGES = ['/sign-in', '/sign-up', '/sso-callback']
+// Pages with no menu around them: staff sign-in, and the family's own page.
+const AUTH_PAGES = ['/sign-in', '/sign-up', '/sso-callback', '/family']
 const COLLAPSE_KEY = 'revu-sidebar-collapsed'
 /** Tailwind's page-wide container sizes (max-w-5xl, 6xl, 7xl), uncapped. Narrower ones, for reading, stay. */
 const FULL_WIDTH = { '--container-5xl': '100%', '--container-6xl': '100%', '--container-7xl': '100%' } as React.CSSProperties

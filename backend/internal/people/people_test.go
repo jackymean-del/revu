@@ -384,3 +384,230 @@ func TestPromotionPreview(t *testing.T) {
 	}
 	admin.must(422, "POST", "/v1/enrolments/promote", api.PromotionRequest{FromYearId: next.Id, ToYearId: a.YearID})
 }
+
+// The institution's own student fields: renamed, hidden, required and added
+// by an administrator; a student's values are held to them, a hidden field
+// keeps its values, and a field kept to administrators leaves others' copies.
+func TestStudentFields(t *testing.T) {
+	owner, a, admin, app := setup(t)
+	var s struct {
+		Fields []map[string]any `json:"fields"`
+		User   string           `json:"usernameField"`
+	}
+	admin.must(200, "GET", "/v1/student-fields", nil).into(&s)
+	if len(s.Fields) < 8 || s.User != "admissionNo" {
+		t.Fatalf("the usual fields to start with: %d, signs in with %q", len(s.Fields), s.User)
+	}
+	field := func(key string) map[string]any {
+		for _, f := range s.Fields {
+			if f["key"] == key {
+				return f
+			}
+		}
+		t.Fatalf("no field %s", key)
+		return nil
+	}
+	// Rename one, require one, and add a unique one of the institution's own.
+	field("phone")["label"] = "Mobile"
+	field("gender")["required"] = true
+	s.Fields = append(s.Fields, map[string]any{"key": "busRoute", "label": "Bus route", "type": "choice", "options": []string{"North", "South"}, "area": "other", "custom": true},
+		map[string]any{"key": "penNo", "label": "PEN", "type": "text", "area": "identity", "unique": true, "custom": true})
+	admin.must(200, "PUT", "/v1/student-fields", map[string]any{"fields": s.Fields, "usernameField": "penNo"}).into(&s)
+	if field("phone")["label"] != "Mobile" || s.User != "penNo" {
+		t.Fatalf("saved: %v, %s", field("phone"), s.User)
+	}
+	admin.must(422, "PUT", "/v1/student-fields", map[string]any{"fields": s.Fields, "usernameField": "busRoute"}) // not unique
+	viewer := caller{t, app, a.UserID + "_v", a.ID}
+	if _, err := owner.Exec(context.Background(), `INSERT INTO memberships (org_id, clerk_user_id, role) VALUES ($1, $2, 'viewer')`, a.ID, a.UserID+"_v"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = owner.Exec(context.Background(), `DELETE FROM memberships WHERE clerk_user_id = $1`, a.UserID+"_v")
+	})
+	viewer.must(403, "PUT", "/v1/student-fields", map[string]any{"fields": s.Fields})
+
+	// A student's values are held to the fields.
+	base := map[string]any{"admissionNo": "F-1", "name": "Field One"}
+	with := func(d map[string]string) map[string]any {
+		return map[string]any{"admissionNo": base["admissionNo"], "name": base["name"], "details": d}
+	}
+	admin.must(422, "POST", "/v1/students", with(map[string]string{})) // gender is required
+	admin.must(422, "POST", "/v1/students", with(map[string]string{"gender": "Female", "busRoute": "East"}))
+	admin.must(422, "POST", "/v1/students", with(map[string]string{"gender": "Female", "email": "not an email"}))
+	var st api.Student
+	admin.must(201, "POST", "/v1/students", with(map[string]string{"gender": "Female", "busRoute": "North", "penNo": "P-77", "bloodGroup": "O+", "phone": "+91 98765 43210"})).into(&st)
+	if st.Details["busRoute"] != "North" || st.Details["penNo"] != "P-77" {
+		t.Fatalf("details %v", st.Details)
+	}
+	// No two students share a unique value; the student itself may keep its own.
+	admin.must(422, "POST", "/v1/students", map[string]any{"admissionNo": "F-2", "name": "Field Two", "details": map[string]string{"gender": "Male", "penNo": "P-77"}})
+	admin.must(200, "PUT", "/v1/students/"+st.Id, with(map[string]string{"gender": "Female", "busRoute": "South", "penNo": "P-77", "bloodGroup": "O+"})).into(&st)
+
+	// Blood group is kept to administrators.
+	var page api.StudentPage
+	viewer.must(200, "GET", "/v1/students?q=F-1", nil).into(&page)
+	if len(page.Items) != 1 || page.Items[0].Details["bloodGroup"] != "" || page.Items[0].Details["busRoute"] != "South" {
+		t.Fatalf("a viewer's copy: %v", page.Items)
+	}
+	admin.must(200, "GET", "/v1/students?q=F-1", nil).into(&page)
+	if page.Items[0].Details["bloodGroup"] != "O+" {
+		t.Fatalf("the administrator's copy: %v", page.Items[0].Details)
+	}
+
+	// A field left out of the list is hidden, not dropped, and its values stay.
+	kept := []map[string]any{}
+	for _, f := range s.Fields {
+		if f["key"] != "busRoute" {
+			kept = append(kept, f)
+		}
+	}
+	admin.must(200, "PUT", "/v1/student-fields", map[string]any{"fields": kept, "usernameField": "penNo"}).into(&s)
+	if field("busRoute")["hidden"] != true {
+		t.Fatal("a field left out is hidden")
+	}
+	if n := count(t, owner, `SELECT count(*) FROM students WHERE details ->> 'busRoute' = 'South'`); n != 1 {
+		t.Fatalf("a hidden field keeps its values: %d", n)
+	}
+}
+
+// A family's sign-in: an administrator issues it with a temporary password
+// that waits in a message; the family signs in, must choose its own
+// password, and five wrong ones lock it for a while. The temporary password
+// is never kept in the clear once its message is handed over.
+func TestFamilySignIn(t *testing.T) {
+	owner, a, admin, app := setup(t)
+	ctx := context.Background()
+	var st api.Student
+	admin.must(201, "POST", "/v1/students", map[string]any{"admissionNo": "FAM-1", "name": "Fam One"}).into(&st)
+	admin.must(201, "POST", "/v1/guardians", map[string]any{"studentId": st.Id, "name": "Parent One", "phone": "+91 90000 00001", "language": "en", "isPrimary": true})
+	admin.must(201, "POST", "/v1/guardians", map[string]any{"studentId": st.Id, "name": "Parent Two", "email": "two@example.com", "language": "en"})
+
+	var issued struct {
+		Issued   int      `json:"issued"`
+		Messages int      `json:"messages"`
+		Skipped  []string `json:"skipped"`
+	}
+	admin.must(200, "POST", "/v1/family-accounts/issue", map[string]any{"studentIds": []string{st.Id}}).into(&issued)
+	if issued.Issued != 1 || issued.Messages != 2 {
+		t.Fatalf("issued %+v", issued)
+	}
+	// Asked again without reset, the one who has a sign-in is left alone.
+	admin.must(200, "POST", "/v1/family-accounts/issue", map[string]any{"studentIds": []string{st.Id}}).into(&issued)
+	if issued.Issued != 0 {
+		t.Fatalf("issued again %+v", issued)
+	}
+	var box struct {
+		CanSend  bool `json:"canSend"`
+		Messages []struct {
+			ID, Channel, Address, Body, Status string
+		} `json:"messages"`
+	}
+	admin.must(200, "GET", "/v1/family-messages", nil).into(&box)
+	if box.CanSend || len(box.Messages) != 2 {
+		t.Fatalf("outbox %+v", box)
+	}
+	body := box.Messages[0].Body
+	i := strings.Index(body, "Temporary password: ")
+	if i < 0 || !strings.Contains(body, "User name: FAM-1") || !strings.Contains(body, "/family?org="+a.ID) {
+		t.Fatalf("message %q", body)
+	}
+	temp := strings.Fields(body[i+len("Temporary password: "):])[0]
+	if n := count(t, owner, `SELECT count(*) FROM family_accounts WHERE password_hash LIKE '%' || $1 || '%'`, temp); n != 0 {
+		t.Fatal("the password is kept only as a hash")
+	}
+	admin.must(409, "POST", "/v1/family-messages/send", nil) // no sending service yet
+
+	// The family, with no staff sign-in at all.
+	family := func(code int, method, path, token string, body any) reply {
+		t.Helper()
+		var r io.Reader
+		if body != nil {
+			b, _ := json.Marshal(body)
+			r = bytes.NewReader(b)
+		}
+		req := httptest.NewRequest(method, path, r)
+		req.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("X-Org-Id", a.ID)
+		}
+		res, err := app.Test(req, fiber.TestConfig{Timeout: 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, _ := io.ReadAll(res.Body)
+		if res.StatusCode != code {
+			t.Fatalf("%s %s: %d, want %d: %s", method, path, res.StatusCode, code, out)
+		}
+		return reply{code: res.StatusCode, body: out}
+	}
+	var s struct {
+		Token      string `json:"token"`
+		MustChange bool   `json:"mustChange"`
+		Student    string `json:"student"`
+	}
+	family(401, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "FAM-1", "password": "wrong"})
+	family(401, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "nobody", "password": temp})
+	family(200, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "fam-1", "password": temp}).into(&s)
+	if s.Token == "" || !s.MustChange || s.Student != "Fam One" {
+		t.Fatalf("signed in %+v", s)
+	}
+	family(401, "GET", "/v1/family/me", "not-a-token", nil)
+	family(422, "POST", "/v1/family/password", s.Token, map[string]string{"password": "short"})
+	family(200, "POST", "/v1/family/password", s.Token, map[string]string{"password": "our own words 9"}).into(&s)
+	if s.MustChange {
+		t.Fatal("its own password ends the temporary one")
+	}
+	family(401, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "FAM-1", "password": temp})
+	// Its messages no longer wait, and no longer hold the old password.
+	admin.must(200, "GET", "/v1/family-messages", nil).into(&box)
+	if len(box.Messages) != 0 || count(t, owner, `SELECT count(*) FROM family_messages WHERE body <> '' AND org_id = $1`, a.ID) != 0 {
+		t.Fatalf("messages after the change: %+v", box.Messages)
+	}
+	var list []struct {
+		StudentID, State, Username string
+		Contacts                   int
+	}
+	admin.must(200, "GET", "/v1/family-accounts", nil).into(&list)
+	found := false
+	for _, x := range list {
+		if x.StudentID == st.Id {
+			found = x.State == "active" && x.Username == "FAM-1" && x.Contacts == 2
+		}
+	}
+	if !found {
+		t.Fatalf("the administrator's list: %+v", list)
+	}
+
+	// Five wrong passwords in a row lock it, even for the right one (one
+	// was already counted above, with the old temporary password).
+	for range 4 {
+		family(401, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "FAM-1", "password": "guess"})
+	}
+	family(429, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "FAM-1", "password": "our own words 9"})
+
+	// A reset gives a new temporary password, ends the lock and the old session.
+	admin.must(200, "POST", "/v1/family-accounts/issue", map[string]any{"studentIds": []string{st.Id}, "reset": true}).into(&issued)
+	if issued.Issued != 1 {
+		t.Fatalf("reset %+v", issued)
+	}
+	family(401, "GET", "/v1/family/me", s.Token, nil)
+	admin.must(200, "GET", "/v1/family-messages", nil).into(&box)
+	body = box.Messages[0].Body
+	temp = strings.Fields(body[strings.Index(body, "Temporary password: ")+len("Temporary password: "):])[0]
+	family(200, "POST", "/v1/family/sign-in", "", map[string]string{"orgId": a.ID, "username": "FAM-1", "password": temp}).into(&s)
+	// Handed over on paper, the messages are wiped.
+	admin.must(200, "POST", "/v1/family-messages/handed", nil)
+	if n := count(t, owner, `SELECT count(*) FROM family_messages WHERE body <> '' AND org_id = $1`, a.ID); n != 0 {
+		t.Fatalf("%d messages still hold a password", n)
+	}
+	// A student with no contact gets a paper slip.
+	var lone api.Student
+	admin.must(201, "POST", "/v1/students", map[string]any{"admissionNo": "FAM-2", "name": "Fam Two"}).into(&lone)
+	admin.must(200, "POST", "/v1/family-accounts/issue", map[string]any{"studentIds": []string{lone.Id}}).into(&issued)
+	admin.must(200, "GET", "/v1/family-messages", nil).into(&box)
+	if issued.Messages != 1 || len(box.Messages) != 1 || box.Messages[0].Channel != "paper" {
+		t.Fatalf("a slip for a student with no contact: %+v %+v", issued, box.Messages)
+	}
+	_ = ctx
+}

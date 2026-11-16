@@ -507,6 +507,75 @@ func (e DemoStatusStatus) Valid() bool {
 	}
 }
 
+// Defines values for FamilyAccountState.
+const (
+	FamilyAccountStateActive FamilyAccountState = "active"
+	FamilyAccountStateIssued FamilyAccountState = "issued"
+	FamilyAccountStateNone   FamilyAccountState = "none"
+)
+
+// Valid indicates whether the value is a known member of the FamilyAccountState enum.
+func (e FamilyAccountState) Valid() bool {
+	switch e {
+	case FamilyAccountStateActive:
+		return true
+	case FamilyAccountStateIssued:
+		return true
+	case FamilyAccountStateNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FamilyMessageChannel.
+const (
+	FamilyMessageChannelEmail FamilyMessageChannel = "email"
+	FamilyMessageChannelPaper FamilyMessageChannel = "paper"
+	FamilyMessageChannelSms   FamilyMessageChannel = "sms"
+)
+
+// Valid indicates whether the value is a known member of the FamilyMessageChannel enum.
+func (e FamilyMessageChannel) Valid() bool {
+	switch e {
+	case FamilyMessageChannelEmail:
+		return true
+	case FamilyMessageChannelPaper:
+		return true
+	case FamilyMessageChannelSms:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FamilyMessageStatus.
+const (
+	FamilyMessageStatusFailed   FamilyMessageStatus = "failed"
+	FamilyMessageStatusHanded   FamilyMessageStatus = "handed"
+	FamilyMessageStatusReady    FamilyMessageStatus = "ready"
+	FamilyMessageStatusReplaced FamilyMessageStatus = "replaced"
+	FamilyMessageStatusSent     FamilyMessageStatus = "sent"
+)
+
+// Valid indicates whether the value is a known member of the FamilyMessageStatus enum.
+func (e FamilyMessageStatus) Valid() bool {
+	switch e {
+	case FamilyMessageStatusFailed:
+		return true
+	case FamilyMessageStatusHanded:
+		return true
+	case FamilyMessageStatusReady:
+		return true
+	case FamilyMessageStatusReplaced:
+		return true
+	case FamilyMessageStatusSent:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GridStudentStatus.
 const (
 	GridStudentStatusAbsent        GridStudentStatus = "absent"
@@ -2151,6 +2220,69 @@ func (e StudentStatus) Valid() bool {
 	}
 }
 
+// Defines values for StudentFieldArea.
+const (
+	StudentFieldAreaContact  StudentFieldArea = "contact"
+	StudentFieldAreaFamily   StudentFieldArea = "family"
+	StudentFieldAreaHealth   StudentFieldArea = "health"
+	StudentFieldAreaIdentity StudentFieldArea = "identity"
+	StudentFieldAreaOther    StudentFieldArea = "other"
+)
+
+// Valid indicates whether the value is a known member of the StudentFieldArea enum.
+func (e StudentFieldArea) Valid() bool {
+	switch e {
+	case StudentFieldAreaContact:
+		return true
+	case StudentFieldAreaFamily:
+		return true
+	case StudentFieldAreaHealth:
+		return true
+	case StudentFieldAreaIdentity:
+		return true
+	case StudentFieldAreaOther:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StudentFieldType.
+const (
+	StudentFieldTypeChoice   StudentFieldType = "choice"
+	StudentFieldTypeDate     StudentFieldType = "date"
+	StudentFieldTypeEmail    StudentFieldType = "email"
+	StudentFieldTypeLongtext StudentFieldType = "longtext"
+	StudentFieldTypeNumber   StudentFieldType = "number"
+	StudentFieldTypePhone    StudentFieldType = "phone"
+	StudentFieldTypeText     StudentFieldType = "text"
+	StudentFieldTypeYesno    StudentFieldType = "yesno"
+)
+
+// Valid indicates whether the value is a known member of the StudentFieldType enum.
+func (e StudentFieldType) Valid() bool {
+	switch e {
+	case StudentFieldTypeChoice:
+		return true
+	case StudentFieldTypeDate:
+		return true
+	case StudentFieldTypeEmail:
+		return true
+	case StudentFieldTypeLongtext:
+		return true
+	case StudentFieldTypeNumber:
+		return true
+	case StudentFieldTypePhone:
+		return true
+	case StudentFieldTypeText:
+		return true
+	case StudentFieldTypeYesno:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StudentInputStatus.
 const (
 	StudentInputStatusStudentActive    StudentInputStatus = "active"
@@ -3056,6 +3188,65 @@ type ExamFocus struct {
 
 	// HiddenPeriods Terms teachers do not see.
 	HiddenPeriods []string `json:"hiddenPeriods"`
+}
+
+// FamilyAccount defines model for FamilyAccount.
+type FamilyAccount struct {
+	AdmissionNo string `json:"admissionNo"`
+
+	// Contacts Contacts with a phone or an email.
+	Contacts   int    `json:"contacts"`
+	LastSignIn string `json:"lastSignIn"`
+	Name       string `json:"name"`
+
+	// State issued while the temporary password has not been changed.
+	State     FamilyAccountState `json:"state"`
+	StudentId string             `json:"studentId"`
+	Username  string             `json:"username"`
+}
+
+// FamilyAccountState issued while the temporary password has not been changed.
+type FamilyAccountState string
+
+// FamilyIssued defines model for FamilyIssued.
+type FamilyIssued struct {
+	Issued   int      `json:"issued"`
+	Messages int      `json:"messages"`
+	Skipped  []string `json:"skipped"`
+}
+
+// FamilyMessage defines model for FamilyMessage.
+type FamilyMessage struct {
+	Address   string               `json:"address"`
+	Body      string               `json:"body"`
+	Channel   FamilyMessageChannel `json:"channel"`
+	Error     string               `json:"error"`
+	Id        string               `json:"id"`
+	Recipient string               `json:"recipient"`
+	Status    FamilyMessageStatus  `json:"status"`
+	Student   string               `json:"student"`
+}
+
+// FamilyMessageChannel defines model for FamilyMessage.Channel.
+type FamilyMessageChannel string
+
+// FamilyMessageStatus defines model for FamilyMessage.Status.
+type FamilyMessageStatus string
+
+// FamilyOutbox defines model for FamilyOutbox.
+type FamilyOutbox struct {
+	// CanSend A sending service is connected.
+	CanSend  bool            `json:"canSend"`
+	Messages []FamilyMessage `json:"messages"`
+}
+
+// FamilySession defines model for FamilySession.
+type FamilySession struct {
+	MustChange bool   `json:"mustChange"`
+	Placement  string `json:"placement"`
+	School     string `json:"school"`
+	Student    string `json:"student"`
+	Token      string `json:"token,omitempty"`
 }
 
 // FieldError defines model for FieldError.
@@ -4991,9 +5182,12 @@ type StaffInput struct {
 // Student defines model for Student.
 type Student struct {
 	AdmissionNo string `json:"admissionNo"`
-	Dob         string `json:"dob,omitempty"`
-	Id          string `json:"id"`
-	Name        string `json:"name"`
+
+	// Details Values of the institution's own student fields, by field key.
+	Details map[string]string `json:"details,omitempty"`
+	Dob     string            `json:"dob,omitempty"`
+	Id      string            `json:"id"`
+	Name    string            `json:"name"`
 
 	// Placement Where the student is placed in the latest year they are enrolled.
 	Placement     *Placement `json:"placement,omitempty"`
@@ -5007,9 +5201,45 @@ type Student struct {
 // StudentStatus defines model for Student.Status.
 type StudentStatus string
 
+// StudentField defines model for StudentField.
+type StudentField struct {
+	// AdminOnly Only administrators see its values.
+	AdminOnly bool             `json:"adminOnly"`
+	Area      StudentFieldArea `json:"area"`
+	Custom    bool             `json:"custom"`
+
+	// Hidden Not asked or shown; past values are kept.
+	Hidden   bool             `json:"hidden"`
+	Key      string           `json:"key"`
+	Label    string           `json:"label"`
+	Options  []string         `json:"options"`
+	Required bool             `json:"required"`
+	Type     StudentFieldType `json:"type"`
+
+	// Unique No two students share a value; it may be the sign-in name.
+	Unique bool `json:"unique"`
+}
+
+// StudentFieldArea defines model for StudentField.Area.
+type StudentFieldArea string
+
+// StudentFieldType defines model for StudentField.Type.
+type StudentFieldType string
+
+// StudentFieldSettings defines model for StudentFieldSettings.
+type StudentFieldSettings struct {
+	Fields []StudentField `json:"fields"`
+
+	// UsernameField admissionNo, or the key of a unique field families sign in with.
+	UsernameField string `json:"usernameField"`
+}
+
 // StudentInput defines model for StudentInput.
 type StudentInput struct {
-	AdmissionNo   string             `json:"admissionNo"`
+	AdmissionNo string `json:"admissionNo"`
+
+	// Details Values of the institution's own student fields, by field key.
+	Details       map[string]string  `json:"details,omitempty"`
 	Dob           string             `json:"dob,omitempty"`
 	Name          string             `json:"name"`
 	PreferredName string             `json:"preferredName,omitempty"`
@@ -5735,6 +5965,80 @@ type GetExamFocusParams struct {
 
 // PutExamFocusParams defines parameters for PutExamFocus.
 type PutExamFocusParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListFamilyAccountsParams defines parameters for ListFamilyAccounts.
+type ListFamilyAccountsParams struct {
+	SectionId string `form:"sectionId,omitempty" json:"sectionId,omitempty"`
+
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// IssueFamilyAccountsJSONBody defines parameters for IssueFamilyAccounts.
+type IssueFamilyAccountsJSONBody struct {
+	Reset      bool     `json:"reset,omitempty"`
+	SectionId  string   `json:"sectionId,omitempty"`
+	StudentIds []string `json:"studentIds,omitempty"`
+}
+
+// IssueFamilyAccountsParams defines parameters for IssueFamilyAccounts.
+type IssueFamilyAccountsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// ListFamilyMessagesParams defines parameters for ListFamilyMessages.
+type ListFamilyMessagesParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// HandFamilyMessagesJSONBody defines parameters for HandFamilyMessages.
+type HandFamilyMessagesJSONBody struct {
+	Ids []string `json:"ids,omitempty"`
+}
+
+// HandFamilyMessagesParams defines parameters for HandFamilyMessages.
+type HandFamilyMessagesParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// SendFamilyMessagesParams defines parameters for SendFamilyMessages.
+type SendFamilyMessagesParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// FamilyMeParams defines parameters for FamilyMe.
+type FamilyMeParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// FamilySetPasswordJSONBody defines parameters for FamilySetPassword.
+type FamilySetPasswordJSONBody struct {
+	Password string `json:"password"`
+}
+
+// FamilySetPasswordParams defines parameters for FamilySetPassword.
+type FamilySetPasswordParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// FamilySignInJSONBody defines parameters for FamilySignIn.
+type FamilySignInJSONBody struct {
+	OrgId    string `json:"orgId"`
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
+// FamilySignOutParams defines parameters for FamilySignOut.
+type FamilySignOutParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
 	XOrgId OrgId `json:"X-Org-Id"`
 }
@@ -6467,6 +6771,18 @@ type RestoreStaffParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// GetStudentFieldsParams defines parameters for GetStudentFields.
+type GetStudentFieldsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
+// PutStudentFieldsParams defines parameters for PutStudentFields.
+type PutStudentFieldsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListStudentsParams defines parameters for ListStudents.
 type ListStudentsParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -6890,6 +7206,18 @@ type UpdateEnrolmentJSONRequestBody = EnrolmentInput
 // PutExamFocusJSONRequestBody defines body for PutExamFocus for application/json ContentType.
 type PutExamFocusJSONRequestBody = ExamFocus
 
+// IssueFamilyAccountsJSONRequestBody defines body for IssueFamilyAccounts for application/json ContentType.
+type IssueFamilyAccountsJSONRequestBody IssueFamilyAccountsJSONBody
+
+// HandFamilyMessagesJSONRequestBody defines body for HandFamilyMessages for application/json ContentType.
+type HandFamilyMessagesJSONRequestBody HandFamilyMessagesJSONBody
+
+// FamilySetPasswordJSONRequestBody defines body for FamilySetPassword for application/json ContentType.
+type FamilySetPasswordJSONRequestBody FamilySetPasswordJSONBody
+
+// FamilySignInJSONRequestBody defines body for FamilySignIn for application/json ContentType.
+type FamilySignInJSONRequestBody FamilySignInJSONBody
+
 // CreateGuardianJSONRequestBody defines body for CreateGuardian for application/json ContentType.
 type CreateGuardianJSONRequestBody = GuardianInput
 
@@ -7027,6 +7355,9 @@ type CreateStaffJSONRequestBody = StaffInput
 
 // UpdateStaffJSONRequestBody defines body for UpdateStaff for application/json ContentType.
 type UpdateStaffJSONRequestBody = StaffInput
+
+// PutStudentFieldsJSONRequestBody defines body for PutStudentFields for application/json ContentType.
+type PutStudentFieldsJSONRequestBody = StudentFieldSettings
 
 // CreateStudentJSONRequestBody defines body for CreateStudent for application/json ContentType.
 type CreateStudentJSONRequestBody = StudentInput

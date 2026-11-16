@@ -5,7 +5,9 @@ import { ApiError } from '../../api/problem'
 import { EditableList } from '../../components/EditableList'
 import { toBody, toDraft, type Draft, type FieldSpec } from '../../lib/forms'
 import { useT } from '../../lib/terminology/terms-context'
+import { useStudentFields } from './fields'
 import { useSectionNames } from './sections'
+import { DetailFields } from './StudentFields'
 
 const input = 'w-full rounded-md border border-line bg-white px-2 py-1.5 text-sm focus:border-brand focus:outline-none'
 const STATUS: Record<string, string> = { active: 'Active', left: 'Left', graduated: 'Completed' }
@@ -74,12 +76,15 @@ function StudentPanel({ orgId, student, canEdit, onClose }: { orgId: string; stu
   const names = useSectionNames(orgId)
   const [draft, setDraft] = useState<Draft>(() => toDraft(studentFields, student as unknown as Record<string, unknown>))
   const save = useSave()
+  const fields = useStudentFields(orgId)?.fields ?? []
+  // Values of hidden fields ride along untouched, so hiding a field loses nothing.
+  const [details, setDetails] = useState<Record<string, string>>(student.details ?? {})
   const removed = !!student.removedAt
   const labels = { admissionNo: t('person.admission_no'), name: 'Name', preferredName: 'Preferred name', dob: 'Date of birth', status: 'Status' }
   const submit = () => {
     const conv = toBody(studentFields, draft)
     if (!conv.ok) return save.setErrors(conv.errors)
-    void save.run(() => updateStructure(orgId, 'students', student.id, conv.body))
+    void save.run(() => updateStructure(orgId, 'students', student.id, { ...conv.body, details }))
   }
   return (
     <aside aria-label={student.name} className="space-y-6 rounded-xl border border-line bg-white p-5">
@@ -96,6 +101,7 @@ function StudentPanel({ orgId, student, canEdit, onClose }: { orgId: string; stu
       </div>
       <fieldset disabled={!canEdit || removed} className="space-y-3">
         <StudentForm fields={labels} draft={draft} setDraft={setDraft} errors={save.errors} />
+        <DetailFields fields={fields} details={details} onChange={setDetails} errors={save.errors} />
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2">
             {!removed && (
@@ -180,12 +186,15 @@ export function Students({ orgId, canEdit, find = '' }: { orgId: string; canEdit
 
   const [draft, setDraft] = useState<Draft>({ admissionNo: '', name: '', preferredName: '', dob: '', status: 'active' })
   const add = useSave()
+  const fields = useStudentFields(orgId)?.fields ?? []
+  const [details, setDetails] = useState<Record<string, string>>({})
   const labels = { admissionNo: t('person.admission_no'), name: 'Name', preferredName: 'Preferred name', dob: 'Date of birth', status: 'Status' }
   const submitNew = async () => {
     const conv = toBody(studentFields, draft)
     if (!conv.ok) return add.setErrors(conv.errors)
-    const made = await add.run(() => createStructure(orgId, 'students', conv.body))
+    const made = await add.run(() => createStructure(orgId, 'students', { ...conv.body, details }))
     if (made) {
+      setDetails({})
       setDraft({ admissionNo: '', name: '', preferredName: '', dob: '', status: 'active' })
       setOpen(made as Student)
     }
@@ -273,6 +282,12 @@ export function Students({ orgId, canEdit, find = '' }: { orgId: string; canEdit
           <section className="space-y-3 rounded-xl border border-line bg-white p-4">
             <h2 className="font-extrabold">Add {t('person.student', { lower: true })}</h2>
             <StudentForm fields={labels} draft={draft} setDraft={setDraft} errors={add.errors} />
+            <details className="rounded-lg border border-line px-3 py-2" open={Object.keys(add.errors).some((k) => k.startsWith('details.')) || undefined}>
+              <summary className="cursor-pointer text-sm font-semibold text-muted">More details</summary>
+              <div className="pt-3">
+                <DetailFields fields={fields} details={details} onChange={setDetails} errors={add.errors} />
+              </div>
+            </details>
             <div className="flex items-center gap-3">
               <button type="button" disabled={add.busy} onClick={() => void submitNew()} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600">
                 Add

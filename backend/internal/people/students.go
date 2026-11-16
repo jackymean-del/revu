@@ -75,7 +75,7 @@ func listStudents(c fiber.Ctx) error {
 		where = append(where, fmt.Sprintf("(lower(s.name), s.id) > (%s, %s::uuid)", arg(name), arg(id)))
 	}
 	sql := `
-		SELECT s.id::text, s.admission_no, s.name, coalesce(s.preferred_name, ''), coalesce(s.dob::text, ''), s.status,
+		SELECT s.id::text, s.admission_no, s.name, coalesce(s.preferred_name, ''), coalesce(s.dob::text, ''), s.status, s.details,
 		       coalesce(to_char(s.deleted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), ''),
 		       coalesce(p.id::text, ''), coalesce(p.section_id::text, ''), coalesce(p.year_id::text, ''), coalesce(p.roll_no, '')
 		  FROM students s
@@ -95,7 +95,7 @@ func listStudents(c fiber.Ctx) error {
 	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (api.Student, error) {
 		var s api.Student
 		var p api.Placement
-		err := r.Scan(&s.Id, &s.AdmissionNo, &s.Name, &s.PreferredName, &s.Dob, &s.Status, &s.RemovedAt, &p.EnrolmentId, &p.SectionId, &p.YearId, &p.RollNo)
+		err := r.Scan(&s.Id, &s.AdmissionNo, &s.Name, &s.PreferredName, &s.Dob, &s.Status, &s.Details, &s.RemovedAt, &p.EnrolmentId, &p.SectionId, &p.YearId, &p.RollNo)
 		if p.EnrolmentId != "" {
 			s.Placement = &p
 		}
@@ -103,6 +103,16 @@ func listStudents(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return err
+	}
+	// Fields kept to administrators leave everyone else's copy.
+	actor, err := tenant.Teaching(c)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		if items[i].Details, err = visibleDetails(c.Context(), tx, actor, items[i].Details); err != nil {
+			return err
+		}
 	}
 	page := api.StudentPage{Items: items}
 	if len(items) > limit {

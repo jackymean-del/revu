@@ -90,7 +90,7 @@ var tenantTables = []string{
 	"assessment_participation", "evidence_history", "evidence", "bulk_writes", "assessment_parts", "assessment_scopes", "assessments",
 	"student_subject_choices", "subject_group_options", "subject_groups",
 	"invitations", "import_jobs", "audit_log", "feature_flags", "terminology", "memberships", "teaching_assignments",
-	"enrolments", "guardians", "students", "staff", "level_subjects", "subjects", "sections",
+	"family_messages", "family_sessions", "family_accounts", "enrolments", "guardians", "students", "staff", "level_subjects", "subjects", "sections",
 	"levels", "periods", "academic_years", "branches",
 }
 
@@ -126,6 +126,10 @@ func SeedOrg(t *testing.T, owner *pgxpool.Pool, name string) Org {
 	o.StudentID = one(`INSERT INTO students (org_id, admission_no, name) VALUES ($1, 'A-001', 'Ravi Kumar') RETURNING id`, o.ID)
 	one(`INSERT INTO guardians (org_id, student_id, name, relation, phone, is_primary) VALUES ($1, $2, 'Meena Kumar', 'mother', '+910000000000', true) RETURNING id`, o.ID, o.StudentID)
 	one(`INSERT INTO enrolments (org_id, student_id, section_id, year_id, roll_no) VALUES ($1, $2, $3, $4, '1') RETURNING id`, o.ID, o.StudentID, o.SectionID, o.YearID)
+	// A family sign-in, a session and a waiting message, so row-level security is proven for them too.
+	fam := one(`INSERT INTO family_accounts (org_id, student_id, username, password_hash) VALUES ($1, $2, 'A-001', 'not-a-real-hash') RETURNING id`, o.ID, o.StudentID)
+	one(`INSERT INTO family_sessions (org_id, account_id, token_hash, expires_at) VALUES ($1, $2, $3, now() + interval '1 day') RETURNING id`, o.ID, fam, "seed-"+o.ID)
+	one(`INSERT INTO family_messages (org_id, student_id, kind, channel, status) VALUES ($1, $2, 'sign_in', 'paper', 'handed') RETURNING id`, o.ID, o.StudentID)
 	one(`INSERT INTO teaching_assignments (org_id, staff_id, section_id, subject_id) VALUES ($1, $2, $3, $4) RETURNING id`, o.ID, o.StaffID, o.SectionID, o.SubjectID)
 	one(`INSERT INTO memberships (org_id, clerk_user_id, role, staff_id) VALUES ($1, $2, 'admin', $3) RETURNING id`, o.ID, o.UserID, o.StaffID)
 	one(`INSERT INTO audit_log (org_id, actor_id, action, entity, entity_id) VALUES ($1, $2, 'create', 'students', $3) RETURNING id`, o.ID, o.UserID, o.StudentID)

@@ -1229,6 +1229,253 @@ paths:
                 $ref: "#/components/schemas/Student"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/family-accounts:
+    get:
+      operationId: listFamilyAccounts
+      summary: Each active student's family sign-in, for an administrator. Narrowed to a section when asked.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+        - name: sectionId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: One row a student.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FamilyAccount"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family-accounts/issue:
+    post:
+      operationId: issueFamilyAccounts
+      summary: Make a family sign-in, with a temporary password and a message for each contact, for a section's students or those named. With reset, also for those who have one.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sectionId:
+                  type: string
+                studentIds:
+                  type: array
+                  items:
+                    type: string
+                reset:
+                  type: boolean
+      responses:
+        "200":
+          description: What was issued, and who was left out and why.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyIssued"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family-messages:
+    get:
+      operationId: listFamilyMessages
+      summary: The messages waiting to go to families, and whether a sending service is connected.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The waiting messages. A sign-in message shows its temporary password until it is sent or handed over.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyOutbox"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family-messages/send:
+    post:
+      operationId: sendFamilyMessages
+      summary: Send every waiting SMS and email through the sending service; 409 when none is connected.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: How many went and how many failed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent, failed]
+                properties:
+                  sent:
+                    type: integer
+                  failed:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family-messages/handed:
+    post:
+      operationId: handFamilyMessages
+      summary: Mark waiting messages as handed over on paper, which wipes their text. With no ids, every waiting message.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: How many were marked.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [handed]
+                properties:
+                  handed:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family/sign-in:
+    post:
+      operationId: familySignIn
+      summary: A family signs in for its child with the user name and password it was given. Five wrong passwords lock it for 15 minutes.
+      tags: [family]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orgId, username, password]
+              properties:
+                orgId:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: A token to send as a Bearer on later requests, and whether the password must be changed first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilySession"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family/password:
+    post:
+      operationId: familySetPassword
+      summary: The signed-in family chooses its own password, which ends the temporary one.
+      tags: [family]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+      responses:
+        "200":
+          description: The session, no longer needing a change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilySession"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family/me:
+    get:
+      operationId: familyMe
+      summary: Who the signed-in family is.
+      tags: [family]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The child, where they are placed, and the institution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilySession"
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/family/sign-out:
+    post:
+      operationId: familySignOut
+      summary: End the family's session.
+      tags: [family]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "204":
+          description: Signed out.
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/student-fields:
+    get:
+      operationId: getStudentFields
+      summary: The institution's own list of student fields, and which one families sign in with.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      responses:
+        "200":
+          description: The fields, in order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentFieldSettings"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: putStudentFields
+      summary: An administrator renames, hides, requires, reorders and adds student fields. A field left out is hidden, never dropped.
+      tags: [people]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentFieldSettings"
+      responses:
+        "200":
+          description: The list as saved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentFieldSettings"
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/students/{id}:
     put:
       operationId: updateStudent
@@ -5051,6 +5298,11 @@ components:
           type: string
           enum: [active, left, graduated]
           x-enum-varnames: [StudentActive, StudentLeft, StudentGraduated]
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Values of the institution's own student fields, by field key.
         placement:
           $ref: "#/components/schemas/Placement"
           x-go-type-skip-optional-pointer: false
@@ -5058,6 +5310,129 @@ components:
           type: string
           format: date-time
           description: Set when removed; absent while in use.
+    FamilyAccount:
+      type: object
+      required: [studentId, name, admissionNo, username, state, lastSignIn, contacts]
+      properties:
+        studentId:
+          type: string
+        name:
+          type: string
+        admissionNo:
+          type: string
+        username:
+          type: string
+        state:
+          type: string
+          enum: [none, issued, active]
+          description: issued while the temporary password has not been changed.
+        lastSignIn:
+          type: string
+        contacts:
+          type: integer
+          description: Contacts with a phone or an email.
+    FamilyIssued:
+      type: object
+      required: [issued, messages, skipped]
+      properties:
+        issued:
+          type: integer
+        messages:
+          type: integer
+        skipped:
+          type: array
+          items:
+            type: string
+    FamilyMessage:
+      type: object
+      required: [id, student, channel, recipient, address, body, status, error]
+      properties:
+        id:
+          type: string
+        student:
+          type: string
+        channel:
+          type: string
+          enum: [sms, email, paper]
+        recipient:
+          type: string
+        address:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+          enum: [ready, sent, handed, failed, replaced]
+        error:
+          type: string
+    FamilyOutbox:
+      type: object
+      required: [canSend, messages]
+      properties:
+        canSend:
+          type: boolean
+          description: A sending service is connected.
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/FamilyMessage"
+    FamilySession:
+      type: object
+      required: [mustChange, student, placement, school]
+      properties:
+        token:
+          type: string
+        mustChange:
+          type: boolean
+        student:
+          type: string
+        placement:
+          type: string
+        school:
+          type: string
+    StudentField:
+      type: object
+      required: [key, label, type, options, area, required, hidden, adminOnly, unique, custom]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+          maxLength: 60
+        type:
+          type: string
+          enum: [text, longtext, number, date, choice, yesno, phone, email]
+        options:
+          type: array
+          items:
+            type: string
+        area:
+          type: string
+          enum: [identity, contact, family, health, other]
+        required:
+          type: boolean
+        hidden:
+          type: boolean
+          description: Not asked or shown; past values are kept.
+        adminOnly:
+          type: boolean
+          description: Only administrators see its values.
+        unique:
+          type: boolean
+          description: No two students share a value; it may be the sign-in name.
+        custom:
+          type: boolean
+    StudentFieldSettings:
+      type: object
+      required: [fields, usernameField]
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudentField"
+        usernameField:
+          type: string
+          description: admissionNo, or the key of a unique field families sign in with.
     StudentInput:
       type: object
       additionalProperties: false
@@ -5081,6 +5456,11 @@ components:
           type: string
           enum: [active, left, graduated]
           x-enum-varnames: [StudentActive, StudentLeft, StudentGraduated]
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Values of the institution's own student fields, by field key.
     Placement:
       type: object
       description: Where the student is placed in the latest year they are enrolled.

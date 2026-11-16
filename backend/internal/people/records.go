@@ -7,6 +7,7 @@ package people
 
 import (
 	"context"
+	"encoding/json"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -23,6 +24,7 @@ import (
 type Options struct {
 	Directory auth.Directory // emails invitation links; nil when sign-in is not configured
 	AppURL    string         // where an invitation link lands
+	Sender    Sender         // sends messages to families; nil until a sending service is connected
 }
 
 // Routes serves everything in this package inside a tenant-scoped router.
@@ -33,6 +35,14 @@ func Routes(g fiber.Router, o Options) {
 	g.Post("/invitations", inv.create)
 	g.Delete("/invitations/:id", inv.revoke)
 	g.Get("/students", listStudents)
+	fam := family{sender: o.Sender, appURL: o.AppURL}
+	g.Get("/family-accounts", fam.list)
+	g.Post("/family-accounts/issue", fam.issue)
+	g.Get("/family-messages", fam.outbox)
+	g.Post("/family-messages/send", fam.send)
+	g.Post("/family-messages/handed", fam.handed)
+	g.Get("/student-fields", getFields)
+	g.Put("/student-fields", putFields)
 	g.Post("/students/import", previewImport)
 	g.Get("/import-jobs", listImportJobs)
 	g.Post("/import-jobs/:id/apply", applyImport)
@@ -105,20 +115,31 @@ func checkDOB(f *records.Fields, s *string) {
 
 var students = records.Resource[api.Student, api.StudentInput]{
 	Path: "students", Table: "students", Audited: "students",
-	SelectList: `id::text, admission_no, name, coalesce(preferred_name, ''), coalesce(dob::text, ''), status`,
+	SelectList: `id::text, admission_no, name, coalesce(preferred_name, ''), coalesce(dob::text, ''), status, details`,
 	Scan: func(r pgx.CollectableRow) (s api.Student, err error) {
-		return s, r.Scan(&s.Id, &s.AdmissionNo, &s.Name, &s.PreferredName, &s.Dob, &s.Status, &s.RemovedAt)
+		err = r.Scan(&s.Id, &s.AdmissionNo, &s.Name, &s.PreferredName, &s.Dob, &s.Status, &s.Details, &s.RemovedAt)
+		if s.Details == nil {
+			s.Details = map[string]string{}
+		}
+		return s, err
 	},
 	Order: `lower(name), id`,
 	Columns: []records.Column{
-		{Name: "admission_no"}, {Name: "name"}, {Name: "preferred_name"}, {Name: "dob", Cast: "::date"}, {Name: "status"},
+		{Name: "admission_no"}, {Name: "name"}, {Name: "preferred_name"}, {Name: "dob", Cast: "::date"}, {Name: "status"}, {Name: "details", Cast: "::jsonb"},
 	},
 	Values: func(in api.StudentInput) []any {
-		return []any{in.AdmissionNo, in.Name, nullIfEmpty(in.PreferredName), nullIfEmpty(in.Dob), string(in.Status)}
+		details, _ := json.Marshal(in.Details)
+		return []any{in.AdmissionNo, in.Name, nullIfEmpty(in.PreferredName), nullIfEmpty(in.Dob), string(in.Status), string(details)}
 	},
-	Check: func(_ context.Context, _ pgx.Tx, in *api.StudentInput) ([]api.FieldError, error) {
+	Check: func(ctx context.Context, tx pgx.Tx, in *api.StudentInput) ([]api.FieldError, error) {
 		var f records.Fields
 		f.Text("admissionNo", &in.AdmissionNo, 1, 40)
+		if in.Details == nil {
+			in.Details = map[string]string{}
+		}
+		if err := checkDetails(ctx, tx, in.AdmissionNo, in.Details, &f); err != nil {
+			return nil, err
+		}
 		f.Text("name", &in.Name, 1, 120)
 		f.Text("preferredName", &in.PreferredName, 0, 80)
 		checkDOB(&f, &in.Dob)

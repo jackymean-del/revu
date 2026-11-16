@@ -104,6 +104,8 @@ func New(cfg config.Config, d Deps) *fiber.App {
 	v1.Get("/me", org.Me(d.DB, owner))
 	platform.Routes(v1, owner)
 	v1.Post("/webhooks/clerk", clerksync.Handler(d.DB, cfg.ClerkWebhook, d.Now))
+	// A family signs in for itself, with no staff account.
+	people.FamilyPublic(v1, d.DB)
 	// Everything below acts inside one organisation.
 	inOrg := v1.Group("", tenant.Middleware(d.DB, auth.Identify(d.Auth)))
 	terminology.Routes(inOrg)

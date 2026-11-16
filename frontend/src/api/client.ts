@@ -94,6 +94,17 @@ export const removeStructure = (orgId: string, path: StructurePath, id: string) 
 export const restoreStructure = (orgId: string, path: StructurePath, id: string) =>
   call<unknown>(`/v1/${path}/${id}/restore`, { orgId, method: 'POST' })
 
+export type FamilyAccount = components['schemas']['FamilyAccount']
+export const listFamilyAccounts = (orgId: string, sectionId: string, signal?: AbortSignal) => call<FamilyAccount[]>(`/v1/family-accounts?${new URLSearchParams(sectionId ? { sectionId } : {})}`, { orgId, signal })
+export const issueFamilyAccounts = (orgId: string, body: { sectionId?: string; studentIds?: string[]; reset?: boolean }) =>
+  call<components['schemas']['FamilyIssued']>('/v1/family-accounts/issue', { orgId, method: 'POST', body })
+export const listFamilyMessages = (orgId: string, signal?: AbortSignal) => call<components['schemas']['FamilyOutbox']>('/v1/family-messages', { orgId, signal })
+export const sendFamilyMessages = (orgId: string) => call<{ sent: number; failed: number }>('/v1/family-messages/send', { orgId, method: 'POST' })
+export const handFamilyMessages = (orgId: string) => call<{ handed: number }>('/v1/family-messages/handed', { orgId, method: 'POST', body: {} })
+export type StudentField = components['schemas']['StudentField']
+export type StudentFieldSettings = components['schemas']['StudentFieldSettings']
+export const getStudentFields = (orgId: string, signal?: AbortSignal) => call<StudentFieldSettings>('/v1/student-fields', { orgId, signal })
+export const putStudentFields = (orgId: string, body: StudentFieldSettings) => call<StudentFieldSettings>('/v1/student-fields', { orgId, method: 'PUT', body })
 export const listStudents = (orgId: string, params: Record<string, string>, signal?: AbortSignal) =>
   call<StudentPage>(`/v1/students?${new URLSearchParams(params)}`, { orgId, signal })
 

@@ -9,9 +9,11 @@ import { useT } from '../lib/terminology/terms-context'
 import { Import } from './people/Import'
 import { Invitations } from './people/Invitations'
 import { Promotion } from './people/Promotion'
+import { FamilyAccounts } from './people/FamilyAccounts'
+import { FieldSettings } from './people/StudentFields'
 import { Students } from './people/Students'
 
-type Tab = 'students' | 'staff' | 'members' | 'import' | 'promotion'
+type Tab = 'students' | 'staff' | 'members' | 'import' | 'promotion' | 'fields' | 'family'
 
 /** People: students and their contacts, staff, who can sign in, imports and the year-end preview. */
 export function People() {
@@ -35,6 +37,7 @@ export function People() {
     { id: 'members', label: 'Who can sign in' },
     { id: 'import', label: 'Import a class list' },
     { id: 'promotion', label: 'Year end' },
+    ...(canEdit ? [{ id: 'fields' as const, label: `${t('person.student')} fields` }, { id: 'family' as const, label: 'Family sign-in' }] : []),
   ]
   const roles = [
     { value: 'admin', label: 'Administrator' },
@@ -62,6 +65,8 @@ export function People() {
         ))}
       </div>
       <div role="tabpanel" className="mt-6">
+        {tab === 'fields' && canEdit && <FieldSettings orgId={orgId} />}
+        {tab === 'family' && canEdit && <FamilyAccounts orgId={orgId} />}
         {tab === 'students' && <Students key={find} orgId={orgId} canEdit={canEdit} find={find} />}
         {tab === 'staff' && (
           <EditableList

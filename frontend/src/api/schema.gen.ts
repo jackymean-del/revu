@@ -660,6 +660,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/family-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Each active student's family sign-in, for an administrator. Narrowed to a section when asked. */
+        get: operations["listFamilyAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family-accounts/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Make a family sign-in, with a temporary password and a message for each contact, for a section's students or those named. With reset, also for those who have one. */
+        post: operations["issueFamilyAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family-messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The messages waiting to go to families, and whether a sending service is connected. */
+        get: operations["listFamilyMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family-messages/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send every waiting SMS and email through the sending service; 409 when none is connected. */
+        post: operations["sendFamilyMessages"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family-messages/handed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark waiting messages as handed over on paper, which wipes their text. With no ids, every waiting message. */
+        post: operations["handFamilyMessages"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A family signs in for its child with the user name and password it was given. Five wrong passwords lock it for 15 minutes. */
+        post: operations["familySignIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The signed-in family chooses its own password, which ends the temporary one. */
+        post: operations["familySetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who the signed-in family is. */
+        get: operations["familyMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/family/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End the family's session. */
+        post: operations["familySignOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/student-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The institution's own list of student fields, and which one families sign in with. */
+        get: operations["getStudentFields"];
+        /** An administrator renames, hides, requires, reorders and adds student fields. A field left out is hidden, never dropped. */
+        put: operations["putStudentFields"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/students/{id}": {
         parameters: {
             query?: never;
@@ -2907,12 +3078,81 @@ export interface components {
             dob?: string;
             /** @enum {string} */
             status: "active" | "left" | "graduated";
+            /** @description Values of the institution's own student fields, by field key. */
+            details?: {
+                [key: string]: string;
+            };
             placement?: components["schemas"]["Placement"];
             /**
              * Format: date-time
              * @description Set when removed; absent while in use.
              */
             removedAt?: string;
+        };
+        FamilyAccount: {
+            studentId: string;
+            name: string;
+            admissionNo: string;
+            username: string;
+            /**
+             * @description issued while the temporary password has not been changed.
+             * @enum {string}
+             */
+            state: "none" | "issued" | "active";
+            lastSignIn: string;
+            /** @description Contacts with a phone or an email. */
+            contacts: number;
+        };
+        FamilyIssued: {
+            issued: number;
+            messages: number;
+            skipped: string[];
+        };
+        FamilyMessage: {
+            id: string;
+            student: string;
+            /** @enum {string} */
+            channel: "sms" | "email" | "paper";
+            recipient: string;
+            address: string;
+            body: string;
+            /** @enum {string} */
+            status: "ready" | "sent" | "handed" | "failed" | "replaced";
+            error: string;
+        };
+        FamilyOutbox: {
+            /** @description A sending service is connected. */
+            canSend: boolean;
+            messages: components["schemas"]["FamilyMessage"][];
+        };
+        FamilySession: {
+            token?: string;
+            mustChange: boolean;
+            student: string;
+            placement: string;
+            school: string;
+        };
+        StudentField: {
+            key: string;
+            label: string;
+            /** @enum {string} */
+            type: "text" | "longtext" | "number" | "date" | "choice" | "yesno" | "phone" | "email";
+            options: string[];
+            /** @enum {string} */
+            area: "identity" | "contact" | "family" | "health" | "other";
+            required: boolean;
+            /** @description Not asked or shown; past values are kept. */
+            hidden: boolean;
+            /** @description Only administrators see its values. */
+            adminOnly: boolean;
+            /** @description No two students share a value; it may be the sign-in name. */
+            unique: boolean;
+            custom: boolean;
+        };
+        StudentFieldSettings: {
+            fields: components["schemas"]["StudentField"][];
+            /** @description admissionNo, or the key of a unique field families sign in with. */
+            usernameField: string;
         };
         StudentInput: {
             admissionNo: string;
@@ -2922,6 +3162,10 @@ export interface components {
             dob?: string;
             /** @enum {string} */
             status?: "active" | "left" | "graduated";
+            /** @description Values of the institution's own student fields, by field key. */
+            details?: {
+                [key: string]: string;
+            };
         };
         /** @description Where the student is placed in the latest year they are enrolled. */
         Placement: {
@@ -6624,6 +6868,304 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Student"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listFamilyAccounts: {
+        parameters: {
+            query?: {
+                sectionId?: string;
+            };
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One row a student. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyAccount"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    issueFamilyAccounts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    sectionId?: string;
+                    studentIds?: string[];
+                    reset?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description What was issued, and who was left out and why. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyIssued"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listFamilyMessages: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The waiting messages. A sign-in message shows its temporary password until it is sent or handed over. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyOutbox"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    sendFamilyMessages: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many went and how many failed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sent: number;
+                        failed: number;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    handFamilyMessages: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    ids?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description How many were marked. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        handed: number;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    familySignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    orgId: string;
+                    username: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description A token to send as a Bearer on later requests, and whether the password must be changed first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilySession"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    familySetPassword: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The session, no longer needing a change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilySession"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    familyMe: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The child, where they are placed, and the institution. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilySession"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    familySignOut: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getStudentFields: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The fields, in order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentFieldSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putStudentFields: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentFieldSettings"];
+            };
+        };
+        responses: {
+            /** @description The list as saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentFieldSettings"];
                 };
             };
             default: components["responses"]["Problem"];
