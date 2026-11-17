@@ -7,7 +7,7 @@
  * server's rules; every server action and status has a label.
  */
 import { readFileSync } from 'node:fs'
-import { ACTION, below, checkSettings, describeRule, hundredths, nextSort, rangeIndex, ranges, RETEACH_STATUS, sortRows, type Settings, type Sort, type StudentRow } from './src/lib/analysis.ts'
+import { ACTION, below, checkSettings, describeRule, hundredths, nextSort, rangeIndex, ranges, RETEACH_STATUS, sortRows, type Rule, type Settings, type Sort, type StudentRow } from './src/lib/analysis.ts'
 
 let fail = 0
 const ok = (cond: boolean, label: string, extra = '') => {
@@ -61,8 +61,10 @@ ok(JSON.stringify(nextSort({ key: 'name', dir: 'asc' }, 'name')) === '{"key":"na
 const noun = { one: 'subject', many: 'subjects' }
 const undertaking = { name: 'Undertaking', action: 'undertaking', on: 'subjects', belowPct: '60', atLeast: 3, showBelowPct: '70' } as const
 const warning = { name: 'Verbal warning', action: 'warning', on: 'subjects', belowPct: '70', atLeast: 1, showBelowPct: '70' } as const
-ok(describeRule(undertaking, noun) === 'At least 3 subjects below 60%. Shows subjects below 70%.', 'undertaking rule in words', describeRule(undertaking, noun))
-ok(describeRule(warning, noun) === 'Any one subject below 70%. Shows subjects below 70%.', 'warning rule in words', describeRule(warning, noun))
+ok(describeRule(undertaking, noun) === 'On this list when at least 3 subjects are below 60%. It shows the subjects that put them there.', 'undertaking rule in words', describeRule(undertaking, noun))
+ok(describeRule(warning, noun) === 'On this list when any one subject is below 70%. It shows the subjects that put them there.', 'warning rule in words', describeRule(warning, noun))
+const either: Rule = { name: 'Either', action: 'support', match: 'any', criteria: [{ on: 'subjects', atLeast: 2, belowPct: '50' }, { on: 'overall', atLeast: 1, belowPct: '40' }] }
+ok(describeRule(either, noun) === 'On this list when at least 2 subjects are below 50% or the overall result is below 40%. It shows the subjects that put them there.', 'several conditions in words', describeRule(either, noun))
 
 const good: Settings = { masteryPct: '40', reteachSharePct: '30', minEvidence: 5, ranges: ['40', '50'], lists: [undertaking, warning], signoff: [] }
 ok(checkSettings(good) === '', 'the defaults pass')
