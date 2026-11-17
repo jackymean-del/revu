@@ -75,6 +75,24 @@ func (e AnalysisCellState) Valid() bool {
 	}
 }
 
+// Defines values for AnalysisCriterionOn.
+const (
+	AnalysisCriterionOnOverall  AnalysisCriterionOn = "overall"
+	AnalysisCriterionOnSubjects AnalysisCriterionOn = "subjects"
+)
+
+// Valid indicates whether the value is a known member of the AnalysisCriterionOn enum.
+func (e AnalysisCriterionOn) Valid() bool {
+	switch e {
+	case AnalysisCriterionOnOverall:
+		return true
+	case AnalysisCriterionOnSubjects:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AnalysisRuleAction.
 const (
 	AnalysisRuleActionRetest      AnalysisRuleAction = "retest"
@@ -93,6 +111,24 @@ func (e AnalysisRuleAction) Valid() bool {
 	case AnalysisRuleActionUndertaking:
 		return true
 	case AnalysisRuleActionWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AnalysisRuleMatch.
+const (
+	AnalysisRuleMatchAll AnalysisRuleMatch = "all"
+	AnalysisRuleMatchAny AnalysisRuleMatch = "any"
+)
+
+// Valid indicates whether the value is a known member of the AnalysisRuleMatch enum.
+func (e AnalysisRuleMatch) Valid() bool {
+	switch e {
+	case AnalysisRuleMatchAll:
+		return true
+	case AnalysisRuleMatchAny:
 		return true
 	default:
 		return false
@@ -2604,9 +2640,20 @@ type AnalysisCell struct {
 // AnalysisCellState defines model for AnalysisCell.State.
 type AnalysisCellState string
 
+// AnalysisCriterion defines model for AnalysisCriterion.
+type AnalysisCriterion struct {
+	// AtLeast For subjects, how many must be below; ignored for overall.
+	AtLeast  int                 `json:"atLeast"`
+	BelowPct string              `json:"belowPct"`
+	On       AnalysisCriterionOn `json:"on"`
+}
+
+// AnalysisCriterionOn defines model for AnalysisCriterion.On.
+type AnalysisCriterionOn string
+
 // AnalysisList defines model for AnalysisList.
 type AnalysisList struct {
-	// Rule One criteria list (decision D32). Lists are checked in order and the first a student meets wins.
+	// Rule One criteria list (decision D32). Lists are checked in order and the first a student meets wins. A student goes on a list when any (or all) of its conditions hold.
 	Rule     AnalysisRule        `json:"rule"`
 	Students []AnalysisListEntry `json:"students"`
 }
@@ -2629,20 +2676,27 @@ type AnalysisPart struct {
 	Name string `json:"name"`
 }
 
-// AnalysisRule One criteria list (decision D32). Lists are checked in order and the first a student meets wins.
+// AnalysisRule One criteria list (decision D32). Lists are checked in order and the first a student meets wins. A student goes on a list when any (or all) of its conditions hold.
 type AnalysisRule struct {
 	Action AnalysisRuleAction `json:"action"`
 
 	// AtLeast For subjects, how many must be below; ignored for overall.
-	AtLeast      int            `json:"atLeast"`
-	BelowPct     string         `json:"belowPct"`
-	Name         string         `json:"name"`
-	On           AnalysisRuleOn `json:"on"`
-	ShowBelowPct string         `json:"showBelowPct"`
+	AtLeast  int                 `json:"atLeast,omitempty"`
+	BelowPct string              `json:"belowPct,omitempty"`
+	Criteria []AnalysisCriterion `json:"criteria,omitempty"`
+	Match    AnalysisRuleMatch   `json:"match,omitempty"`
+	Name     string              `json:"name"`
+	On       AnalysisRuleOn      `json:"on,omitempty"`
+
+	// ShowBelowPct Worked out from the conditions; a subject below it shows beside the student.
+	ShowBelowPct string `json:"showBelowPct,omitempty"`
 }
 
 // AnalysisRuleAction defines model for AnalysisRule.Action.
 type AnalysisRuleAction string
+
+// AnalysisRuleMatch defines model for AnalysisRule.Match.
+type AnalysisRuleMatch string
 
 // AnalysisRuleOn defines model for AnalysisRule.On.
 type AnalysisRuleOn string

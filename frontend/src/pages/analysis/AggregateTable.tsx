@@ -7,7 +7,7 @@ const td = 'border-b border-line px-2 py-1.5 text-right tabular-nums'
 
 /** The lowest display threshold of the lists: a result below it is shaded, as on the lists. */
 function watchPct(s: Summary): string {
-  const ts = s.settings.lists.map((r) => r.showBelowPct)
+  const ts = s.settings.lists.map((r) => r.showBelowPct ?? r.belowPct ?? '')
   return ts.length ? ts.reduce((a, b) => (below(a, b) ? a : b)) : ''
 }
 

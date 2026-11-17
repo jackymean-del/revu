@@ -165,7 +165,7 @@ func TestAnalysis(t *testing.T) {
 	if len(settings.Lists) != 2 || settings.Lists[0].AtLeast != 3 || settings.Lists[0].BelowPct != "60" || settings.Lists[1].BelowPct != "70" {
 		t.Fatalf("default lists %+v", settings.Lists)
 	}
-	settings.Lists[0].AtLeast = 2
+	settings.Lists[0].Criteria[0].AtLeast = 2
 	tom.must(403, "PUT", "/v1/analysis/settings", settings)
 	bad := settings
 	bad.Ranges = []string{"50", "40"}
@@ -252,6 +252,22 @@ func TestAnalysis(t *testing.T) {
 		if names(again.Lists[0]) != "Kiran Das, Leela Rao, Mira Sen" || len(again.Lists[1].Students) != 0 {
 			t.Fatalf("after swapping: %q and %q", names(again.Lists[0]), names(again.Lists[1]))
 		}
+		// Several conditions: all of them, or any of them.
+		several := settings
+		several.Lists = []analysis.Rule{
+			{Name: "Both", Action: "retest", Match: "all", Criteria: []analysis.Criterion{{On: "subjects", AtLeast: 1, BelowPct: "30"}, {On: "subjects", AtLeast: 2, BelowPct: "60"}}},
+			{Name: "Either", Action: "support", Match: "any", Criteria: []analysis.Criterion{{On: "subjects", AtLeast: 1, BelowPct: "30"}, {On: "subjects", AtLeast: 1, BelowPct: "45"}}},
+		}
+		admin.must(200, "PUT", "/v1/analysis/settings", several)
+		var both analysis.Summary
+		cara.must(200, "GET", "/v1/analysis/summary"+q, nil).into(&both)
+		// Kiran has 27.5 and two below 60; Leela has 40, below 45 only.
+		if names(both.Lists[0]) != "Kiran Das" || names(both.Lists[1]) != "Leela Rao" {
+			t.Fatalf("several conditions: %q and %q", names(both.Lists[0]), names(both.Lists[1]))
+		}
+		bad := several
+		bad.Lists = []analysis.Rule{{Name: "Broken", Action: "support", Criteria: []analysis.Criterion{{On: "subjects", AtLeast: 0, BelowPct: "40"}}}}
+		admin.must(422, "PUT", "/v1/analysis/settings", bad)
 		admin.must(200, "PUT", "/v1/analysis/settings", settings)
 	})
 

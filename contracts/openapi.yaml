@@ -7694,9 +7694,17 @@ components:
     AnalysisRule:
       type: object
       additionalProperties: false
-      description: One criteria list (decision D32). Lists are checked in order and the first a student meets wins.
-      required: [name, action, on, belowPct, atLeast, showBelowPct]
+      description: One criteria list (decision D32). Lists are checked in order and the first a student meets wins. A student goes on a list when any (or all) of its conditions hold.
+      required: [name, action]
       properties:
+        criteria:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/AnalysisCriterion"
+        match:
+          type: string
+          enum: [any, all]
         name:
           type: string
           minLength: 1
@@ -7714,6 +7722,20 @@ components:
           description: For subjects, how many must be below; ignored for overall.
         showBelowPct:
           type: string
+          description: Worked out from the conditions; a subject below it shows beside the student.
+    AnalysisCriterion:
+      type: object
+      additionalProperties: false
+      required: ["on", belowPct, atLeast]
+      properties:
+        "on":
+          type: string
+          enum: [subjects, overall]
+        belowPct:
+          type: string
+        atLeast:
+          type: integer
+          description: For subjects, how many must be below; ignored for overall.
     AnalysisSettings:
       type: object
       additionalProperties: false

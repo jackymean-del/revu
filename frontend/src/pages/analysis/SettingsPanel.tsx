@@ -3,7 +3,7 @@ import { Loading } from '../../components/Loading'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAnalysisSettings, putAnalysisSettings } from '../../api/client'
 import { ApiError } from '../../api/problem'
-import { ACTION, checkSettings, describeRule, type Rule, type Settings } from '../../lib/analysis'
+import { ACTION, checkSettings, criteriaOf, describeRule, type Criterion, type Rule, type Settings } from '../../lib/analysis'
 import { moveItem } from '../../lib/reports'
 import { useT } from '../../lib/terminology/terms-context'
 
@@ -43,6 +43,7 @@ function Form({ orgId, initial }: { orgId: string; initial: Settings }) {
     onError: (e) => setNote({ text: e instanceof ApiError ? e.message : 'Not saved. Try again.', error: true }),
   })
   const setRule = (i: number, r: Partial<Rule>) => setS({ ...s, lists: s.lists.map((x, k) => (k === i ? { ...x, ...r } : x)) })
+  const setCriteria = (i: number, list: Criterion[]) => setRule(i, { criteria: list })
 
   return (
     <form
@@ -103,20 +104,50 @@ function Form({ orgId, initial }: { orgId: string; initial: Settings }) {
                 </button>
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <select aria-label="Looks at" className="rounded-md border border-line px-2 py-1" value={r.on} onChange={(e) => setRule(i, { on: e.target.value as Rule['on'] })}>
-                <option value="subjects">At least</option>
-                <option value="overall">Overall result</option>
-              </select>
-              {r.on === 'subjects' && (
-                <>
-                  <input aria-label="How many" className={input} inputMode="numeric" value={r.atLeast} onChange={(e) => setRule(i, { atLeast: Number(e.target.value) || 0 })} />
-                  {noun.many}
-                </>
+            <div className="space-y-1.5 text-sm">
+              {criteriaOf(r).length > 1 && (
+                <label className="flex items-center gap-2">
+                  On this list when
+                  <select aria-label="Which conditions" className="rounded-md border border-line px-2 py-1" value={r.match ?? 'any'} onChange={(e) => setRule(i, { match: e.target.value as Rule['match'] })}>
+                    <option value="any">any one</option>
+                    <option value="all">all</option>
+                  </select>
+                  of these hold:
+                </label>
               )}
-              below
-              <input aria-label="Below" className={input} inputMode="decimal" value={r.belowPct} onChange={(e) => setRule(i, { belowPct: e.target.value })} />%; show {noun.many} below
-              <input aria-label="Show below" className={input} inputMode="decimal" value={r.showBelowPct} onChange={(e) => setRule(i, { showBelowPct: e.target.value })} />%
+              {criteriaOf(r).map((c, k) => {
+                const list = criteriaOf(r)
+                const put = (patch: Partial<Criterion>) => setCriteria(i, list.map((x, j) => (j === k ? { ...x, ...patch } : x)))
+                return (
+                  <div key={k} className="flex flex-wrap items-center gap-2 rounded-md bg-canvas px-2 py-1.5">
+                    <select aria-label={`Condition ${k + 1} looks at`} className="rounded-md border border-line bg-white px-2 py-1" value={c.on} onChange={(e) => put({ on: e.target.value as Criterion['on'] })}>
+                      <option value="subjects">At least</option>
+                      <option value="overall">Overall result</option>
+                    </select>
+                    {c.on === 'subjects' && (
+                      <>
+                        <input aria-label={`Condition ${k + 1} how many`} className={input} inputMode="numeric" value={c.atLeast} onChange={(e) => put({ atLeast: Number(e.target.value) || 0 })} />
+                        {c.atLeast === 1 ? noun.one : noun.many}{' '}
+                      </>
+                    )}
+                    below
+                    <input aria-label={`Condition ${k + 1} below`} className={input} inputMode="decimal" value={c.belowPct} onChange={(e) => put({ belowPct: e.target.value })} />%
+                    {list.length > 1 && (
+                      <button type="button" className="ml-auto px-1 text-muted hover:text-red-700" aria-label={`Remove condition ${k + 1}`} onClick={() => setCriteria(i, list.filter((_, j) => j !== k))}>
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+              <button
+                type="button"
+                className="text-sm font-semibold text-brand disabled:opacity-50"
+                disabled={criteriaOf(r).length >= 6}
+                onClick={() => setCriteria(i, [...criteriaOf(r), { on: 'subjects', atLeast: 1, belowPct: '33' }])}
+              >
+                + Add a condition
+              </button>
             </div>
             <p className="text-xs text-muted">{describeRule(r, noun)}</p>
           </div>
@@ -125,7 +156,7 @@ function Form({ orgId, initial }: { orgId: string; initial: Settings }) {
           type="button"
           className={button}
           disabled={s.lists.length >= 8}
-          onClick={() => setS({ ...s, lists: [...s.lists, { name: 'New list', action: 'support', on: 'subjects', belowPct: '40', atLeast: 1, showBelowPct: '40' }] })}
+          onClick={() => setS({ ...s, lists: [...s.lists, { name: 'New list', action: 'support', match: 'any', criteria: [{ on: 'subjects', atLeast: 1, belowPct: '40' }] }] })}
         >
           Add a list
         </button>

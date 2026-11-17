@@ -4372,17 +4372,28 @@ export interface components {
             /** @description Some students only; all the section's students when left out. */
             studentIds?: string[];
         };
-        /** @description One criteria list (decision D32). Lists are checked in order and the first a student meets wins. */
+        /** @description One criteria list (decision D32). Lists are checked in order and the first a student meets wins. A student goes on a list when any (or all) of its conditions hold. */
         AnalysisRule: {
+            criteria?: components["schemas"]["AnalysisCriterion"][];
+            /** @enum {string} */
+            match?: "any" | "all";
             name: string;
             /** @enum {string} */
             action: "undertaking" | "warning" | "retest" | "support";
+            /** @enum {string} */
+            on?: "subjects" | "overall";
+            belowPct?: string;
+            /** @description For subjects, how many must be below; ignored for overall. */
+            atLeast?: number;
+            /** @description Worked out from the conditions; a subject below it shows beside the student. */
+            showBelowPct?: string;
+        };
+        AnalysisCriterion: {
             /** @enum {string} */
             on: "subjects" | "overall";
             belowPct: string;
             /** @description For subjects, how many must be below; ignored for overall. */
             atLeast: number;
-            showBelowPct: string;
         };
         AnalysisSettings: {
             /** @description Below this share of a paper section's marks, a student needs another look. */

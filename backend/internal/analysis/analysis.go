@@ -52,24 +52,64 @@ type Settings struct {
 	Signoff         []string `json:"signoff"`         // who signs the printed pack; empty for the class teacher and principal
 }
 
-// Rule is one criteria list (decision D32): "at least AtLeast subjects
-// below BelowPct" when On is subjects, or "overall below BelowPct" when On
-// is overall. The list shows each student's subjects below ShowBelowPct.
+// Rule is one criteria list (decision D32): a student goes on it when any
+// (or all, as Match says) of its conditions hold. The list shows the
+// subjects that put the student there.
 type Rule struct {
-	Name         string `json:"name"`
-	Action       string `json:"action"` // undertaking, warning, retest or support
-	On           string `json:"on"`     // subjects or overall
+	Name     string      `json:"name"`
+	Action   string      `json:"action"` // undertaking, warning, retest or support
+	Criteria []Criterion `json:"criteria"`
+	Match    string      `json:"match"` // any or all
+	// The first condition, and the threshold below which a subject is shown
+	// beside the student, worked out from the conditions; kept for older
+	// readers of the settings.
+	On           string `json:"on"`
 	BelowPct     string `json:"belowPct"`
 	AtLeast      int    `json:"atLeast"`
 	ShowBelowPct string `json:"showBelowPct"`
+}
+
+// Criterion is one condition of a list: "at least AtLeast subjects below
+// BelowPct" when On is subjects, or "overall below BelowPct" when On is
+// overall.
+type Criterion struct {
+	On       string `json:"on"`
+	AtLeast  int    `json:"atLeast"`
+	BelowPct string `json:"belowPct"`
+}
+
+// normal gives a rule its conditions (an older rule has its one in the
+// flat fields), and works out the flat fields from them: a subject shows
+// beside the student when it is below the highest subject threshold, or,
+// with only an overall condition, below that.
+func (r Rule) normal() Rule {
+	if len(r.Criteria) == 0 {
+		r.Criteria = []Criterion{{On: r.On, AtLeast: r.AtLeast, BelowPct: r.BelowPct}}
+	}
+	if r.Match != "all" {
+		r.Match = "any"
+	}
+	first := r.Criteria[0]
+	r.On, r.AtLeast, r.BelowPct = first.On, first.AtLeast, first.BelowPct
+	show := ""
+	for _, c := range r.Criteria {
+		if c.On == "subjects" && (show == "" || scheme.Below(show, c.BelowPct)) {
+			show = c.BelowPct
+		}
+	}
+	if show == "" {
+		show = first.BelowPct
+	}
+	r.ShowBelowPct = show
+	return r
 }
 
 // DefaultSettings are used until an institution changes them.
 func DefaultSettings() Settings {
 	return Settings{MasteryPct: "40", ReteachSharePct: "30", MinEvidence: 5, Ranges: []string{"40", "50", "60", "70", "80", "90"},
 		Lists: []Rule{
-			{Name: "Undertaking", Action: "undertaking", On: "subjects", BelowPct: "60", AtLeast: 3, ShowBelowPct: "70"},
-			{Name: "Verbal warning", Action: "warning", On: "subjects", BelowPct: "70", AtLeast: 1, ShowBelowPct: "70"},
+			Rule{Name: "Undertaking", Action: "undertaking", Criteria: []Criterion{{On: "subjects", AtLeast: 3, BelowPct: "60"}}}.normal(),
+			Rule{Name: "Verbal warning", Action: "warning", Criteria: []Criterion{{On: "subjects", AtLeast: 1, BelowPct: "70"}}}.normal(),
 		}, Signoff: []string{}}
 }
 
@@ -101,6 +141,9 @@ func queueSettings(b *pgx.Batch) func() Settings {
 		}
 		if len(raw) > 0 && string(raw) != "null" {
 			_ = json.Unmarshal(raw, &s)
+		}
+		for i := range s.Lists {
+			s.Lists[i] = s.Lists[i].normal()
 		}
 		return nil
 	})
@@ -165,17 +208,30 @@ func putSettings(c fiber.Ctx) error {
 			f.Add("lists", "invalid", "Each list needs a name of up to 60 characters.")
 			break
 		}
-		if !slices.Contains([]string{"undertaking", "warning", "retest", "support"}, r.Action) || !slices.Contains([]string{"subjects", "overall"}, r.On) {
-			f.Add("lists", "invalid", "Each list needs an action and whether it looks at subjects or the overall result.")
+		if !slices.Contains([]string{"undertaking", "warning", "retest", "support"}, r.Action) {
+			f.Add("lists", "invalid", "Each list needs an action.")
 			break
 		}
-		if !validPct(r.BelowPct) || !validPct(r.ShowBelowPct) || r.On == "subjects" && (r.AtLeast < 1 || r.AtLeast > 30) {
-			f.Add("lists", "invalid", "Each list needs percentages from 0 to 100 and, for subjects, a count from 1 to 30.")
+		crit := r.Criteria
+		if len(crit) == 0 {
+			crit = []Criterion{{On: r.On, AtLeast: r.AtLeast, BelowPct: r.BelowPct}}
+		}
+		bad := len(crit) > 6
+		for _, c := range crit {
+			if !slices.Contains([]string{"subjects", "overall"}, c.On) || !validPct(c.BelowPct) || c.On == "subjects" && (c.AtLeast < 1 || c.AtLeast > 30) {
+				bad = true
+			}
+		}
+		if bad {
+			f.Add("lists", "invalid", "Each list has 1 to 6 conditions, each with a percentage from 0 to 100 and, for subjects, a count from 1 to 30.")
 			break
 		}
 	}
 	if len(f) > 0 {
 		return problem.Invalid(f...)
+	}
+	for i := range in.Lists {
+		in.Lists[i] = in.Lists[i].normal()
 	}
 	raw, _ := json.Marshal(in)
 	if _, err := tx.Exec(c.Context(), `UPDATE orgs SET settings = jsonb_set(settings, '{analysis}', $1::jsonb) WHERE id = app_org_id()`, string(raw)); err != nil {

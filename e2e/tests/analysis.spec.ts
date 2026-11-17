@@ -131,7 +131,7 @@ test('a class teacher reads the aggregate, the bands, the lists and the ranges, 
 
   await page.getByRole('tab', { name: 'Lists' }).click()
   const undertaking = page.getByRole('region', { name: 'Undertaking' })
-  await expect(undertaking).toContainText('At least 2 subjects below 60%. Shows subjects below 70%.')
+  await expect(undertaking).toContainText('On this list when at least 2 subjects are below 60%. It shows the subjects that put them there.')
   await expect(undertaking.getByRole('row', { name: /Leela Rao/ })).toContainText('40.00')
   await expect(page.getByRole('region', { name: 'Verbal warning' })).toContainText('Nobody.')
 
@@ -183,7 +183,12 @@ test('an administrator reorders the lists and changes a rule', async ({ page }) 
   const saved = fakeApi(page, 'admin')
   await page.goto('/analysis')
   await page.getByRole('tab', { name: 'Settings' }).click()
-  await page.getByLabel('How many').first().fill('3')
+  await page.getByLabel('Condition 1 how many').first().fill('3')
+  // A second condition on the first list, met with either.
+  await page.getByRole('button', { name: '+ Add a condition' }).first().click()
+  await page.getByLabel('Condition 2 looks at').first().selectOption('overall')
+  await page.getByLabel('Condition 2 below').first().fill('45')
+  await expect(page.getByText('On this list when at least 3 subjects are below 60% or the overall result is below 45%.')).toBeVisible()
   await page.getByRole('button', { name: 'Move down' }).first().click()
   await page.getByLabel('Boundaries, rising, separated by commas').fill('50, 40')
   await expect(page.getByText('Range boundaries are percentages between 0 and 100, rising.')).toBeVisible()
@@ -193,7 +198,7 @@ test('an administrator reorders the lists and changes a rule', async ({ page }) 
   await expect(page.getByRole('status')).toContainText('Saved')
   const s = saved.settings as typeof settings
   expect(s.lists.map((l) => l.name)).toEqual(['Verbal warning', 'Undertaking'])
-  expect(s.lists[1].atLeast).toBe(3)
+  expect(s.lists[1].criteria).toEqual([{ on: 'subjects', atLeast: 3, belowPct: '60' }, { on: 'overall', atLeast: 1, belowPct: '45' }])
   expect(s.ranges).toEqual(['35', '50', '75'])
 })
 

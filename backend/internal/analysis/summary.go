@@ -442,19 +442,27 @@ func bandIndex(bands []scheme.Band, label string) int {
 // place finds the first list a student meets (decision D32). Only results
 // with a number count; withheld and not assessed are never read as zero.
 func place(row StudentRow, subjects []SubjectSummary, rules []Rule) (int, ListEntry, bool) {
-	for i, r := range rules {
-		met := false
-		switch r.On {
-		case "overall":
-			met = row.Total != nil && scheme.Below(row.Total.Pct, r.BelowPct)
-		default:
-			n := 0
-			for _, cell := range row.Subjects {
-				if scheme.Below(cell.Pct, r.BelowPct) {
-					n++
-				}
+	holds := func(c Criterion) bool {
+		if c.On == "overall" {
+			return row.Total != nil && scheme.Below(row.Total.Pct, c.BelowPct)
+		}
+		n := 0
+		for _, cell := range row.Subjects {
+			if scheme.Below(cell.Pct, c.BelowPct) {
+				n++
 			}
-			met = n >= r.AtLeast
+		}
+		return n >= c.AtLeast
+	}
+	for i, r := range rules {
+		r = r.normal()
+		met := r.Match == "all"
+		for _, c := range r.Criteria {
+			if r.Match == "all" {
+				met = met && holds(c)
+			} else {
+				met = met || holds(c)
+			}
 		}
 		if !met {
 			continue

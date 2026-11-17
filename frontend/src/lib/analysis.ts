@@ -10,6 +10,10 @@ type S = components['schemas']
 export type Summary = S['AnalysisSummary']
 export type Settings = S['AnalysisSettings']
 export type Rule = S['AnalysisRule']
+export type Criterion = S['AnalysisCriterion']
+
+/** A list's conditions; an older list has its one in the flat fields. */
+export const criteriaOf = (r: Rule): Criterion[] => (r.criteria?.length ? r.criteria : [{ on: r.on ?? 'subjects', atLeast: r.atLeast ?? 1, belowPct: r.belowPct ?? '40' }])
 export type Cell = S['AnalysisCell']
 export type StudentRow = S['AnalysisStudent']
 export type AssessmentView = S['AssessmentAnalysis']
@@ -62,9 +66,11 @@ export function rangeIndex(pct: string | undefined, rs: Range[]): number {
 
 /** A rule in plain words, as the lists show it. */
 export function describeRule(r: Rule, noun: { one: string; many: string }): string {
-  const show = `Shows ${noun.many} below ${r.showBelowPct}%.`
-  if (r.on === 'overall') return `Overall result below ${r.belowPct}%. ${show}`
-  return `${r.atLeast === 1 ? `Any one ${noun.one}` : `At least ${r.atLeast} ${noun.many}`} below ${r.belowPct}%. ${show}`
+  const parts = criteriaOf(r).map((c) =>
+    c.on === 'overall' ? `the overall result is below ${c.belowPct}%` : `${c.atLeast === 1 ? `any one ${noun.one} is` : `at least ${c.atLeast} ${noun.many} are`} below ${c.belowPct}%`,
+  )
+  const join = r.match === 'all' ? ' and ' : ' or '
+  return `On this list when ${parts.join(join)}. It shows the ${noun.many} that put them there.`
 }
 
 export const ACTION: Record<Rule['action'], string> = {
@@ -153,8 +159,10 @@ export function checkSettings(s: Settings): string {
   }
   for (const r of s.lists) {
     if (!r.name.trim()) return 'Each list needs a name.'
-    if (!pct(r.belowPct) || !pct(r.showBelowPct)) return 'Each list needs percentages from 0 to 100.'
-    if (r.on === 'subjects' && (r.atLeast < 1 || r.atLeast > 30)) return 'Each list needs a count from 1 to 30.'
+    for (const c of criteriaOf(r)) {
+      if (!pct(c.belowPct)) return 'Each condition needs a percentage from 0 to 100.'
+      if (c.on === 'subjects' && (c.atLeast < 1 || c.atLeast > 30)) return 'Each condition needs a count from 1 to 30.'
+    }
   }
   return ''
 }

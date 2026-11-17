@@ -303,8 +303,19 @@ func workbook(s Summary) ([]byte, error) {
 
 // describe says a rule in words, as the page does.
 func describe(r Rule) string {
-	if r.On == "overall" {
-		return fmt.Sprintf("Overall below %s%%. Shows subjects below %s%%.", r.BelowPct, r.ShowBelowPct)
+	r = r.normal()
+	var parts []string
+	for _, c := range r.Criteria {
+		if c.On == "overall" {
+			parts = append(parts, fmt.Sprintf("overall below %s%%", c.BelowPct))
+		} else {
+			parts = append(parts, fmt.Sprintf("at least %d below %s%%", c.AtLeast, c.BelowPct))
+		}
 	}
-	return fmt.Sprintf("At least %d below %s%%. Shows subjects below %s%%.", r.AtLeast, r.BelowPct, r.ShowBelowPct)
+	join := " or "
+	if r.Match == "all" {
+		join = " and "
+	}
+	out := strings.Join(parts, join)
+	return strings.ToUpper(out[:1]) + out[1:] + "."
 }
