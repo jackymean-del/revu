@@ -31,11 +31,12 @@ type noteIn struct {
 }
 
 type studentIn struct {
-	StudentID string     `json:"studentId"`
-	PeriodID  string     `json:"periodId"`
-	Ratings   []ratingIn `json:"ratings"`
-	Voices    *Voices    `json:"voices"`
-	Note      *noteIn    `json:"note"`
+	StudentID string      `json:"studentId"`
+	PeriodID  string      `json:"periodId"`
+	Ratings   []ratingIn  `json:"ratings"`
+	Voices    *Voices     `json:"voices"`
+	Note      *noteIn     `json:"note"`
+	Insights  []insightIn `json:"insights"`
 }
 
 // putStudent saves what the class teacher adds to a child's report: the
@@ -142,6 +143,9 @@ func putStudent(c fiber.Ctx) error {
 				  written_by = excluded.written_by, approved_by = excluded.approved_by, approved_at = excluded.approved_at, updated_at = now()`,
 				m.OrgID, in.StudentID, in.PeriodID, text, status, n.FromAI, m.UserID)
 		}
+	}
+	if err := saveInsights(&b, m.OrgID, m.UserID, in.StudentID, in.PeriodID, in.Insights); err != nil {
+		return err
 	}
 	if b.Len() > 0 {
 		if err := tx.SendBatch(ctx, &b).Close(); err != nil {

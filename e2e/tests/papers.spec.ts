@@ -228,8 +228,10 @@ test('a teacher submits a set and no longer sees it; the next set is a copy to r
   await expect(page.getByText('Same as Set A').first()).toBeVisible()
 })
 
-test('an empty slot is typed, picked or drafted with AI where it stands; a draft is approved by using it', async ({ page }) => {
+test('an empty slot is typed or picked where it stands; a draft in the bank is approved by using it', async ({ page }) => {
   const api = fakeApi(page)
+  // The bank holds a draft that fits the slot.
+  void page.route(/\/v1\/questions\?/, (r) => r.fulfill({ json: [{ id: 'q9', levelId: 'l6', subjectId: 'math', lessonId: 'les', outcomeId: 'o1', bloom: 'apply', qtype: 'Short answer', marks: '2', difficulty: 'easy', text: 'Subtract 1/3 from 1/2.', options: [], answer: '', source: 'ai', status: 'draft', used: 0 }] }))
   // A set laid out from the blueprint, with its one slot still empty.
   const slot = { id: 'e1', seq: 1, section: 'Short answer', sectionId: 'secS', chapter: 'Fractions', lessonId: 'les', level: 'apply', marks: '2', locked: false, sameAsSource: false }
   const empty = {
@@ -254,11 +256,9 @@ test('an empty slot is typed, picked or drafted with AI where it stands; a draft
   await expect(card.getByText('Lesson and outcome')).toContainText('Fractions')
   await card.getByRole('button', { name: 'Close' }).click()
 
-  // Drafted with AI from the slot's own needs, then approved by using it.
+  // Picked from the bank; a draft there is approved by using it. No drafting button.
   await card.getByRole('button', { name: 'Pick' }).click()
-  await card.getByRole('button', { name: 'Draft questions' }).click()
-  await expect(card).toContainText('1 drafted below, to approve')
-  expect(api.sent.find((s) => s.path === 'draft')?.body).toEqual({ levelId: 'l6', subjectId: 'math', lessonId: 'les', chapter: 'Fractions', qtype: 'Short answer', bloom: 'apply', marks: '2', count: 3 })
+  await expect(card.getByRole('button', { name: /Draft/ })).toHaveCount(0)
   await expect(card).toContainText('AI draft')
   await card.getByRole('button', { name: 'Approve and use' }).click()
   await expect.poll(() => api.sent.find((s) => s.path === 'slot')?.body).toEqual({ questionId: 'q9' })

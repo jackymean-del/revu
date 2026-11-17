@@ -1,5 +1,5 @@
 /**
- * How holistic levels look: a word, a tone and dots, the same as the
+ * How holistic levels look: a word in a tone, the same as the
  * printed report (internal/holistic page.go). Levels themselves are worked
  * out by the server from tagged marks.
  */
@@ -19,8 +19,6 @@ export function tone(level: number, n: number): { bg: string; fg: string } {
   return TONES[Math.round(((level - 1) * (TONES.length - 1)) / (n - 1))]
 }
 
-/** Filled and empty dots for a level, as the print shows them. */
-export const dots = (level: number, n: number) => (level < 1 ? '' : '●'.repeat(level) + '○'.repeat(Math.max(0, n - level)))
 
 /** Opens a printable page in a new tab and prints it; the tab opens first so no popup blocker stops it. */
 export async function printPage(load: () => Promise<string>) {

@@ -5,6 +5,7 @@ import { ApiError } from '../../api/problem'
 import { hundredths, marks } from '../../lib/papers'
 import { levelsOf, type Taxonomy } from '../../lib/taxonomy'
 import { usePaperSettings } from './settings'
+import { WritingCheck } from '../../components/WritingCheck'
 import { TypeSelect } from './TypeSelect'
 import { QUESTION_TYPES, hasOptions } from './types'
 
@@ -225,8 +226,9 @@ export function QuestionForm({ orgId, paper, sectionId, editing, slot, itemId, s
       </div>
       <label className={label}>
         {split ? 'Common instruction, printed above the bits' : 'Question'}
-        <textarea required aria-label="Question" rows={split ? 2 : 3} maxLength={5000} className={field} value={q.text} onChange={(e) => setQ({ ...q, text: e.target.value })} placeholder={/blank/i.test(q.qtype) ? 'Use ____ for each blank' : undefined} />
+        <textarea required spellCheck aria-label="Question" rows={split ? 2 : 3} maxLength={5000} className={field} value={q.text} onChange={(e) => setQ({ ...q, text: e.target.value })} placeholder={/blank/i.test(q.qtype) ? 'Use ____ for each blank' : undefined} />
       </label>
+      <WritingCheck text={q.text} onUse={(t) => setQ({ ...q, text: t })} />
 
       {!split && kind !== 'written' && (
         <fieldset className="space-y-1">

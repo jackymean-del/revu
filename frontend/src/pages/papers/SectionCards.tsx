@@ -18,7 +18,6 @@ import {
 import { bitsAlike, hundredths, moveItem, moveSection, orderOf, parentsOf, type Order, type Parents } from '../../lib/papers'
 import { levelLabel, questionLevel, type Taxonomy } from '../../lib/taxonomy'
 import { useLater } from '../../lib/undo'
-import { AiDraft } from './AiDraft'
 import { Problem, QuestionForm } from './QuestionForm'
 import { usePaperSettings } from './settings'
 import { PAPER } from './types'
@@ -351,15 +350,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                   {picking === it.id && (
                     <ul className="mt-2 space-y-1 rounded-xl bg-canvas p-2">
                       <li className="flex flex-wrap items-center gap-2 p-1 text-sm text-muted">
-                        <span className="flex-1">{fits(it).length === 0 ? 'Nothing in the bank fits this slot yet. Type one, or draft some with AI.' : 'Questions in the bank that fit this slot.'}</span>
-                        <AiDraft
-                          orgId={orgId}
-                          place={scope}
-                          need={{ key: it.id, lessonId: it.lessonId, chapter: it.chapter, qtype: it.section, level: it.level ?? '', marks: it.marks, count: 3, have: 0 }}
-                          taxonomy={tax}
-                          syllabus={syllabus}
-                          onDone={() => onChange(paper)}
-                        />
+                        <span className="flex-1">{fits(it).length === 0 ? 'Nothing in the bank fits this slot yet. Type one instead.' : 'Questions in the bank that fit this slot.'}</span>
                       </li>
                       {fits(it).map((q) => (
                         <li key={q.id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-sm">

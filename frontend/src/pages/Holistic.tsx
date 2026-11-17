@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Loading } from '../components/Loading'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { downloadHolisticPdf, getHolisticClass, getHolisticHtml, listStructure, type HolisticClass, type Period, type TeachingAssignment } from '../api/client'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { downloadHolisticPdf, draftHolisticInsights, getHolisticClass, getHolisticHtml, listStructure, type HolisticClass, type Period, type TeachingAssignment } from '../api/client'
 import { ApiError } from '../api/problem'
 import { Icon } from '../components/Icon'
-import { dots, printPage, tone } from '../lib/holistic'
+import { printPage, tone } from '../lib/holistic'
 import { useOrg } from '../lib/org-context'
 import { useT } from '../lib/terminology/terms-context'
 import { useSectionNames } from './people/sections'
@@ -37,6 +37,7 @@ export function Holistic() {
   }).data
   const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
   const [busy, setBusy] = useState('')
+  const qc = useQueryClient()
 
   const latestYear = names.chosenYear
   const sections = names.sections
@@ -100,6 +101,21 @@ export function Holistic() {
         <span className="flex-1" />
         {data && !child && (
           <>
+            {data.canEdit && (
+              <button
+                type="button"
+                className={button}
+                disabled={!!busy}
+                title="Each child's insights, from every assessment so far; approved ones are kept as they are"
+                onClick={() => void run('insights', async () => {
+                  const r = await draftHolisticInsights(orgId, q)
+                  await qc.invalidateQueries({ queryKey: ['holistic-student', orgId] })
+                  return `Insights drafted for ${r.children} ${r.children === 1 ? 'child' : 'children'}. Open each child to read, change and approve them.`
+                })}
+              >
+                {busy === 'insights' ? 'Drafting insights' : 'Draft insights for the class'}
+              </button>
+            )}
             <button type="button" className={button} disabled={!!busy} onClick={() => void run('print', async () => (await printPage(() => getHolisticHtml(orgId, q)), 'The meeting pack is open to print.'))}>
               Print meeting pack
             </button>
@@ -146,7 +162,7 @@ function Heatmap({ data, onPick }: { data: HolisticClass; onPick: (id: string) =
         <span className="font-semibold">Levels:</span>
         {data.scale.map((l, i) => (
           <span key={l.name} className="rounded-full px-2 py-0.5 font-semibold" style={{ background: tone(i + 1, n).bg, color: tone(i + 1, n).fg }}>
-            {l.name} {dots(i + 1, n)} <span className="font-normal">from {l.min}%</span>
+            {l.name} <span className="font-normal">from {l.min}%</span>
           </span>
         ))}
         <span className="rounded-full px-2 py-0.5" style={{ background: tone(0, n).bg, color: tone(0, n).fg }}>
@@ -187,11 +203,11 @@ function Heatmap({ data, onPick }: { data: HolisticClass; onPick: (id: string) =
                   <td key={data.competencies[i].id} className="px-1 py-1 text-center">
                     {c.marks > 0 && (
                       <span
-                        className="inline-block min-w-14 rounded px-1.5 py-0.5 text-xs font-semibold"
+                        className="inline-block min-w-20 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-semibold"
                         style={{ background: tone(c.level, n).bg, color: tone(c.level, n).fg }}
                         title={c.level ? `${data.scale[c.level - 1].name}, ${c.pct}% on ${c.marks} marks` : `Too little evidence: ${c.marks} ${c.marks === 1 ? 'mark' : 'marks'}`}
                       >
-                        {c.level ? dots(c.level, n) : '·'}
+                        {c.level ? data.scale[c.level - 1].name : 'Too little'}
                       </span>
                     )}
                   </td>

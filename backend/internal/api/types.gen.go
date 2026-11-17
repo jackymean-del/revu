@@ -3465,6 +3465,32 @@ type HolisticColumn struct {
 	Subject string `json:"subject"`
 }
 
+// HolisticInsight defines model for HolisticInsight.
+type HolisticInsight struct {
+	ClassPct float32 `json:"classPct,omitempty"`
+
+	// Detail The fuller insight for the subject's own part.
+	Detail string  `json:"detail"`
+	FromAi bool    `json:"fromAi"`
+	Grade  string  `json:"grade"`
+	Pct    float32 `json:"pct,omitempty"`
+	Points []struct {
+		Level int     `json:"level"`
+		Marks int     `json:"marks"`
+		Pct   float32 `json:"pct"`
+		Text  string  `json:"text"`
+	} `json:"points"`
+
+	// Status draft or approved; empty when none.
+	Status    string `json:"status"`
+	Subject   string `json:"subject"`
+	SubjectId string `json:"subjectId"`
+
+	// Summary One line for the card's first page.
+	Summary string    `json:"summary"`
+	Trend   []float32 `json:"trend"`
+}
+
 // HolisticLevel defines model for HolisticLevel.
 type HolisticLevel struct {
 	// Min The percentage the level starts at.
@@ -3524,6 +3550,7 @@ type HolisticReport struct {
 	// Detail How fine the marks behind the levels are (questions, sections or total).
 	Detail    string            `json:"detail"`
 	Focus     []HolisticOutcome `json:"focus"`
+	Insights  []HolisticInsight `json:"insights"`
 	Note      HolisticNote      `json:"note"`
 	Overall   float32           `json:"overall,omitempty"`
 	Period    string            `json:"period"`
@@ -3576,6 +3603,12 @@ type HolisticStudent struct {
 
 // HolisticStudentInput defines model for HolisticStudentInput.
 type HolisticStudentInput struct {
+	Insights []struct {
+		Approve   bool   `json:"approve,omitempty"`
+		Detail    string `json:"detail"`
+		SubjectId string `json:"subjectId"`
+		Summary   string `json:"summary"`
+	} `json:"insights,omitempty"`
 	Note struct {
 		Approve bool   `json:"approve,omitempty"`
 		FromAi  bool   `json:"fromAi,omitempty"`
@@ -6107,6 +6140,19 @@ type GetHolisticHtmlParams struct {
 	XOrgId OrgId `json:"X-Org-Id"`
 }
 
+// DraftHolisticInsightsJSONBody defines parameters for DraftHolisticInsights.
+type DraftHolisticInsightsJSONBody struct {
+	PeriodId  string `json:"periodId"`
+	SectionId string `json:"sectionId,omitempty"`
+	StudentId string `json:"studentId,omitempty"`
+}
+
+// DraftHolisticInsightsParams defines parameters for DraftHolisticInsights.
+type DraftHolisticInsightsParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // DraftHolisticNoteParams defines parameters for DraftHolisticNote.
 type DraftHolisticNoteParams struct {
 	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
@@ -7122,6 +7168,18 @@ type ListWaitingParams struct {
 // ClerkWebhookJSONBody defines parameters for ClerkWebhook.
 type ClerkWebhookJSONBody = map[string]interface{}
 
+// CheckWritingJSONBody defines parameters for CheckWriting.
+type CheckWritingJSONBody struct {
+	Mask []string `json:"mask,omitempty"`
+	Text string   `json:"text"`
+}
+
+// CheckWritingParams defines parameters for CheckWriting.
+type CheckWritingParams struct {
+	// XOrgId The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none.
+	XOrgId OrgId `json:"X-Org-Id"`
+}
+
 // ListYearsParams defines parameters for ListYears.
 type ListYearsParams struct {
 	// IncludeRemoved Also list removed items, so they can be restored.
@@ -7232,6 +7290,9 @@ type CreateGuardianJSONRequestBody = GuardianInput
 
 // UpdateGuardianJSONRequestBody defines body for UpdateGuardian for application/json ContentType.
 type UpdateGuardianJSONRequestBody = GuardianInput
+
+// DraftHolisticInsightsJSONRequestBody defines body for DraftHolisticInsights for application/json ContentType.
+type DraftHolisticInsightsJSONRequestBody DraftHolisticInsightsJSONBody
 
 // DraftHolisticNoteJSONRequestBody defines body for DraftHolisticNote for application/json ContentType.
 type DraftHolisticNoteJSONRequestBody = HolisticChild
@@ -7424,6 +7485,9 @@ type PutTerminologyJSONRequestBody = Terminology
 
 // ClerkWebhookJSONRequestBody defines body for ClerkWebhook for application/json ContentType.
 type ClerkWebhookJSONRequestBody = ClerkWebhookJSONBody
+
+// CheckWritingJSONRequestBody defines body for CheckWriting for application/json ContentType.
+type CheckWritingJSONRequestBody CheckWritingJSONBody
 
 // CreateYearJSONRequestBody defines body for CreateYear for application/json ContentType.
 type CreateYearJSONRequestBody = YearInput

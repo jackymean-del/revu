@@ -215,6 +215,57 @@ func TestHolisticReport(t *testing.T) {
 		}
 	})
 
+	t.Run("each subject's insight is drafted from the term's marks, edited, approved and printed", func(t *testing.T) {
+		admin := admin.on(t)
+		noAI := caller{t, server.New(config.Config{Version: "test"}, server.Deps{DB: appPool, Auth: headerAuth{}}), a.UserID, a.ID}
+		var r holistic.Report
+		admin.json(200, "GET", "/v1/holistic/student"+q, nil, &r)
+		// The seed approved one; it is cleared to start afresh.
+		admin.json(200, "PUT", "/v1/holistic/student", map[string]any{"studentId": a.StudentID, "periodId": a.PeriodID, "insights": []map[string]any{{"subjectId": r.Insights[0].SubjectID, "summary": "", "detail": ""}}}, &r)
+		if len(r.Insights) != 1 || r.Insights[0].Subject != "Mathematics" || len(r.Insights[0].Points) != 1 || r.Insights[0].Status != "" {
+			t.Fatalf("insights before drafting %+v", r.Insights)
+		}
+		teacher.on(t).json(403, "POST", "/v1/holistic/insights-draft", map[string]string{"studentId": a.StudentID, "periodId": a.PeriodID}, nil)
+		// Without AI, drafted from the data, in the scale's own words.
+		var out map[string]int
+		noAI.json(200, "POST", "/v1/holistic/insights-draft", map[string]string{"sectionId": a.SectionID, "periodId": a.PeriodID}, &out)
+		if out["children"] != 6 || out["drafted"] != 6 {
+			t.Fatalf("drafted for the class %+v", out)
+		}
+		admin.json(200, "GET", "/v1/holistic/student"+q, nil, &r)
+		in := r.Insights[0]
+		if in.Status != "draft" || in.FromAI || !strings.HasPrefix(in.Summary, "Ravi ") || !strings.Contains(in.Detail, "Judged from section marks") || !strings.Contains(in.Detail, "Proficient: add fractions with unlike denominators") {
+			t.Fatalf("a draft from the data: %+v", in)
+		}
+		// Not printed until approved.
+		if _, body := admin.raw("GET", "/v1/holistic/html"+q, nil); strings.Contains(string(body), "At a glance") {
+			t.Fatal("a draft insight is not printed")
+		}
+		// With AI, reworded, with no name sent.
+		admin.json(200, "PUT", "/v1/holistic/student", map[string]any{"studentId": a.StudentID, "periodId": a.PeriodID, "insights": []map[string]any{{"subjectId": in.SubjectID, "summary": "", "detail": ""}}}, &r)
+		n := len(fake.prompts)
+		admin.json(200, "POST", "/v1/holistic/insights-draft", map[string]string{"studentId": a.StudentID, "periodId": a.PeriodID}, &out)
+		if len(fake.prompts) != n+1 || strings.Contains(fake.prompts[n], "Ravi") || strings.Contains(fake.prompts[n], "Kumar") {
+			t.Fatalf("the AI is asked once, without the name")
+		}
+		// The teacher edits and approves; it prints on the first page and in the subject's part.
+		admin.json(200, "PUT", "/v1/holistic/student", map[string]any{"studentId": a.StudentID, "periodId": a.PeriodID,
+			"insights": []map[string]any{{"subjectId": in.SubjectID, "summary": "Ravi is steady in Mathematics.", "detail": "Solves problems with care; place values need practice.", "approve": true}}}, &r)
+		if r.Insights[0].Status != "approved" {
+			t.Fatalf("approved %+v", r.Insights[0])
+		}
+		// Drafting again leaves an approved insight alone.
+		noAI.json(200, "POST", "/v1/holistic/insights-draft", map[string]string{"studentId": a.StudentID, "periodId": a.PeriodID}, &out)
+		if out["drafted"] != 0 {
+			t.Fatalf("an approved insight is kept: %+v", out)
+		}
+		_, body := admin.raw("GET", "/v1/holistic/html"+q, nil)
+		page := string(body)
+		if !strings.Contains(page, "At a glance") || !strings.Contains(page, "Ravi is steady in Mathematics.") || !strings.Contains(page, "place values need practice") || strings.Index(page, "At a glance") > strings.Index(page, "<h2>Scores") {
+			t.Fatal("the first page has the insights, before the scores")
+		}
+	})
+
 	t.Run("the class heatmap and the printable pages", func(t *testing.T) {
 		admin := admin.on(t)
 		var v holistic.ClassView

@@ -5,6 +5,8 @@ import { downloadHolisticPdf, draftHolisticNote, getHolisticHtml, getHolisticStu
 import { ApiError } from '../../api/problem'
 import { printPage } from '../../lib/holistic'
 import { useT } from '../../lib/terminology/terms-context'
+import { WritingCheck } from '../../components/WritingCheck'
+import { SubjectInsights } from './Insights'
 
 const primary = 'rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50'
 const button = 'rounded-lg border border-line bg-white px-3 py-1.5 text-sm font-semibold text-brand hover:bg-mist disabled:opacity-50'
@@ -150,6 +152,7 @@ function Additions({ orgId, report, onSaved }: { orgId: string; report: Holistic
           ))}
         </fieldset>
       )}
+      <SubjectInsights orgId={orgId} report={report} onSaved={onSaved} />
       <fieldset className="space-y-2">
         <legend className="font-bold">Voices</legend>
         {VOICES.map((v) => (
@@ -165,6 +168,7 @@ function Additions({ orgId, report, onSaved }: { orgId: string; report: Holistic
           {report.note.status && <span className={`rounded-full px-2 py-0.5 text-xs ${report.note.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{report.note.status}</span>}
         </legend>
         <textarea aria-label="Note for the family" spellCheck rows={6} maxLength={1500} className={field} value={text} onChange={(e) => (setText(e.target.value), setDone(''))} placeholder="A few warm, specific lines for the family." />
+        <WritingCheck text={text} onUse={setText} mask={[report.student.name, ...report.student.name.split(/\s+/)]} />
         {fromAi && text && <p className="text-xs text-amber-800">Drafted by AI from the levels; read and change it before approving.</p>}
         <button type="button" className={button} disabled={draft.isPending} onClick={() => draft.mutate()} title="Drafts from the levels and outcomes only; the name is never sent">
           {draft.isPending ? 'Drafting' : text ? 'Draft again with AI' : 'Draft with AI'}

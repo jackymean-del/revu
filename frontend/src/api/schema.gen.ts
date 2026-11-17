@@ -2685,6 +2685,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/holistic/insights-draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft each subject's insight for a child, or every child of a section, from the term's marks, and save them as drafts. Reworded with AI when it is set up, with no name sent. Approved insights are kept. */
+        post: operations["draftHolisticInsights"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/writing-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a teacher's text for grammar, spelling, punctuation and meaning with AI; names in mask are never sent. 503 when AI is not set up. */
+        post: operations["checkWriting"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/holistic/html": {
         parameters: {
             query?: never;
@@ -5002,7 +5036,29 @@ export interface components {
             status: string;
             fromAi: boolean;
         };
+        HolisticInsight: {
+            subjectId: string;
+            subject: string;
+            grade: string;
+            pct?: number;
+            classPct?: number;
+            trend: number[];
+            points: {
+                text: string;
+                pct: number;
+                level: number;
+                marks: number;
+            }[];
+            /** @description One line for the card's first page. */
+            summary: string;
+            /** @description The fuller insight for the subject's own part. */
+            detail: string;
+            /** @description draft or approved; empty when none. */
+            status: string;
+            fromAi: boolean;
+        };
         HolisticReport: {
+            insights: components["schemas"]["HolisticInsight"][];
             /** @description How fine the marks behind the levels are (questions, sections or total). */
             detail: string;
             student: components["schemas"]["HolisticStudent"];
@@ -5063,6 +5119,12 @@ export interface components {
             periodId: string;
         };
         HolisticStudentInput: {
+            insights?: {
+                subjectId: string;
+                summary: string;
+                detail: string;
+                approve?: boolean;
+            }[];
             studentId: string;
             periodId: string;
             ratings?: {
@@ -11051,6 +11113,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HolisticNoteDraft"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    draftHolisticInsights: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    periodId: string;
+                    studentId?: string;
+                    sectionId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description How many children and subjects were drafted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        children: number;
+                        drafted: number;
+                    };
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    checkWriting: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organisation to act in. It is a request, not proof: the server checks the person's membership there and answers 404 when there is none. */
+                "X-Org-Id": components["parameters"]["OrgId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    text: string;
+                    mask?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description The text as it would read corrected, and what changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        text: string;
+                        changes: string[];
+                    };
                 };
             };
             default: components["responses"]["Problem"];

@@ -4552,6 +4552,82 @@ paths:
                 $ref: "#/components/schemas/HolisticNoteDraft"
         default:
           $ref: "#/components/responses/Problem"
+  /v1/holistic/insights-draft:
+    post:
+      operationId: draftHolisticInsights
+      summary: Draft each subject's insight for a child, or every child of a section, from the term's marks, and save them as drafts. Reworded with AI when it is set up, with no name sent. Approved insights are kept.
+      tags: [holistic]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodId]
+              properties:
+                periodId:
+                  type: string
+                studentId:
+                  type: string
+                sectionId:
+                  type: string
+      responses:
+        "200":
+          description: How many children and subjects were drafted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [children, drafted]
+                properties:
+                  children:
+                    type: integer
+                  drafted:
+                    type: integer
+        default:
+          $ref: "#/components/responses/Problem"
+  /v1/writing-check:
+    post:
+      operationId: checkWriting
+      summary: Check a teacher's text for grammar, spelling, punctuation and meaning with AI; names in mask are never sent. 503 when AI is not set up.
+      tags: [papers]
+      parameters:
+        - $ref: "#/components/parameters/OrgId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  maxLength: 3000
+                mask:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: The text as it would read corrected, and what changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text, changes]
+                properties:
+                  text:
+                    type: string
+                  changes:
+                    type: array
+                    items:
+                      type: string
+        default:
+          $ref: "#/components/responses/Problem"
   /v1/holistic/html:
     get:
       operationId: getHolisticHtml
@@ -8942,10 +9018,57 @@ components:
           description: draft or approved; empty when there is none.
         fromAi:
           type: boolean
+    HolisticInsight:
+      type: object
+      required: [subjectId, subject, grade, trend, points, summary, detail, status, fromAi]
+      properties:
+        subjectId:
+          type: string
+        subject:
+          type: string
+        grade:
+          type: string
+        pct:
+          type: number
+        classPct:
+          type: number
+        trend:
+          type: array
+          items:
+            type: number
+        points:
+          type: array
+          items:
+            type: object
+            required: [text, pct, level, marks]
+            properties:
+              text:
+                type: string
+              pct:
+                type: number
+              level:
+                type: integer
+              marks:
+                type: integer
+        summary:
+          type: string
+          description: One line for the card's first page.
+        detail:
+          type: string
+          description: The fuller insight for the subject's own part.
+        status:
+          type: string
+          description: draft or approved; empty when none.
+        fromAi:
+          type: boolean
     HolisticReport:
       type: object
-      required: [student, section, sectionId, period, periodId, scale, scores, profile, blooms, activities, strengths, focus, voices, note, canEdit, detail]
+      required: [student, section, sectionId, period, periodId, scale, scores, profile, blooms, activities, strengths, focus, voices, note, canEdit, detail, insights]
       properties:
+        insights:
+          type: array
+          items:
+            $ref: "#/components/schemas/HolisticInsight"
         detail:
           type: string
           description: How fine the marks behind the levels are (questions, sections or total).
@@ -9095,6 +9218,22 @@ components:
       type: object
       required: [studentId, periodId]
       properties:
+        insights:
+          type: array
+          items:
+            type: object
+            required: [subjectId, summary, detail]
+            properties:
+              subjectId:
+                type: string
+              summary:
+                type: string
+                maxLength: 400
+              detail:
+                type: string
+                maxLength: 1500
+              approve:
+                type: boolean
         studentId:
           type: string
         periodId:

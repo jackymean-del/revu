@@ -20,14 +20,15 @@ type facts struct {
 	ratings  map[[2]string]int   // student, competency
 	voices   map[string]*Voices
 	notes    map[string]Note
-	scores   map[[2]string]result // student, subject
+	insights map[string]map[string]savedInsight // student, subject
+	scores   map[[2]string]result               // student, subject
 	subjects []subj
 	trend    map[[2]string][]float64 // student, subject
 }
 
 type outRow struct {
-	text, subject, bloom string
-	t                    tally
+	text, subject, bloom, subjectID string
+	t                               tally
 }
 
 type result struct {
@@ -71,7 +72,7 @@ func tallies(into map[[2]string]tally) func(pgx.Rows) error {
 
 // read gathers a section's facts for a period in one round trip.
 func read(ctx context.Context, tx pgx.Tx, cl *Class) (facts, error) {
-	f := facts{comp: map[[2]string]tally{}, bloom: map[[2]string]tally{}, outcomes: map[string][]outRow{}, ratings: map[[2]string]int{},
+	f := facts{comp: map[[2]string]tally{}, bloom: map[[2]string]tally{}, outcomes: map[string][]outRow{}, insights: map[string]map[string]savedInsight{}, ratings: map[[2]string]int{},
 		voices: map[string]*Voices{}, notes: map[string]Note{}, scores: map[[2]string]result{}, trend: map[[2]string][]float64{}}
 	sid, pid := cl.SectionID, cl.PeriodID
 	var b pgx.Batch
@@ -102,13 +103,13 @@ func read(ctx context.Context, tx pgx.Tx, cl *Class) (facts, error) {
 	b.Queue(`WITH tags AS (SELECT DISTINCT t.part_id, t.paper_id, o.bloom AS k FROM part_tags t JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL)
 		SELECT e.student_id::text, tags.k, sum(e.value)::float8, sum(p.max_marks)::float8, count(*)::int
 		  `+marksFrom(`JOIN tags ON tags.part_id = p.id AND (tags.paper_id IS NULL OR tags.paper_id = revu_paper_sat(a.id, e.student_id))`)+` GROUP BY 1, 2`, sid, pid).Query(tallies(f.bloom))
-	b.Queue(`SELECT e.student_id::text, o.text, sj.name, o.bloom, sum(e.value)::float8, sum(p.max_marks)::float8, count(*)::int
+	b.Queue(`SELECT e.student_id::text, o.text, sj.name, sj.id::text, o.bloom, sum(e.value)::float8, sum(p.max_marks)::float8, count(*)::int
 		  `+marksFrom(`JOIN part_tags t ON t.part_id = p.id AND (t.paper_id IS NULL OR t.paper_id = revu_paper_sat(a.id, e.student_id)) JOIN learning_outcomes o ON o.id = t.outcome_id AND o.deleted_at IS NULL JOIN subjects sj ON sj.id = o.subject_id`)+`
-		 GROUP BY e.student_id, o.id, o.text, sj.name, o.bloom`, sid, pid).Query(func(rows pgx.Rows) error {
+		 GROUP BY e.student_id, o.id, o.text, sj.name, sj.id, o.bloom`, sid, pid).Query(func(rows pgx.Rows) error {
 		for rows.Next() {
 			var student string
 			var o outRow
-			if err := rows.Scan(&student, &o.text, &o.subject, &o.bloom, &o.t.got, &o.t.max, &o.t.marks); err != nil {
+			if err := rows.Scan(&student, &o.text, &o.subject, &o.subjectID, &o.bloom, &o.t.got, &o.t.max, &o.t.marks); err != nil {
 				return err
 			}
 			f.outcomes[student] = append(f.outcomes[student], o)
@@ -198,6 +199,21 @@ func read(ctx context.Context, tx pgx.Tx, cl *Class) (facts, error) {
 				return err
 			}
 			f.notes[student] = n
+		}
+		return rows.Err()
+	})
+	b.Queue(`SELECT student_id::text, subject_id::text, summary, detail, status, from_ai FROM holistic_insights WHERE period_id = $2::uuid
+		AND student_id IN (SELECT student_id FROM enrolments WHERE section_id = $1::uuid AND deleted_at IS NULL)`, sid, pid).Query(func(rows pgx.Rows) error {
+		for rows.Next() {
+			var student, subject string
+			var v savedInsight
+			if err := rows.Scan(&student, &subject, &v.summary, &v.detail, &v.status, &v.fromAI); err != nil {
+				return err
+			}
+			if f.insights[student] == nil {
+				f.insights[student] = map[string]savedInsight{}
+			}
+			f.insights[student][subject] = v
 		}
 		return rows.Err()
 	})
@@ -370,6 +386,7 @@ func build(ctx context.Context, tx pgx.Tx, s results.Section, periodID string) (
 			r.Voices = *v
 		}
 		r.Note = f.notes[x.ID]
+		r.Insights = insights(r, f.outcomes[x.ID], f.insights[x.ID], st.Levels, st.levelOf)
 		cl.Reports = append(cl.Reports, r)
 	}
 	return cl, nil

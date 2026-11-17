@@ -102,6 +102,7 @@ type Report struct {
 	Focus      []Outcome  `json:"focus"`
 	Voices     Voices     `json:"voices"`
 	Note       Note       `json:"note"`
+	Insights   []Insight  `json:"insights"`
 	CanEdit    bool       `json:"canEdit"`
 	// Detail is how fine the marks behind the levels are: questions (each
 	// outcome on its own marks), sections (outcomes of a section share its

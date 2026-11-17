@@ -505,8 +505,6 @@ export async function getPaperHtml(orgId: string, id: string, key: boolean, spac
   if (!res.ok) throw await toApiError(res)
   return res.text()
 }
-export const draftQuestions = (orgId: string, body: components['schemas']['QuestionDraftRequest']) =>
-  call<Question[]>('/v1/questions/draft', { orgId, method: 'POST', body })
 export type PaperSettings = components['schemas']['PaperSettings']
 export type Waiting = components['schemas']['Waiting']
 export const listWaiting = (orgId: string, signal?: AbortSignal) => call<Waiting[]>('/v1/waiting', { orgId, signal })
@@ -515,6 +513,8 @@ export const putPaperSettings = (orgId: string, body: PaperSettings) => call<Pap
 export type Enrolment = components['schemas']['Enrolment']
 
 // Holistic progress report (P0.11 H2 to H5).
+/** The deeper writing check, with AI; uses the organisation chosen in the app. */
+export const checkWritingDeeper = (text: string, mask: string[]) => call<{ text: string; changes: string[] }>('/v1/writing-check', { method: 'POST', body: { text, mask } })
 export type HolisticReport = components['schemas']['HolisticReport']
 export type HolisticClass = components['schemas']['HolisticClass']
 export type HolisticSettings = components['schemas']['HolisticSettings']
@@ -526,6 +526,8 @@ export const getHolisticClass = (orgId: string, q: { sectionId: string; periodId
 export const getHolisticStudent = (orgId: string, q: { studentId: string; periodId: string }, signal?: AbortSignal) =>
   call<HolisticReport>(`/v1/holistic/student?${new URLSearchParams(q)}`, { orgId, signal })
 export const putHolisticStudent = (orgId: string, body: HolisticStudentInput) => call<HolisticReport>('/v1/holistic/student', { orgId, method: 'PUT', body })
+export const draftHolisticInsights = (orgId: string, body: { periodId: string; studentId?: string; sectionId?: string }) =>
+  call<{ children: number; drafted: number }>('/v1/holistic/insights-draft', { orgId, method: 'POST', body })
 export const draftHolisticNote = (orgId: string, body: { studentId: string; periodId: string }) => call<{ text: string }>('/v1/holistic/note-draft', { orgId, method: 'POST', body })
 /** The printable holistic report of a child, or a section's meeting pack, as HTML. */
 export async function getHolisticHtml(orgId: string, q: { periodId: string; studentId?: string; sectionId?: string }, signal?: AbortSignal): Promise<string> {

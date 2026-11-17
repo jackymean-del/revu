@@ -42,6 +42,7 @@ func Routes(g fiber.Router, o Options) {
 	g.Get("/holistic/student", studentView)
 	g.Put("/holistic/student", putStudent)
 	g.Post("/holistic/note-draft", draftNote(o.AI))
+	g.Post("/holistic/insights-draft", draftInsights(o.AI))
 	g.Get("/holistic/html", pageHTML)
 	g.Post("/holistic/pdf", o.pdf)
 }

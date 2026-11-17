@@ -64,7 +64,7 @@ test('the class heatmap, then a child: ratings, voices and an AI-drafted note ap
   await page.goto('/holistic')
   const map = page.getByRole('region', { name: 'Class heatmap' })
   await expect(map.getByRole('columnheader', { name: /Problem solving/ })).toBeVisible()
-  await expect(map.getByRole('row', { name: /Asha Rao/ })).toContainText('●●●○')
+  await expect(map.getByRole('row', { name: /Asha Rao/ })).toContainText('Proficient')
   await expect(map.getByRole('row', { name: /Ravi Kumar/ }).getByTitle('Too little evidence: 2 marks')).toBeVisible()
 
   await map.getByRole('button', { name: /Asha Rao/ }).click()

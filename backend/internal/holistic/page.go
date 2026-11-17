@@ -24,7 +24,7 @@ var tones = []struct{ bg, fg string }{{"#fdecea", "#9f1d14"}, {"#fff4db", "#8a5a
 var bloomNames = map[string]string{"remember": "Remember", "understand": "Understand", "apply": "Apply", "analyse": "Analyse", "evaluate": "Evaluate", "create": "Create"}
 
 type chipView struct {
-	Name, Word, Dots, Bg, Fg, Hint string
+	Name, Word, Bg, Fg, Hint string
 }
 
 type pageView struct {
@@ -50,22 +50,31 @@ type pageView struct {
 	NotYet     string // thinking skills with too little evidence, in one line
 	Activities []chipView
 	Legend     []chipView
+	// Glance is the first page: each subject's short insight, once approved.
+	Glance []struct{ Subject, Grade, Pct, Summary string }
+	// Subjects are each subject's own part: its grade, fuller insight and
+	// its learning outcomes at their levels.
+	Subjects []subjectView
+}
+
+type subjectView struct {
+	Subject, Grade, Pct, Detail, Basis string
+	Points                             []chipView
 }
 
 func chip(scale []Level, name string, level, marks int) chipView {
 	if level < 1 {
-		return chipView{Name: name, Word: "Too little evidence", Dots: "", Bg: "#f3f3f6", Fg: "#5a5870", Hint: fmt.Sprintf("%d marks so far", marks)}
+		return chipView{Name: name, Word: "Too little evidence", Bg: "#f3f3f6", Fg: "#5a5870", Hint: fmt.Sprintf("%d marks so far", marks)}
 	}
 	t := tones[0]
 	if len(scale) > 1 {
 		t = tones[int(math.Round(float64(level-1)*float64(len(tones)-1)/float64(len(scale)-1)))]
 	}
-	dots := strings.Repeat("●", level) + strings.Repeat("○", len(scale)-level)
 	hint := ""
 	if marks > 0 {
 		hint = fmt.Sprintf("on %d marks", marks)
 	}
-	return chipView{Name: name, Word: scale[level-1].Name, Dots: dots, Bg: t.bg, Fg: t.fg, Hint: hint}
+	return chipView{Name: name, Word: scale[level-1].Name, Bg: t.bg, Fg: t.fg, Hint: hint}
 }
 
 func pct(p *float64) string {
@@ -138,6 +147,20 @@ func view(school string, r Report) pageView {
 			v.Activities = append(v.Activities, chip(r.Scale, a.Name, a.Level, 0))
 		}
 	}
+	basis := map[string]string{"questions": "Learning outcomes", "sections": "Learning outcomes, judged from section marks", "total": ""}[r.Detail]
+	for _, in := range r.Insights {
+		if in.Status != "approved" {
+			continue
+		}
+		v.Glance = append(v.Glance, struct{ Subject, Grade, Pct, Summary string }{in.Subject, in.Grade, pct(in.Pct), in.Summary})
+		sv := subjectView{Subject: in.Subject, Grade: in.Grade, Pct: pct(in.Pct), Detail: in.Detail, Basis: basis}
+		if r.Detail != "total" {
+			for _, p := range in.Points {
+				sv.Points = append(sv.Points, chip(r.Scale, p.Text, p.Level, p.Marks))
+			}
+		}
+		v.Subjects = append(v.Subjects, sv)
+	}
 	for i, l := range r.Scale {
 		c := chip(r.Scale, "", i+1, 0)
 		c.Name = fmt.Sprintf("from %g%%", l.Min)
@@ -149,16 +172,22 @@ func view(school string, r Report) pageView {
 var page = template.Must(template.New("holistic").Parse(`{{define "report"}}<article class="report">
 <header><div><h1>{{.School}}</h1><p>Holistic progress report · {{.R.Period}}</p></div>
 <div class="who"><b>{{.R.Student.Name}}</b><span>{{.R.Section}}{{if .R.Student.RollNo}} · Roll {{.R.Student.RollNo}}{{end}} · {{.R.Student.AdmissionNo}}</span></div></header>
+{{if .Glance}}<section class="glance"><h2>At a glance{{if .Overall}} <span class="right">Overall {{.Overall}}</span>{{end}}</h2>
+{{range .Glance}}<div class="gl"><span class="gs"><b>{{.Subject}}</b>{{if .Grade}}<span class="grade">{{.Grade}}</span>{{end}}</span><span>{{.Summary}}</span></div>{{end}}</section>
+{{range .Subjects}}<section class="sub"><h2>{{.Subject}} <span class="right">{{if .Grade}}Grade {{.Grade}}{{end}}{{if .Pct}} · {{.Pct}}{{end}}</span></h2>
+{{if .Detail}}<p class="insight">{{.Detail}}</p>{{end}}
+{{if .Points}}<p class="muted small">{{.Basis}}</p><div class="los">{{range .Points}}<div class="lo"><span>{{.Name}}</span><span class="chip" style="background:{{.Bg}};color:{{.Fg}}">{{.Word}}</span></div>{{end}}</div>{{end}}
+</section>{{end}}{{end}}
 {{if .Scores}}<section><h2>Scores{{if .Overall}} <span class="right">Overall {{.Overall}}</span>{{end}}</h2>
 <table><thead><tr><th>Subject</th><th>Result</th><th>Band</th><th>Class average</th><th>Across the term</th></tr></thead><tbody>
 {{range .Scores}}<tr><td>{{.Subject}}</td><td class="n">{{if .Pct}}{{.Pct}}{{else}}<span class="muted">to come</span>{{end}}</td><td>{{.Grade}}</td><td class="n muted">{{.Class}}</td><td>{{.Trend}}</td></tr>{{end}}
 </tbody></table></section>{{end}}
 {{if .Profile}}<section><h2>Learning profile{{if .Basis}} <span class="right muted small">{{.Basis}}</span>{{end}}</h2>
-{{range .Profile}}<div class="subj"><span class="sname">{{.Subject}}</span><span class="chips">{{range .Chips}}<span class="chip" style="background:{{.Bg}};color:{{.Fg}}"><b>{{.Name}}</b> {{.Word}} <i>{{.Dots}}</i>{{if .Hint}} <small>{{.Hint}}</small>{{end}}</span>{{end}}</span></div>{{end}}
+{{range .Profile}}<div class="subj"><span class="sname">{{.Subject}}</span><span class="chips">{{range .Chips}}<span class="chip" style="background:{{.Bg}};color:{{.Fg}}"><b>{{.Name}}</b> {{.Word}}{{if .Hint}} <small>{{.Hint}}</small>{{end}}</span>{{end}}</span></div>{{end}}
 </section>{{end}}
 {{if .Blooms}}<section><h2>Thinking skills <span class="right muted">bar: {{.R.Student.Name}} · mark: class average</span></h2>
 <div class="blooms">{{range .Blooms}}<div class="brow"><span>{{.Name}}</span><span class="bar"><span class="fill" style="width:{{.Width}}%"></span>{{if .HasClass}}<span class="mark" style="left:{{.Class}}%"></span>{{end}}</span><span class="n">{{.Label}}</span></div>{{end}}</div>{{if .NotYet}}<p class="muted small">{{.NotYet}}</p>{{end}}</section>{{end}}
-{{if .Activities}}<section><h2>Beyond academics</h2><div class="chips">{{range .Activities}}<span class="chip" style="background:{{.Bg}};color:{{.Fg}}"><b>{{.Name}}</b> {{.Word}} <i>{{.Dots}}</i></span>{{end}}</div></section>{{end}}
+{{if .Activities}}<section><h2>Beyond academics</h2><div class="chips">{{range .Activities}}<span class="chip" style="background:{{.Bg}};color:{{.Fg}}"><b>{{.Name}}</b> {{.Word}}</span>{{end}}</div></section>{{end}}
 {{if or .R.Strengths .R.Focus}}<section class="two">
 <div><h2>Strengths</h2>{{range .R.Strengths}}<p class="out"><b>{{.Text}}</b> <span class="muted">{{.Subject}}</span></p>{{else}}<p class="muted">More marks are needed to name strengths.</p>{{end}}</div>
 <div><h2>To work on</h2>{{range .R.Focus}}<p class="out"><b>{{.Text}}</b> <span class="muted">{{.Subject}}</span><br><span class="tip">At home: {{.Tip}}</span></p>{{else}}<p class="muted">Nothing stands out to work on.</p>{{end}}</div>
@@ -179,12 +208,15 @@ section{margin:8px 0;break-inside:avoid}h2{font-size:12.5px;margin:0 0 4px;color
 .right{font-weight:600;color:#17152b}.muted{color:#6b6880;font-weight:400}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10.5px;color:#6b6880;font-weight:600;border-bottom:1px solid #ddd}td{padding:2px 0;border-bottom:1px solid #f0eff5}.n{text-align:right;padding-right:10px}
 .subj{display:flex;gap:8px;margin:3px 0}.sname{width:30mm;flex:none;font-weight:600}.chips{display:flex;flex-wrap:wrap;gap:4px}
-.chip{border-radius:999px;padding:1px 8px;font-size:10.5px;white-space:nowrap}.chip i{font-style:normal;letter-spacing:-1px}.chip small{opacity:.75}
+.chip{border-radius:999px;padding:1px 8px;font-size:10.5px;white-space:nowrap}.chip small{opacity:.75}
 .blooms{display:grid;gap:3px}.brow{display:grid;grid-template-columns:24mm 1fr 26mm;align-items:center;gap:6px}
 .bar{position:relative;height:8px;background:#efeef7;border-radius:4px}.fill{position:absolute;inset:0 auto 0 0;background:#7a6cf0;border-radius:4px}
 .mark{position:absolute;top:-3px;width:2px;height:14px;background:#17152b}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.out{margin:3px 0}.tip{color:#1e6b35}
-.note{white-space:pre-wrap;margin:0}.small{font-size:10px;margin:3px 0 0}
+.note{white-space:pre-wrap;margin:0}
+.glance{page-break-after:always}.gl{display:grid;grid-template-columns:38mm 1fr;gap:8px;padding:5px 0;border-bottom:1px solid #f0eff5}.gs{display:flex;gap:6px;align-items:baseline}
+.grade{border:1px solid #5b4bd5;color:#3b2fb0;border-radius:4px;padding:0 5px;font-weight:700;font-size:10.5px}
+.sub{border-top:1px solid #eee;padding-top:6px}.insight{margin:2px 0 6px}.los{display:grid;gap:2px}.lo{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dotted #e5e3ef;padding:1px 0}.small{font-size:10px;margin:3px 0 0}
 footer{margin-top:10px;border-top:1px solid #ddd;padding-top:6px;display:flex;justify-content:space-between;gap:10px;align-items:flex-end}
 .legend{display:flex;gap:4px;flex-wrap:wrap}.sign{display:flex;gap:18px}.sign span{border-top:1px solid #999;padding-top:2px;min-width:24mm;text-align:center;color:#6b6880}
 </style></head><body>{{range .}}{{template "report" .}}{{end}}</body></html>`))
