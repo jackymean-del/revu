@@ -283,7 +283,16 @@ func TestDraftQuestions(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := map[string]any{"levelId": a.LevelID, "subjectId": a.SubjectID, "lessonId": lesson, "qtype": "Short answer", "bloom": "apply", "marks": "2", "count": 2}
-	caller{t, off, a.UserID, a.ID}.json(503, "POST", "/v1/questions/draft", body, nil)
+	// Without an AI, questions are still drafted, here, from the bank and the outcome.
+	var plain []papers.Question
+	caller{t, off, a.UserID, a.ID}.json(201, "POST", "/v1/questions/draft", body, &plain)
+	if len(plain) != 2 || plain[0].Source != "template" || plain[0].Status != "draft" || plain[0].Marks != "2" || plain[0].LessonID != lesson {
+		t.Fatalf("built-in drafts %+v", plain)
+	}
+	texts := plain[0].Text + " | " + plain[1].Text
+	if !strings.Contains(texts, "add fractions with unlike denominators") && !strings.Contains(texts, "Fractions") && !strings.Contains(texts, "Add ") {
+		t.Fatalf("built-in drafts use the outcome or the bank: %s", texts)
+	}
 	var made []papers.Question
 	admin.json(201, "POST", "/v1/questions/draft", body, &made)
 	if len(made) != 2 || made[0].Status != "draft" || made[0].Source != "ai" || made[0].Bloom != "apply" || made[0].Marks != "2" || made[0].LessonID != lesson {

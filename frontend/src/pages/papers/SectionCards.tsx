@@ -157,7 +157,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
   const [over, setOver] = useState(false)
   const change = useMutation({ mutationFn: (b: Parameters<typeof putPaperSection>[3]) => putPaperSection(orgId, paper.id, section.id, b), onSuccess: onChange })
   const addSub = useMutation({ mutationFn: () => addPaperSection(orgId, paper.id, section.id), onSuccess: (p) => (onChange(p), board.toggle(p.sections.filter((s) => s.parentId === section.id).at(-1)?.id ?? '')) })
-  // Using an AI draft is approving it.
+  // Using a draft is approving it.
   const put = useMutation({
     mutationFn: async (v: { item: string; q: Question }) => {
       if (v.q.status === 'draft') await approve(orgId, scope, v.q)
@@ -365,7 +365,7 @@ function SectionCard({ board, section }: { board: Board; section: PaperSection }
                         <li key={q.id} className="flex items-start gap-2 rounded-lg bg-white p-2 text-sm">
                           <span className="flex-1 whitespace-pre-wrap">
                             {q.text}
-                            {q.status === 'draft' && <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">AI draft</span>}
+                            {q.status === 'draft' && <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">{q.source === 'ai' ? 'AI draft' : 'Draft'}</span>}
                           </span>
                           <button type="button" className={button} disabled={put.isPending} onClick={() => put.mutate({ item: it.id, q })}>
                             {q.status === 'draft' ? 'Approve and use' : 'Use this'}
@@ -457,7 +457,7 @@ const approve = (orgId: string, place: { levelId: string; subjectId: string }, q
 
 /**
  * The class and subject's question bank, to add from: approved questions
- * and AI drafts (approved by using them). A question no longer wanted is
+ * and drafts (approved by using them). A question no longer wanted is
  * retired here; it stays in past papers.
  */
 function FromBank({ orgId, paper, place, sectionId, bank, onChange, onClose }: {
@@ -500,7 +500,7 @@ function FromBank({ orgId, paper, place, sectionId, bank, onChange, onClose }: {
                 <span className="block whitespace-pre-wrap">{q.text}</span>
                 <span className="text-xs text-muted">
                   {q.qtype} · {q.marks} {q.marks === '1' ? 'mark' : 'marks'}
-                  {q.status === 'draft' && <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">AI draft</span>}
+                  {q.status === 'draft' && <span className="ml-2 rounded-full bg-violet-50 px-2 py-0.5 font-semibold text-violet-800">{q.source === 'ai' ? 'AI draft' : 'Draft'}</span>}
                 </span>
               </span>
               <button type="button" className={button} disabled={add.isPending} onClick={() => add.mutate(q)}>

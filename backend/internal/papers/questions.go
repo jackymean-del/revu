@@ -271,12 +271,12 @@ func (in *questionIn) valid() error {
 	if in.Source == "" {
 		in.Source = "typed"
 	}
-	if !slices.Contains([]string{"typed", "ai", "imported"}, in.Source) {
+	if !slices.Contains([]string{"typed", "ai", "template", "imported"}, in.Source) {
 		f.Add("source", "unknown", "Not a source.")
 	}
 	if in.Status == "" {
 		in.Status = "approved"
-		if in.Source == "ai" {
+		if in.Source == "ai" || in.Source == "template" {
 			in.Status = "draft" // a draft until a teacher accepts it
 		}
 	}

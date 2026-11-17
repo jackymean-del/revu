@@ -1258,6 +1258,7 @@ func (e QuestionDifficulty) Valid() bool {
 const (
 	QuestionSourceAi       QuestionSource = "ai"
 	QuestionSourceImported QuestionSource = "imported"
+	QuestionSourceTemplate QuestionSource = "template"
 	QuestionSourceTyped    QuestionSource = "typed"
 )
 
@@ -1267,6 +1268,8 @@ func (e QuestionSource) Valid() bool {
 	case QuestionSourceAi:
 		return true
 	case QuestionSourceImported:
+		return true
+	case QuestionSourceTemplate:
 		return true
 	case QuestionSourceTyped:
 		return true
@@ -1351,6 +1354,7 @@ func (e QuestionDraftRequestTaxonomy) Valid() bool {
 const (
 	QuestionInputSourceAi       QuestionInputSource = "ai"
 	QuestionInputSourceImported QuestionInputSource = "imported"
+	QuestionInputSourceTemplate QuestionInputSource = "template"
 	QuestionInputSourceTyped    QuestionInputSource = "typed"
 )
 
@@ -1360,6 +1364,8 @@ func (e QuestionInputSource) Valid() bool {
 	case QuestionInputSourceAi:
 		return true
 	case QuestionInputSourceImported:
+		return true
+	case QuestionInputSourceTemplate:
 		return true
 	case QuestionInputSourceTyped:
 		return true
@@ -4351,7 +4357,10 @@ type QuestionBit struct {
 
 // QuestionDraftRequest defines model for QuestionDraftRequest.
 type QuestionDraftRequest struct {
-	Bloom    string `json:"bloom,omitempty"`
+	Bloom string `json:"bloom,omitempty"`
+
+	// Chapter The chapter, when the need has no lesson; used to word drafts made without AI.
+	Chapter  string `json:"chapter,omitempty"`
 	Count    int    `json:"count,omitempty"`
 	LessonId string `json:"lessonId,omitempty"`
 

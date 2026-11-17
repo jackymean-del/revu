@@ -4663,7 +4663,7 @@ export interface components {
             options: string[];
             answer: string;
             /** @enum {string} */
-            source: "typed" | "ai" | "imported";
+            source: "typed" | "ai" | "template" | "imported";
             /** @enum {string} */
             status: "draft" | "approved" | "retired";
             /** @description Lettered parts, (a), (b); the question is worth what they add up to. */
@@ -4709,7 +4709,7 @@ export interface components {
             options?: string[];
             answer?: string;
             /** @enum {string} */
-            source?: "typed" | "ai" | "imported";
+            source?: "typed" | "ai" | "template" | "imported";
             /** @enum {string} */
             status?: "draft" | "approved" | "retired";
             /** @description Lettered parts, (a), (b); the question is worth what they add up to. */
@@ -4918,6 +4918,8 @@ export interface components {
             question?: components["schemas"]["TypedQuestion"];
         };
         QuestionDraftRequest: {
+            /** @description The chapter, when the need has no lesson; used to word drafts made without AI. */
+            chapter?: string;
             levelId: string;
             subjectId: string;
             lessonId?: string;

@@ -256,9 +256,9 @@ test('an empty slot is typed, picked or drafted with AI where it stands; a draft
 
   // Drafted with AI from the slot's own needs, then approved by using it.
   await card.getByRole('button', { name: 'Pick' }).click()
-  await card.getByRole('button', { name: 'Draft with AI' }).click()
+  await card.getByRole('button', { name: 'Draft questions' }).click()
   await expect(card).toContainText('1 drafted below, to approve')
-  expect(api.sent.find((s) => s.path === 'draft')?.body).toEqual({ levelId: 'l6', subjectId: 'math', lessonId: 'les', qtype: 'Short answer', bloom: 'apply', marks: '2', count: 3 })
+  expect(api.sent.find((s) => s.path === 'draft')?.body).toEqual({ levelId: 'l6', subjectId: 'math', lessonId: 'les', chapter: 'Fractions', qtype: 'Short answer', bloom: 'apply', marks: '2', count: 3 })
   await expect(card).toContainText('AI draft')
   await card.getByRole('button', { name: 'Approve and use' }).click()
   await expect.poll(() => api.sent.find((s) => s.path === 'slot')?.body).toEqual({ questionId: 'q9' })

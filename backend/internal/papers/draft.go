@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackymean-del/revu/internal/ai"
@@ -29,6 +30,7 @@ type draftIn struct {
 	Marks     string `json:"marks"`
 	Count     int    `json:"count"`
 	Note      string `json:"note"`     // anything the teacher wants, e.g. "use local examples"
+	Chapter   string `json:"chapter"`  // the blueprint row's chapter, when it has no lesson
 	Taxonomy  string `json:"taxonomy"` // solo or custom, with Level; Bloom uses Bloom
 	Level     string `json:"level"`
 }
@@ -58,14 +60,13 @@ For choice questions give exactly four options, one correct, with plausible dist
 The answer is for the teacher: give the correct answer and, for more than one mark, how the marks split.
 Do not repeat or closely paraphrase the existing questions you are shown.`
 
-// draftQuestions asks the model for questions fitting one need of the
-// blueprint and saves them in the bank as drafts from AI, to be approved by
-// a teacher (B3.4). Only the curriculum is sent: no learner data at all.
+// draftQuestions drafts questions fitting one need of the blueprint and
+// saves them in the bank as drafts, to be approved by a teacher (B3.4).
+// With an AI connected, the model writes them from the curriculum alone (no
+// learner data at all). Without one, they are drafted here, from the
+// bank's own questions and stems for the level (see suggest).
 func draftQuestions(d ai.Drafter) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		if d == nil {
-			return problem.New(http.StatusServiceUnavailable, "ai.off", "AI drafting is not set up for this service yet.")
-		}
 		tx, err := tenant.Tx(c)
 		if err != nil {
 			return err
@@ -163,6 +164,15 @@ func draftQuestions(d ai.Drafter) fiber.Handler {
 			return err
 		}
 
+		m, _ := tenant.MemberFrom(c)
+		if d == nil {
+			topic := lesson
+			if topic == "" {
+				topic = strings.TrimSpace(in.Chapter)
+			}
+			return builtIn(c, in, topic, target, outcomes, m.OrgID, m.UserID)
+		}
+
 		var p strings.Builder
 		fmt.Fprintf(&p, "Class: %s\nSubject: %s\n", level, subject)
 		if lesson != "" {
@@ -215,7 +225,6 @@ func draftQuestions(d ai.Drafter) fiber.Handler {
 			slog.Error("ai draft", "err", err)
 			return problem.New(http.StatusBadGateway, "ai.failed", "The AI could not draft questions just now. Try again.")
 		}
-		m, _ := tenant.MemberFrom(c)
 		made := []Question{}
 		for _, q := range out.Questions {
 			if len(made) == in.Count || strings.TrimSpace(q.Text) == "" {
@@ -250,4 +259,65 @@ func draftQuestions(d ai.Drafter) fiber.Handler {
 		}
 		return c.Status(http.StatusCreated).JSON(made)
 	}
+}
+
+// builtIn drafts without an AI: number variants of the bank's questions of
+// the same type and marks, then stems for the level filled with the lesson
+// and outcome. They are saved as drafts, from the template source.
+func builtIn(c fiber.Ctx, in draftIn, lesson, target string, outcomes []string, orgID, userID string) error {
+	tx, err := tenant.Tx(c)
+	if err != nil {
+		return err
+	}
+	ctx := c.Context()
+	rows, err := tx.Query(ctx, `SELECT text FROM questions WHERE level_id = $1::uuid AND subject_id = $2::uuid AND ($3 = '' OR lesson_id = nullif($3, '')::uuid)
+		AND lower(qtype) = lower($4) AND marks = $5::numeric AND status <> 'retired' AND jsonb_array_length(bits) = 0 ORDER BY created_at DESC LIMIT 50`,
+		in.LevelID, in.SubjectID, in.LessonID, in.QType, in.Marks)
+	if err != nil {
+		return err
+	}
+	var bank []string
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return err
+		}
+		bank = append(bank, t)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	outcome := target
+	if outcome == "" && len(outcomes) > 0 {
+		outcome = outcomes[0]
+	}
+	made := []Question{}
+	for _, s := range suggest(in.Count, in.QType, in.Bloom, lesson, outcome, bank, uint64(time.Now().UnixNano())) {
+		x := questionIn{LevelID: in.LevelID, SubjectID: in.SubjectID, LessonID: in.LessonID, OutcomeID: in.OutcomeID, Bloom: in.Bloom, QType: in.QType, Marks: in.Marks,
+			Difficulty: "medium", Text: s.Text, Answer: s.Answer, Options: s.Options, Source: "template", Status: "draft"}
+		if x.Bloom == "" {
+			x.Bloom = s.Bloom
+		}
+		switch in.Taxonomy {
+		case "solo":
+			x.Solo = in.Level
+		case "custom":
+			x.Custom = in.Level
+		}
+		if err := x.valid(); err != nil {
+			continue
+		}
+		saved, err := insertQuestion(c, x, orgID, userID)
+		if err != nil {
+			return err
+		}
+		made = append(made, saved)
+	}
+	if len(made) == 0 {
+		return problem.New(http.StatusUnprocessableEntity, "draft.none", "Nothing to draft from yet: link the lesson's learning outcomes in Configuration, or type the question yourself.")
+	}
+	if err := audit.Record(c, audit.Entry{Action: "draft", Entity: "questions", After: map[string]any{"model": "built-in", "count": len(made), "qtype": in.QType, "marks": in.Marks}}); err != nil {
+		return err
+	}
+	return c.Status(http.StatusCreated).JSON(made)
 }

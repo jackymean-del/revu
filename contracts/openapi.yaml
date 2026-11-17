@@ -8268,7 +8268,7 @@ components:
           type: string
         source:
           type: string
-          enum: [typed, ai, imported]
+          enum: [typed, ai, template, imported]
         status:
           type: string
           enum: [draft, approved, retired]
@@ -8358,7 +8358,7 @@ components:
           type: string
         source:
           type: string
-          enum: [typed, ai, imported]
+          enum: [typed, ai, template, imported]
         status:
           type: string
           enum: [draft, approved, retired]
@@ -8767,6 +8767,10 @@ components:
       type: object
       required: [levelId, subjectId, qtype, marks]
       properties:
+        chapter:
+          type: string
+          maxLength: 120
+          description: The chapter, when the need has no lesson; used to word drafts made without AI.
         levelId:
           type: string
         subjectId:
